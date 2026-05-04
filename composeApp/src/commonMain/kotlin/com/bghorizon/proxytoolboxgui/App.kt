@@ -1,49 +1,37 @@
 package com.bghorizon.proxytoolboxgui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import proxytoolboxgui.composeapp.generated.resources.Res
-import proxytoolboxgui.composeapp.generated.resources.compose_multiplatform
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bghorizon.proxytoolboxgui.data.SettingsRepository
+import com.bghorizon.proxytoolboxgui.data.SettingsStore
+import com.bghorizon.proxytoolboxgui.platform.getPlatform
+import com.bghorizon.proxytoolboxgui.ui.screens.MainScreen
+import com.bghorizon.proxytoolboxgui.ui.screens.SettingsScreen
+import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionsScreen
+import com.bghorizon.proxytoolboxgui.ui.theme.AppTheme
+import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
+import com.bghorizon.proxytoolboxgui.viewmodel.Screen
 
 @Composable
-@Preview
 fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
-            }
+    val platform = remember { getPlatform() }
+    val settingsStore = remember { createSettingsStore(platform) }
+    val settingsRepository = remember { SettingsRepository(settingsStore) }
+
+    val viewModel: MainViewModel = viewModel {
+        MainViewModel(platform, settingsRepository)
+    }
+
+    val settings by viewModel.settings.collectAsState()
+    val currentScreen by viewModel.currentScreen.collectAsState()
+
+    AppTheme(themeMode = settings.theme) {
+        when (currentScreen) {
+            Screen.Main -> MainScreen(viewModel)
+            Screen.Subscriptions -> SubscriptionsScreen(viewModel)
+            Screen.Settings -> SettingsScreen(viewModel)
         }
     }
 }
+
+expect fun createSettingsStore(platform: com.bghorizon.proxytoolboxgui.platform.Platform): SettingsStore

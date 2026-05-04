@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -16,7 +17,7 @@ kotlin {
         }
     }
     
-    jvm()
+    jvm("desktop")
     
     sourceSets {
         androidMain.dependencies {
@@ -32,6 +33,13 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.ktor.server.core)
+            implementation(libs.ktor.server.cio)
+            implementation(libs.ktor.server.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -57,6 +65,9 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            pickFirsts += ["libgojni.so"]
         }
     }
     buildTypes {
@@ -84,4 +95,44 @@ compose.desktop {
             packageVersion = "1.0.0"
         }
     }
+}
+
+tasks.register<Exec>("buildGoWrapper") {
+    group = "build"
+    description = "Builds the Go wrapper binary"
+
+//    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+//    val makeCmd = if (isWindows) "mingw32-make.exe" else "make"
+    val makeCmd = "make"
+
+    workingDir = file("../gowrapper")
+    commandLine(makeCmd, "build")
+
+    doLast {
+        println("Go wrapper built successfully")
+    }
+}
+
+tasks.register<Exec>("buildAndroidWrapper") {
+    group = "build"
+    description = "Builds the Android Go wrapper AAR using gomobile"
+
+//    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+//    val makeCmd = if (isWindows) "mingw32-make.exe" else "make"
+    val makeCmd = "make"
+
+    workingDir = file("../gowrapper")
+    commandLine(makeCmd, "android")
+
+    doLast {
+        println("Android wrapper built successfully")
+    }
+}
+
+tasks.matching { it.name.contains("merge") && it.name.contains("JniLibFolders") }.configureEach {
+    dependsOn("buildAndroidWrapper")
+}
+
+tasks.matching { it.name == "run" }.configureEach {
+    dependsOn("buildGoWrapper")
 }
