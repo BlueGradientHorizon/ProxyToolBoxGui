@@ -6,7 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.widget.Toast
-import com.bghorizon.proxytoolboxgui.appContext
+import com.bghorizon.proxytoolboxgui.ProxyToolBoxApplication
 import java.io.File
 
 class AndroidPlatform(private val context: Context) : Platform {
@@ -43,4 +43,4 @@ class AndroidPlatform(private val context: Context) : Platform {
     }
 }
 
-actual fun getPlatform(): Platform = AndroidPlatform(appContext)
+actual fun getPlatform(): Platform = AndroidPlatform(ProxyToolBoxApplication.appContext)
