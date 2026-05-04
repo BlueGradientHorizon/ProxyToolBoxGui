@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -59,7 +60,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
         ) {
             item {
                 SettingsCategory(title = "Appearance")
-                SettingsListItem(
+                SettingsClickableItem(
                     title = stringResource(Res.string.theme),
                     subtitle = when (settings.theme) {
                         ThemeMode.LIGHT -> stringResource(Res.string.theme_light)
@@ -72,7 +73,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
             item {
                 SettingsCategory(title = "Worker")
-                SettingsListItem(
+                SettingsClickableItem(
                     title = stringResource(Res.string.current_worker),
                     subtitle = workers.find { it.path == settings.selectedWorker }?.name
                         ?: stringResource(Res.string.no_workers_available),
@@ -193,20 +194,30 @@ private fun SettingsCategory(title: String) {
 }
 
 @Composable
-private fun SettingsListItem(
+private fun SettingsClickableItem(
     title: String,
     subtitle: String,
     onClick: () -> Unit
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
+    Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = ListItemDefaults.colors(
+        colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        shape = MaterialTheme.shapes.medium
-    )
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 @Composable
@@ -219,9 +230,18 @@ private fun SettingsNumberItem(
 ) {
     var text by remember(value) { mutableStateOf(value.toString()) }
 
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
             OutlinedTextField(
                 value = text,
                 onValueChange = { newText ->
@@ -237,13 +257,8 @@ private fun SettingsNumberItem(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-        },
-        modifier = Modifier.fillMaxWidth(),
-        colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        shape = MaterialTheme.shapes.medium
-    )
+        }
+    }
 }
 
 @Composable
@@ -252,20 +267,30 @@ private fun SettingsSwitchItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        trailingContent = {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        onClick = { onCheckedChange(!checked) }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange
             )
-        },
-        modifier = Modifier.fillMaxWidth(),
-        colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        shape = MaterialTheme.shapes.medium
-    )
+        }
+    }
 }
 
 @Composable

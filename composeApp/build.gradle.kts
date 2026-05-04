@@ -17,7 +17,7 @@ kotlin {
         }
     }
     
-    jvm("desktop")
+    jvm()
     
     sourceSets {
         androidMain.dependencies {
@@ -31,6 +31,7 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
+            implementation(compose.materialIconsExtended)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.coroutines.core)
@@ -67,7 +68,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            pickFirsts += ["libgojni.so"]
+            pickFirsts += listOf("libgojni.so")
         }
     }
     buildTypes {

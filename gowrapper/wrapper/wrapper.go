@@ -88,7 +88,7 @@ type ProxyConfig struct {
 
 type WrapperSettings struct {
 	DownloadTimeout    int  `json:"download_timeout"`
-	PerformDedup       bool `json:"perform_dedup"`
+	PerformDedup        bool `json:"perform_dedup"`
 	LatencyRounds      int  `json:"latency_rounds"`
 	RoundTimeout       int  `json:"round_timeout"`
 	TestByBatches      bool `json:"test_by_batches"`
@@ -101,7 +101,7 @@ type WrapperSettings struct {
 func DefaultSettings() WrapperSettings {
 	return WrapperSettings{
 		DownloadTimeout:    10,
-		PerformDedup:       true,
+		PerformDedup:        true,
 		LatencyRounds:      3,
 		RoundTimeout:       10,
 		TestByBatches:      true,
@@ -392,46 +392,42 @@ func (w *Wrapper) RunLatencyTests(callback TestCallback) string {
 	w.mu.Unlock()
 
 	ctx := context.Background()
-	tr, err := runner.NewTestRunner(runner.RunnerSettings{
-		WorkerPath: w.selectedWorker,
-	})
-	if err != nil {
-		w.mu.Lock()
-		w.status = StatusError
-		w.mu.Unlock()
-		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
-	}
-	defer tr.Close()
 
+	// Ensure tags are set before anything else
 	for i := range configs {
 		if configs[i].Config != nil && configs[i].Config.Tag == "" {
 			configs[i].Config.Tag = fmt.Sprintf("outbound-%d", i)
 		}
 	}
 
-	_, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
+	// 1. Initial Validation to filter broken ones
+	tr, err := runner.NewTestRunner(runner.RunnerSettings{
+		WorkerPath: w.selectedWorker,
+	})
 	if err != nil {
-		w.mu.Lock()
-		w.status = StatusError
-		w.mu.Unlock()
 		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
 	}
 
-	validConfigs := make([]parsers.ProxyConfig, 0)
+	taggedConfigs, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
+	tr.Close()
+	if err != nil {
+		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
+	}
+
+	// Filter based on validation errors
 	errMap := make(map[string]bool)
 	for _, ve := range validationErrors {
 		errMap[ve.Tag] = true
 	}
-	for _, c := range configs {
+
+	validConfigs := make([]parsers.ProxyConfig, 0)
+	for _, c := range taggedConfigs {
 		if c.Config != nil && !errMap[c.Config.Tag] {
 			validConfigs = append(validConfigs, c)
 		}
 	}
 
 	if len(validConfigs) == 0 {
-		w.mu.Lock()
-		w.status = StatusIdle
-		w.mu.Unlock()
 		return `{"error":"no_valid_configs"}`
 	}
 
@@ -441,13 +437,45 @@ func (w *Wrapper) RunLatencyTests(callback TestCallback) string {
 	}
 
 	totalBatches := (len(validConfigs) + batchSize - 1) / batchSize
-
 	var allResults []runner.LatencyTestResult
 
+	// 2. Batch Processing
 	for batchStart := 0; batchStart < len(validConfigs); batchStart += batchSize {
 		batchEnd := min(batchStart+batchSize, len(validConfigs))
 		batchConfigs := validConfigs[batchStart:batchEnd]
 		batchNum := batchStart/batchSize + 1
+
+		batchRunner, err := runner.NewTestRunner(runner.RunnerSettings{
+			WorkerPath: w.selectedWorker,
+		})
+		if err != nil {
+			continue
+		}
+
+		// Re-validate for this specific batch runner instance
+		_, batchValidationErrors, err := batchRunner.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
+		if err != nil {
+			batchRunner.Close()
+			continue
+		}
+
+		// FIX: Extract ONLY the tags (strings) for RunLatencyTests
+		batchErrMap := make(map[string]bool)
+		for _, ve := range batchValidationErrors {
+			batchErrMap[ve.Tag] = true
+		}
+
+		var batchTags []string
+		for _, c := range batchConfigs {
+			if c.Config != nil && !batchErrMap[c.Config.Tag] {
+				batchTags = append(batchTags, c.Config.Tag)
+			}
+		}
+
+		if len(batchTags) == 0 {
+			batchRunner.Close()
+			continue
+		}
 
 		w.mu.Lock()
 		w.testProgress = TestProgress{
@@ -457,24 +485,6 @@ func (w *Wrapper) RunLatencyTests(callback TestCallback) string {
 			IsRunning:    true,
 		}
 		w.mu.Unlock()
-
-		batchRunner, err := runner.NewTestRunner(runner.RunnerSettings{
-			WorkerPath: w.selectedWorker,
-		})
-		if err != nil {
-			continue
-		}
-
-		_, validTags, err := batchRunner.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
-		if err != nil {
-			batchRunner.Close()
-			continue
-		}
-
-		if len(validTags) == 0 {
-			batchRunner.Close()
-			continue
-		}
 
 		ltSettings := runner.LatencyTestRunnerSettings{
 			BaseTestRunnerSettings: runner.BaseTestRunnerSettings{
@@ -504,16 +514,16 @@ func (w *Wrapper) RunLatencyTests(callback TestCallback) string {
 			TestURL: "https://www.google.com/generate_204",
 		}
 
-		testResults, err := batchRunner.RunLatencyTests(ctx, validTags, ltSettings)
-		if err != nil {
-			batchRunner.Close()
-			continue
+		// Fixed call: passing []string instead of []runner.ValidationError
+		testResults, err := batchRunner.RunLatencyTests(ctx, batchTags, ltSettings)
+		if err == nil {
+			allResults = append(allResults, testResults.Results...)
 		}
 
-		allResults = append(allResults, testResults.Results...)
 		batchRunner.Close()
 	}
 
+	// 3. Update State
 	w.mu.Lock()
 	w.workingConfigs = make([]parsers.ProxyConfig, 0)
 	passedTags := make(map[string]struct{})
