@@ -1,59 +1,47 @@
-.PHONY: build android clean
-
-EXT :=
 ifeq ($(OS),Windows_NT)
-EXT := .exe
+    EXE := .exe
+    SHELL := cmd.exe
+    MKDIR = if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
+    RM = if exist "$(subst /,\,$(1))" del /Q /F "$(subst /,\,$(1))"
+    RMDIR = if exist "$(subst /,\,$(1))" rmdir /S /Q "$(subst /,\,$(1))"
+    CP = copy /Y "$(subst /,\,$(1))" "$(subst /,\,$(2))"
+    TEMP_DIR := $(TEMP)\proxy_build
+else
+    EXE :=
+    MKDIR = mkdir -p $(1)
+    RM = rm -f $(1)
+    RMDIR = rm -rf $(1)
+    CP = cp $(1) $(2)
+    TEMP_DIR := /tmp/proxy_build
 endif
-
-GOOS := $(shell go env GOOS)
-GOARCH := $(shell go env GOARCH)
 
 WORKERS_REPO := github.com/bluegradienthorizon/proxytoolbox
 WORKERS_VERSION := v0.0.1
 WORKERS := xraycore singbox
+ANDROID_OUT := ../composeApp/libs
 
-ifeq ($(findstring Windows,$(OS)),)
-TEMP_DIR := $(shell mktemp -d 2>/dev/null || mktemp -d -t 'tmp')
-else
-TEMP_DIR := $(shell echo %TEMP%\tmp_%RANDOM%)
-endif
+.PHONY: build android clean
 
 build:
-	go build -o bin/wrapper$(EXT) ./wrapper
-	@bash -c 'for w in $(WORKERS); do \
-		if [ ! -f bin/$$w$(EXT) ]; then \
-			git clone --depth 1 --branch $(WORKERS_VERSION) https://$(WORKERS_REPO) $(TEMP_DIR) && \
-			cd $(TEMP_DIR)/internal/workers/$$w && \
-			go build -o $(CURDIR)/bin/$$w$(EXT) . && \
-			cd $(CURDIR) && rm -rf $(TEMP_DIR); \
-		fi; \
-	done'
-
-ifeq ($(OS),Windows_NT)
-    SHELL := cmd
-    MKDIR := if not exist "$(1)" mkdir "$(1)"
-    CP := copy /Y "$(1)" "$(2)"
-    RM := if exist "$(1)" del /F /Q "$(1)"
-else
-    MKDIR := mkdir -p $(1)
-    CP := cp $(1) $(2)
-    RM := rm -f $(1)
-endif
-
-ANDROID_OUT := ../composeApp/src/androidMain/jniLibs
+# 	go build -o bin/wrapper$(EXE) ./wrapper
+# 	$(foreach w,$(WORKERS), \
+# 		$(if $(wildcard bin/$(w)$(EXE)),, \
+# 			git clone --depth 1 --branch $(WORKERS_VERSION) https://$(WORKERS_REPO) $(TEMP_DIR) && \
+# 			cd $(TEMP_DIR)/internal/workers/$(w) && \
+# 			go build -o $(CURDIR)/bin/$(w)$(EXE) . && \
+# 			cd $(CURDIR) && $(call RMDIR,$(TEMP_DIR)) \
+# 		) \
+# 	)
 
 android:
 	$(call MKDIR,$(ANDROID_OUT))
+	gomobile init
 	gomobile bind -target=android/arm64,android/amd64 -androidapi 24 -o $(ANDROID_OUT)/wrapper.aar ./wrapper
-	@bash -c 'for w in $(WORKERS); do \
-		if [ -f bin/$$w ]; then cp bin/$$w $(ANDROID_OUT)/lib$$w.so; fi; \
-	done'
+	$(foreach w,$(WORKERS), \
+		$(if $(wildcard bin/$(w)), $(call CP,bin/$(w),$(ANDROID_OUT)/lib$(w).so), ) \
+	)
 
 clean:
-ifeq ($(OS),Windows_NT)
-	if exist bin rmdir /s /q bin
-	if exist *.aar del /q *.aar
-else
-	rm -rf bin/
-	rm -f *.aar
-endif
+	$(call RMDIR,bin)
+	$(call RM,*.aar)
+	$(call RMDIR,$(TEMP_DIR))

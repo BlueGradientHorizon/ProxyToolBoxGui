@@ -152,11 +152,11 @@ class MainViewModel(
                     configsJson = validatedJson,
                     settings = _settings.value,
                     callback = object : GoTestCallback {
-                        override fun onRoundStarted(batch: Int, round: Int, total: Int) {
+                        override fun onRoundStarted(batch: Long, round: Long, total: Long) {
                             _testProgress.value = _testProgress.value.copy(
-                                currentBatch = batch,
-                                currentRound = round,
-                                totalSeconds = total * _settings.value.roundTimeout,
+                                currentBatch = batch.toInt(),
+                                currentRound = round.toInt(),
+                                totalSeconds = total.toInt() * _settings.value.roundTimeout,
                                 elapsedSeconds = 0,
                                 isRunning = true,
                                 isRoundActive = true
@@ -183,7 +183,7 @@ class MainViewModel(
                             )
                         }
 
-                        override fun onRoundEnded(batch: Int, round: Int) {
+                        override fun onRoundEnded(batch: Long, round: Long) {
                             _testProgress.value = _testProgress.value.copy(isRoundActive = false)
                         }
                     }

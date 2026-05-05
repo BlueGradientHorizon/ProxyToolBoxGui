@@ -85,7 +85,7 @@ actual object GoBridge {
             when {
                 line.startsWith("ROUND_STARTED:") -> {
                     val parts = line.removePrefix("ROUND_STARTED:").split(",")
-                    callback.onRoundStarted(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
+                    callback.onRoundStarted(parts[0].toLong(), parts[1].toLong(), parts[2].toLong())
                 }
                 line.startsWith("PROGRESS:") -> {
                     val parts = line.removePrefix("PROGRESS:").split(",")
@@ -93,7 +93,7 @@ actual object GoBridge {
                 }
                 line.startsWith("ROUND_ENDED:") -> {
                     val parts = line.removePrefix("ROUND_ENDED:").split(",")
-                    callback.onRoundEnded(parts[0].toInt(), parts[1].toInt())
+                    callback.onRoundEnded(parts[0].toLong(), parts[1].toLong())
                 }
                 line.startsWith("RESULT:") -> {
                     result = line.removePrefix("RESULT:")

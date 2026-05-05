@@ -1,25 +1,29 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import kotlinx.serialization.json.Json
 import wrapper.Wrapper
+import wrapper.TestCallback
+import wrapper.LatencyTestSettings
 
 actual object GoBridge {
-    private val wrapper = Wrapper()
-
     actual fun discoverWorkers(libraryPath: String): String {
-        return wrapper.discoverWorkers(libraryPath)
+        return Wrapper.discoverWorkers(libraryPath)
     }
 
     actual fun parseConfigs(configStrings: List<String>, performDedup: Boolean): GoParseResult {
-        val result = wrapper.parseConfigs(configStrings.toTypedArray(), performDedup)
-        val parsed = JsonConfig.json.decodeFromString<ParseResult>(result)
-        return GoParseResult(parsed.configsJson, parsed.duplicatedCount, parsed.parseErrorCount)
+        val result = Wrapper.parseConfigs(configStrings.toTypedArray(), performDedup)
+        return GoParseResult(
+            configsJson = result.configsJson,
+            duplicatedCount = result.duplicatedCount.toInt(),
+            parseErrorCount = result.parseErrorCount.toInt()
+        )
     }
 
     actual fun validateConfigs(workerPath: String, configsJson: String): GoValidateResult {
-        val result = wrapper.validateConfigs(workerPath, configsJson)
-        val parsed = JsonConfig.json.decodeFromString<ValidateResult>(result)
-        return GoValidateResult(parsed.configsJson, parsed.validationErrorCount)
+        val result = Wrapper.validateConfigs(workerPath, configsJson)
+        return GoValidateResult(
+            configsJson = result.configsJson,
+            validationErrorCount = result.validationErrorCount.toInt()
+        )
     }
 
     actual fun runLatencyTests(
@@ -28,17 +32,14 @@ actual object GoBridge {
         settings: AppSettings,
         callback: GoTestCallback
     ): String {
-        val settingsJson = JsonConfig.json.encodeToString(
-            LatencyTestSettings(
-                performDedup = settings.performDedup,
-                latencyRounds = settings.latencyRounds,
-                roundTimeout = settings.roundTimeout,
-                testByBatches = settings.testByBatches,
-                batchSize = settings.batchSize
-            )
-        )
-        return wrapper.runLatencyTests(workerPath, configsJson, settingsJson, object : wrapper.TestCallback {
-            override fun onRoundStarted(batchNum: Int, roundNum: Int, total: Int) {
+        val s = LatencyTestSettings()
+        s.performDedup = settings.performDedup
+        s.latencyRounds = settings.latencyRounds.toLong()
+        s.roundTimeout = settings.roundTimeout.toLong()
+        s.testByBatches = settings.testByBatches
+        s.batchSize = settings.batchSize.toLong()
+        return Wrapper.runLatencyTests(workerPath, configsJson, s, object : TestCallback {
+            override fun onRoundStarted(batchNum: Long, roundNum: Long, total: Long) {
                 callback.onRoundStarted(batchNum, roundNum, total)
             }
 
@@ -46,31 +47,9 @@ actual object GoBridge {
                 callback.onProgress(tag, delay, failed)
             }
 
-            override fun onRoundEnded(batchNum: Int, roundNum: Int) {
+            override fun onRoundEnded(batchNum: Long, roundNum: Long) {
                 callback.onRoundEnded(batchNum, roundNum)
             }
         })
     }
-
-    @kotlinx.serialization.Serializable
-    private data class ParseResult(
-        val configsJson: String,
-        val duplicatedCount: Int,
-        val parseErrorCount: Int
-    )
-
-    @kotlinx.serialization.Serializable
-    private data class ValidateResult(
-        val configsJson: String,
-        val validationErrorCount: Int
-    )
-
-    @kotlinx.serialization.Serializable
-    private data class LatencyTestSettings(
-        val performDedup: Boolean,
-        val latencyRounds: Int,
-        val roundTimeout: Int,
-        val testByBatches: Boolean,
-        val batchSize: Int
-    )
 }

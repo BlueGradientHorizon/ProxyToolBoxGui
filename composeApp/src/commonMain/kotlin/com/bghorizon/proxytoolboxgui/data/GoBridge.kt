@@ -13,9 +13,9 @@ expect object GoBridge {
 }
 
 interface GoTestCallback {
-    fun onRoundStarted(batch: Int, round: Int, total: Int)
+    fun onRoundStarted(batch: Long, round: Long, total: Long)
     fun onProgress(tag: String, delay: Long, failed: Boolean)
-    fun onRoundEnded(batch: Int, round: Int)
+    fun onRoundEnded(batch: Long, round: Long)
 }
 
 data class GoParseResult(
