@@ -134,7 +134,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     dependsOn("buildGoWrapper")
 }
 
-tasks.matching { it.name.contains("merge") && it.name.contains("JniLibFolders") }.configureEach {
+tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configureEach {
     dependsOn("buildAndroidWrapper")
 }
 
