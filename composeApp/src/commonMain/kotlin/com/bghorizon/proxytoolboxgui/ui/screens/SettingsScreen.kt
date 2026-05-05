@@ -43,6 +43,7 @@ import proxytoolboxgui.composeapp.generated.resources.theme
 import proxytoolboxgui.composeapp.generated.resources.theme_dark
 import proxytoolboxgui.composeapp.generated.resources.theme_light
 import proxytoolboxgui.composeapp.generated.resources.theme_system
+import proxytoolboxgui.composeapp.generated.resources.auto_start_web_server
 import proxytoolboxgui.composeapp.generated.resources.web_server_localhost
 import proxytoolboxgui.composeapp.generated.resources.web_server_port
 

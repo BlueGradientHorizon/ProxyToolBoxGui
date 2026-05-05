@@ -3,8 +3,6 @@ package com.bghorizon.proxytoolboxgui.platform
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.swing.JFileChooser
 
 class JVMPlatform : Platform {
@@ -38,14 +36,6 @@ class JVMPlatform : Platform {
 
     override fun showToast(message: String) {
         println("Toast: $message")
-    }
-
-    override fun downloadSubscription(url: String, timeoutSeconds: Int): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = timeoutSeconds * 1000
-        connection.readTimeout = timeoutSeconds * 1000
-        connection.requestMethod = "GET"
-        return connection.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
     }
 }
 

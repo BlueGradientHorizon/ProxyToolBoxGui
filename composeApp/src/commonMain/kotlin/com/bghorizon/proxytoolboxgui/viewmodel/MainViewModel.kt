@@ -129,36 +129,10 @@ class MainViewModel(
             _testProgress.value = TestProgress(isRunning = true)
 
             try {
-                val subs = _subscriptions.value
-                val allUris = mutableListOf<String>()
-
-                _downloadProgress.value = DownloadProgress(
-                    total = subs.size,
-                    isRunning = true
-                )
-
-                var succeeded = 0
-                var failed = 0
-
-                for (sub in subs) {
-                    try {
-                        val content = platform.downloadSubscription(sub.url, _settings.value.downloadTimeout)
-                        val lines = content.lines().filter { it.isNotBlank() }
-                        allUris.addAll(lines)
-                        succeeded++
-                    } catch (e: Exception) {
-                        failed++
-                    }
-                    _downloadProgress.value = _downloadProgress.value.copy(
-                        succeeded = succeeded,
-                        failed = failed
-                    )
-                }
-
-                _downloadProgress.value = _downloadProgress.value.copy(isRunning = false)
-
                 _appStatus.value = AppStatus.PARSING
-                val (parsedJson, dupCount, parseErrs) = GoBridge.parseConfigs(allUris, _settings.value.performDedup)
+                val storedUris = loadSubscriptionUris()
+
+                val (parsedJson, dupCount, parseErrs) = GoBridge.parseConfigs(storedUris, _settings.value.performDedup)
                 val parsedConfigs = JsonConfig.json.decodeFromString<List<ProxyConfig>>(parsedJson)
                 _stats.value = ConfigStats(
                     found = parsedConfigs.size,
@@ -250,10 +224,13 @@ class MainViewModel(
 
             var succeeded = 0
             var failed = 0
+            val downloadedUris = mutableListOf<String>()
 
             for (sub in subs) {
                 try {
-                    platform.downloadSubscription(sub.url, _settings.value.downloadTimeout)
+                    val content = SubscriptionDownloader.download(sub.url, _settings.value.downloadTimeout)
+                    val lines = content.lines().filter { it.isNotBlank() }
+                    downloadedUris.addAll(lines)
                     succeeded++
                 } catch (e: Exception) {
                     failed++
@@ -264,6 +241,7 @@ class MainViewModel(
                 )
             }
 
+            saveSubscriptionUris(downloadedUris)
             _downloadProgress.value = _downloadProgress.value.copy(isRunning = false)
             _appStatus.value = AppStatus.IDLE
         }
@@ -430,6 +408,18 @@ class MainViewModel(
         val store = settingsRepository.getStore()
         val json = JsonConfig.json.encodeToString(_subscriptions.value)
         store.putString("subscriptions", json)
+    }
+
+    private suspend fun loadSubscriptionUris(): List<String> {
+        val store = settingsRepository.getStore()
+        val json = store.getString("subscription_uris", "[]")
+        return JsonConfig.json.decodeFromString(json)
+    }
+
+    private suspend fun saveSubscriptionUris(uris: List<String>) {
+        val store = settingsRepository.getStore()
+        val json = JsonConfig.json.encodeToString(uris)
+        store.putString("subscription_uris", json)
     }
 
     override fun onCleared() {
