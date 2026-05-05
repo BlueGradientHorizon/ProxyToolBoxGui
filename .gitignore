@@ -24,3 +24,4 @@ node_modules/
 *.txt
 .vscode/
 bin/
+composeApp/libs
