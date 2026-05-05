@@ -49,7 +49,8 @@ data class TestProgress(
     val batchProgresses: List<BatchProgress> = emptyList(),
     val elapsedSeconds: Int = 0,
     val totalSeconds: Int = 0,
-    val isRunning: Boolean = false
+    val isRunning: Boolean = false,
+    val isRoundActive: Boolean = false
 )
 
 @Serializable

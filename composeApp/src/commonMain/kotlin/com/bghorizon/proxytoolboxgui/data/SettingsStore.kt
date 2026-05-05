@@ -19,6 +19,8 @@ class SettingsRepository(private val store: SettingsStore) {
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
+    fun getStore(): SettingsStore = store
+
     suspend fun loadSettings() {
         val themeOrdinal = store.getInt("theme", 2)
         _settings.value = AppSettings(

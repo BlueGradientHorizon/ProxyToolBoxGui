@@ -16,9 +16,9 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     jvm()
-    
+
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
@@ -94,16 +94,15 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "com.bghorizon.proxytoolboxgui"
             packageVersion = "1.0.0"
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("../gowrapper/bin"))
         }
     }
 }
 
 tasks.register<Exec>("buildGoWrapper") {
     group = "build"
-    description = "Builds the Go wrapper binary"
+    description = "Builds the Go wrapper binary and workers"
 
-//    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
-//    val makeCmd = if (isWindows) "mingw32-make.exe" else "make"
     val makeCmd = "make"
 
     workingDir = file("../gowrapper")
@@ -118,8 +117,6 @@ tasks.register<Exec>("buildAndroidWrapper") {
     group = "build"
     description = "Builds the Android Go wrapper AAR using gomobile"
 
-//    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
-//    val makeCmd = if (isWindows) "mingw32-make.exe" else "make"
     val makeCmd = "make"
 
     workingDir = file("../gowrapper")
@@ -130,10 +127,16 @@ tasks.register<Exec>("buildAndroidWrapper") {
     }
 }
 
-tasks.matching { it.name.contains("merge") && it.name.contains("JniLibFolders") }.configureEach {
+// Fail the whole build if the wrapper/workers cannot be built
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    dependsOn("buildGoWrapper")
+}
+
+tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configureEach {
     dependsOn("buildAndroidWrapper")
 }
 
-tasks.matching { it.name == "run" }.configureEach {
+// Ensure desktop packaging also triggers native build
+tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractRunDistributableTask>().configureEach {
     dependsOn("buildGoWrapper")
 }

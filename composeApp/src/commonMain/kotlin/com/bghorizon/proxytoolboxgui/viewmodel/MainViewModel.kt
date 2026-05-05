@@ -61,6 +61,21 @@ class MainViewModel(
     private val _showWorkerDialog = MutableStateFlow(false)
     val showWorkerDialog: StateFlow<Boolean> = _showWorkerDialog.asStateFlow()
 
+    private val _showDownloadTimeoutDialog = MutableStateFlow(false)
+    val showDownloadTimeoutDialog: StateFlow<Boolean> = _showDownloadTimeoutDialog.asStateFlow()
+
+    private val _showLatencyRoundsDialog = MutableStateFlow(false)
+    val showLatencyRoundsDialog: StateFlow<Boolean> = _showLatencyRoundsDialog.asStateFlow()
+
+    private val _showRoundTimeoutDialog = MutableStateFlow(false)
+    val showRoundTimeoutDialog: StateFlow<Boolean> = _showRoundTimeoutDialog.asStateFlow()
+
+    private val _showBatchSizeDialog = MutableStateFlow(false)
+    val showBatchSizeDialog: StateFlow<Boolean> = _showBatchSizeDialog.asStateFlow()
+
+    private val _showPortDialog = MutableStateFlow(false)
+    val showPortDialog: StateFlow<Boolean> = _showPortDialog.asStateFlow()
+
     private var testJob: Job? = null
     private var downloadJob: Job? = null
     private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
@@ -71,6 +86,7 @@ class MainViewModel(
         }
         viewModelScope.launch {
             settingsRepository.loadSettings()
+            _subscriptions.value = loadSubscriptions()
             discoverWorkers()
         }
     }
@@ -87,11 +103,14 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val libraryPath = platform.getWorkerLibraryPath()
-                // Call Go wrapper: wrapper.DiscoverWorkers(libraryPath)
-                // Parse JSON into List<WorkerInfo>
-                _workers.value = emptyList()
+                val json = GoBridge.discoverWorkers(libraryPath)
+                _workers.value = JsonConfig.json.decodeFromString<List<WorkerInfo>>(json)
+                if (_workers.value.isEmpty()) {
+                    _appStatus.value = AppStatus.ERROR
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
+                _appStatus.value = AppStatus.ERROR
             }
         }
     }
@@ -103,44 +122,108 @@ class MainViewModel(
     }
 
     fun startTest() {
-        if (_workers.value.isEmpty()) return
-        if (testJob?.isActive == true) return
+        if (_workers.value.isEmpty() || testJob?.isActive == true) return
 
         testJob = viewModelScope.launch(Dispatchers.IO) {
             _appStatus.value = AppStatus.TESTING
             _testProgress.value = TestProgress(isRunning = true)
 
             try {
-                // 1. Download subscriptions
-                // 2. Parse configs via Go wrapper
-                // 3. Validate via Go wrapper
-                // 4. Run latency tests via Go wrapper with callbacks
+                val subs = _subscriptions.value
+                val allUris = mutableListOf<String>()
 
-                val totalBatches = 4
-                val totalRounds = _settings.value.latencyRounds
+                _downloadProgress.value = DownloadProgress(
+                    total = subs.size,
+                    isRunning = true
+                )
 
-                for (batch in 1..totalBatches) {
-                    for (round in 1..totalRounds) {
-                        _testProgress.value = _testProgress.value.copy(
-                            currentBatch = batch,
-                            totalBatches = totalBatches,
-                            currentRound = round,
-                            totalRounds = totalRounds,
-                            phase = 2
-                        )
-                        delay(1000)
+                var succeeded = 0
+                var failed = 0
+
+                for (sub in subs) {
+                    try {
+                        val content = platform.downloadSubscription(sub.url, _settings.value.downloadTimeout)
+                        val lines = content.lines().filter { it.isNotBlank() }
+                        allUris.addAll(lines)
+                        succeeded++
+                    } catch (e: Exception) {
+                        failed++
                     }
+                    _downloadProgress.value = _downloadProgress.value.copy(
+                        succeeded = succeeded,
+                        failed = failed
+                    )
                 }
 
-                _appStatus.value = AppStatus.COMPLETED
-                _stats.value = _stats.value.copy(
-                    working = _stats.value.found - _stats.value.parseErr - _stats.value.validErr
+                _downloadProgress.value = _downloadProgress.value.copy(isRunning = false)
+
+                _appStatus.value = AppStatus.PARSING
+                val (parsedJson, dupCount, parseErrs) = GoBridge.parseConfigs(allUris, _settings.value.performDedup)
+                val parsedConfigs = JsonConfig.json.decodeFromString<List<ProxyConfig>>(parsedJson)
+                _stats.value = ConfigStats(
+                    found = parsedConfigs.size,
+                    duplicated = dupCount,
+                    parseErr = parseErrs
                 )
+
+                _appStatus.value = AppStatus.VALIDATING
+                val workerPath = _settings.value.selectedWorker
+                val (validatedJson, validErrs) = GoBridge.validateConfigs(workerPath, parsedJson)
+                val validatedConfigs = JsonConfig.json.decodeFromString<List<ProxyConfig>>(validatedJson)
+                _stats.value = _stats.value.copy(validErr = validErrs)
+
+                _appStatus.value = AppStatus.TESTING
+                val resultJson = GoBridge.runLatencyTests(
+                    workerPath = workerPath,
+                    configsJson = validatedJson,
+                    settings = _settings.value,
+                    callback = object : GoTestCallback {
+                        override fun onRoundStarted(batch: Int, round: Int, total: Int) {
+                            _testProgress.value = _testProgress.value.copy(
+                                currentBatch = batch,
+                                currentRound = round,
+                                totalSeconds = total * _settings.value.roundTimeout,
+                                elapsedSeconds = 0,
+                                isRunning = true,
+                                isRoundActive = true
+                            )
+                        }
+
+                        override fun onProgress(tag: String, delay: Long, failed: Boolean) {
+                            val current = _testProgress.value
+                            val updatedProgresses = current.batchProgresses.toMutableList()
+                            val batchIndex = updatedProgresses.indexOfFirst { it.batchNum == current.currentBatch }
+
+                            if (batchIndex >= 0) {
+                                val bp = updatedProgresses[batchIndex]
+                                updatedProgresses[batchIndex] = bp.copy(
+                                    running = bp.running - 1,
+                                    failed = if (failed) bp.failed + 1 else bp.failed,
+                                    succeeded = if (!failed) bp.succeeded + 1 else bp.succeeded
+                                )
+                            }
+
+                            _testProgress.value = current.copy(
+                                batchProgresses = updatedProgresses,
+                                elapsedSeconds = current.elapsedSeconds + 1
+                            )
+                        }
+
+                        override fun onRoundEnded(batch: Int, round: Int) {
+                            _testProgress.value = _testProgress.value.copy(isRoundActive = false)
+                        }
+                    }
+                )
+
+                val working = JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
+                _workingConfigs.value = working
+                _stats.value = _stats.value.copy(working = working.size)
+                _appStatus.value = AppStatus.COMPLETED
             } catch (e: Exception) {
                 _appStatus.value = AppStatus.ERROR
                 e.printStackTrace()
             } finally {
-                _testProgress.value = _testProgress.value.copy(isRunning = false)
+                _testProgress.value = _testProgress.value.copy(isRunning = false, isRoundActive = false)
                 if (_settings.value.autoStartWebServer) {
                     startWebServer()
                 }
@@ -170,8 +253,7 @@ class MainViewModel(
 
             for (sub in subs) {
                 try {
-                    // Download subscription content
-                    // Parse and update stats
+                    platform.downloadSubscription(sub.url, _settings.value.downloadTimeout)
                     succeeded++
                 } catch (e: Exception) {
                     failed++
@@ -277,6 +359,7 @@ class MainViewModel(
         } else {
             _subscriptions.value + newSub
         }
+        viewModelScope.launch { saveSubscriptions() }
         hideAddSubscription()
     }
 
@@ -292,6 +375,7 @@ class MainViewModel(
         _showDeleteConfirmation.value?.let { sub ->
             _subscriptions.value = _subscriptions.value.filter { it.id != sub.id }
         }
+        viewModelScope.launch { saveSubscriptions() }
         hideDeleteConfirmation()
     }
 
@@ -300,6 +384,29 @@ class MainViewModel(
 
     fun showWorkerDialog() { _showWorkerDialog.value = true }
     fun hideWorkerDialog() { _showWorkerDialog.value = false }
+
+    fun showDownloadTimeoutDialog() { _showDownloadTimeoutDialog.value = true }
+    fun hideDownloadTimeoutDialog() { _showDownloadTimeoutDialog.value = false }
+
+    fun showLatencyRoundsDialog() { _showLatencyRoundsDialog.value = true }
+    fun hideLatencyRoundsDialog() { _showLatencyRoundsDialog.value = false }
+
+    fun showRoundTimeoutDialog() { _showRoundTimeoutDialog.value = true }
+    fun hideRoundTimeoutDialog() { _showRoundTimeoutDialog.value = false }
+
+    fun showBatchSizeDialog() { _showBatchSizeDialog.value = true }
+    fun hideBatchSizeDialog() { _showBatchSizeDialog.value = false }
+
+    fun showPortDialog() { _showPortDialog.value = true }
+    fun hidePortDialog() { _showPortDialog.value = false }
+
+    fun savePort(port: Int): Boolean {
+        if (port !in 1024..65535) return false
+        viewModelScope.launch {
+            updateSettings(_settings.value.copy(webServerPort = port))
+        }
+        return true
+    }
 
     fun updateTheme(theme: ThemeMode) {
         viewModelScope.launch {
@@ -313,36 +420,17 @@ class MainViewModel(
         }
     }
 
-    fun onRoundStarted(batchNum: Int, roundNum: Int, total: Int) {
-        _testProgress.value = _testProgress.value.copy(
-            currentBatch = batchNum,
-            currentRound = roundNum,
-            elapsedSeconds = 0,
-            totalSeconds = total * _settings.value.roundTimeout
-        )
+    private suspend fun loadSubscriptions(): List<Subscription> {
+        val store = settingsRepository.getStore()
+        val json = store.getString("subscriptions", "[]")
+        return JsonConfig.json.decodeFromString(json)
     }
 
-    fun onProgress(tag: String, delay: Long, failed: Boolean) {
-        val current = _testProgress.value
-        val updatedProgresses = current.batchProgresses.toMutableList()
-        val batchIndex = updatedProgresses.indexOfFirst { it.batchNum == current.currentBatch }
-
-        if (batchIndex >= 0) {
-            val bp = updatedProgresses[batchIndex]
-            updatedProgresses[batchIndex] = bp.copy(
-                running = bp.running - 1,
-                failed = if (failed) bp.failed + 1 else bp.failed,
-                succeeded = if (!failed) bp.succeeded + 1 else bp.succeeded
-            )
-        }
-
-        _testProgress.value = current.copy(
-            batchProgresses = updatedProgresses,
-            elapsedSeconds = current.elapsedSeconds + 1
-        )
+    private suspend fun saveSubscriptions() {
+        val store = settingsRepository.getStore()
+        val json = JsonConfig.json.encodeToString(_subscriptions.value)
+        store.putString("subscriptions", json)
     }
-
-    fun onRoundEnded(batchNum: Int, roundNum: Int) {}
 
     override fun onCleared() {
         super.onCleared()

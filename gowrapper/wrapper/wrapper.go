@@ -1,579 +1,300 @@
 package wrapper
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"sync"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "strings"
+    "time"
 
-	"github.com/bluegradienthorizon/proxytoolbox/parsers"
-	"github.com/bluegradienthorizon/proxytoolbox/registry"
-	"github.com/bluegradienthorizon/proxytoolbox/runner"
-)
-
-type Status int
-
-const (
-	StatusIdle Status = iota
-	StatusDownloading
-	StatusParsing
-	StatusValidating
-	StatusTesting
-	StatusCompleted
-	StatusError
-)
-
-type TestPhase int
-
-const (
-	TestPhaseNone TestPhase = iota
-	TestPhaseValidation
-	TestPhaseLatency
+    "github.com/bluegradienthorizon/proxytoolbox/parsers"
+    "github.com/bluegradienthorizon/proxytoolbox/registry"
+    "github.com/bluegradienthorizon/proxytoolbox/runner"
 )
 
 type WorkerInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	Path    string `json:"path"`
-}
-
-type ConfigStats struct {
-	Found      int `json:"found"`
-	Duplicated int `json:"duplicated"`
-	ParseErr   int `json:"parse_err"`
-	ValidErr   int `json:"valid_err"`
-	Working    int `json:"working"`
-}
-
-type BatchProgress struct {
-	BatchNum  int `json:"batch_num"`
-	RoundNum  int `json:"round_num"`
-	Total     int `json:"total"`
-	Running   int `json:"running"`
-	Failed    int `json:"failed"`
-	Succeeded int `json:"succeeded"`
-}
-
-type TestProgress struct {
-	Phase           TestPhase       `json:"phase"`
-	CurrentBatch    int             `json:"current_batch"`
-	TotalBatches    int             `json:"total_batches"`
-	CurrentRound    int             `json:"current_round"`
-	TotalRounds     int             `json:"total_rounds"`
-	BatchProgresses []BatchProgress `json:"batch_progresses"`
-	ElapsedSeconds  int             `json:"elapsed_seconds"`
-	TotalSeconds    int             `json:"total_seconds"`
-	IsRunning       bool            `json:"is_running"`
-}
-
-type DownloadProgress struct {
-	Total     int  `json:"total"`
-	Succeeded int  `json:"succeeded"`
-	Failed    int  `json:"failed"`
-	IsRunning bool `json:"is_running"`
+    Name    string `json:"name"`
+    Version string `json:"version"`
+    Path    string `json:"path"`
 }
 
 type ProxyConfig struct {
-	Tag     string `json:"tag"`
-	Type    string `json:"type"`
-	Server  string `json:"server"`
-	Port    int    `json:"port"`
-	ConnURI string `json:"conn_uri"`
+    Tag     string `json:"tag"`
+    Type    string `json:"type"`
+    Server  string `json:"server"`
+    Port    int    `json:"port"`
+    ConnURI string `json:"conn_uri"`
 }
 
-type WrapperSettings struct {
-	DownloadTimeout    int  `json:"download_timeout"`
-	PerformDedup        bool `json:"perform_dedup"`
-	LatencyRounds      int  `json:"latency_rounds"`
-	RoundTimeout       int  `json:"round_timeout"`
-	TestByBatches      bool `json:"test_by_batches"`
-	BatchSize          int  `json:"batch_size"`
-	AutoStartWebServer bool `json:"auto_start_web_server"`
-	WebServerPort      int  `json:"web_server_port"`
-	WebServerLocalhost bool `json:"web_server_localhost"`
-}
-
-func DefaultSettings() WrapperSettings {
-	return WrapperSettings{
-		DownloadTimeout:    10,
-		PerformDedup:        true,
-		LatencyRounds:      3,
-		RoundTimeout:       10,
-		TestByBatches:      true,
-		BatchSize:          5000,
-		AutoStartWebServer: true,
-		WebServerPort:      35240,
-		WebServerLocalhost: true,
-	}
+type LatencyTestSettings struct {
+    PerformDedup  bool
+    LatencyRounds int
+    RoundTimeout  time.Duration
+    TestByBatches bool
+    BatchSize     int
 }
 
 type TestCallback interface {
-	OnRoundStarted(batchNum, roundNum, total int)
-	OnProgress(tag string, delay int64, failed bool)
-	OnRoundEnded(batchNum, roundNum int)
-	OnBatchCompleted(batchNum, succeeded, failed int)
+    OnRoundStarted(batchNum, roundNum, total int)
+    OnProgress(tag string, delay int64, failed bool)
+    OnRoundEnded(batchNum, roundNum int)
 }
 
-type Wrapper struct {
-	mu               sync.RWMutex
-	status           Status
-	workers          []WorkerInfo
-	selectedWorker   string
-	configs          []parsers.ProxyConfig
-	workingConfigs   []parsers.ProxyConfig
-	stats            ConfigStats
-	testProgress     TestProgress
-	downloadProgress DownloadProgress
-	settings         WrapperSettings
+// DiscoverWorkers finds all valid worker programs in libraryPath.
+// Returns JSON []WorkerInfo.
+func DiscoverWorkers(libraryPath string) (string, error) {
+    reg := registry.NewRegistry()
+    reg.Discover(libraryPath)
+
+    workersMap := reg.All()
+    workers := make([]WorkerInfo, 0)
+    for _, list := range workersMap {
+        for _, info := range list {
+            workers = append(workers, WorkerInfo{
+                Name:    info.Name,
+                Version: info.Version,
+                Path:    info.Path,
+            })
+        }
+    }
+
+    b, err := json.Marshal(workers)
+    return string(b), err
 }
 
-func NewWrapper() *Wrapper {
-	return &Wrapper{
-		status:   StatusIdle,
-		settings: DefaultSettings(),
-	}
+// ParseConfigs parses connection URIs into ProxyConfig structs.
+// Returns (json []ProxyConfig, duplicatedCount, parseErrorCount, error).
+func ParseConfigs(configStrings []string, performDedup bool) (string, int, int, error) {
+    seen := make(map[string]bool)
+    var configs []parsers.ProxyConfig
+    dupCount := 0
+    parseErrs := 0
+
+    for _, connURI := range configStrings {
+        connURI = strings.TrimSpace(connURI)
+        if connURI == "" {
+            continue
+        }
+        if performDedup {
+            if seen[connURI] {
+                dupCount++
+                continue
+            }
+            seen[connURI] = true
+        }
+        p, err := parsers.ParseConfig(connURI)
+        if err != nil {
+            parseErrs++
+            continue
+        }
+        configs = append(configs, *p)
+    }
+
+    var out []ProxyConfig
+    for _, c := range configs {
+        if c.Config != nil {
+            out = append(out, ProxyConfig{
+                Tag:     c.Config.Tag,
+                Type:    c.Config.Type,
+                Server:  c.Config.Server,
+                Port:    int(c.Config.Port),
+                ConnURI: c.ConnURI,
+            })
+        }
+    }
+
+    b, err := json.Marshal(out)
+    return string(b), dupCount, parseErrs, err
 }
 
-func (w *Wrapper) DiscoverWorkers(libraryPath string) string {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+// ValidateConfigs validates configs against a worker program.
+// Returns (json []ProxyConfig, validationErrorCount, error).
+func ValidateConfigs(workerPath string, configsJson string) (string, int, error) {
+    var configs []parsers.ProxyConfig
+    if err := json.Unmarshal([]byte(configsJson), &configs); err != nil {
+        return "", 0, err
+    }
 
-	reg := registry.NewRegistry()
-	reg.Discover(libraryPath)
+    ctx := context.Background()
+    tr, err := runner.NewTestRunner(runner.RunnerSettings{
+        WorkerPath: workerPath,
+    })
+    if err != nil {
+        return "", 0, err
+    }
+    defer tr.Close()
 
-	workersMap := reg.All()
-	w.workers = make([]WorkerInfo, 0)
+    for i := range configs {
+        if configs[i].Config != nil && configs[i].Config.Tag == "" {
+            configs[i].Config.Tag = fmt.Sprintf("outbound-%d", i)
+        }
+    }
 
-	for _, list := range workersMap {
-		for _, info := range list {
-			w.workers = append(w.workers, WorkerInfo{
-				Name:    info.Name,
-				Version: info.Version,
-				Path:    info.Path,
-			})
-		}
-	}
+    taggedConfigs, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
+    if err != nil {
+        return "", 0, err
+    }
 
-	if len(w.workers) > 0 {
-		w.selectedWorker = w.workers[0].Path
-	}
+    var out []ProxyConfig
+    for _, c := range taggedConfigs {
+        if c.Config != nil {
+            out = append(out, ProxyConfig{
+                Tag:     c.Config.Tag,
+                Type:    c.Config.Type,
+                Server:  c.Config.Server,
+                Port:    int(c.Config.Port),
+                ConnURI: c.ConnURI,
+            })
+        }
+    }
 
-	b, _ := json.Marshal(w.workers)
-	return string(b)
+    b, err := json.Marshal(out)
+    return string(b), len(validationErrors), err
 }
 
-func (w *Wrapper) GetWorkers() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	b, _ := json.Marshal(w.workers)
-	return string(b)
-}
+// RunLatencyTests performs batched latency tests.
+// Returns (json []ProxyConfig workingConfigs, error).
+func RunLatencyTests(workerPath string, configsJson string, settings LatencyTestSettings, callback TestCallback) (string, error) {
+    var configs []parsers.ProxyConfig
+    if err := json.Unmarshal([]byte(configsJson), &configs); err != nil {
+        return "", err
+    }
 
-func (w *Wrapper) SelectWorker(path string) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+    ctx := context.Background()
 
-	for _, wk := range w.workers {
-		if wk.Path == path {
-			w.selectedWorker = path
-			return true
-		}
-	}
-	return false
-}
+    // Ensure tags
+    for i := range configs {
+        if configs[i].Config != nil && configs[i].Config.Tag == "" {
+            configs[i].Config.Tag = fmt.Sprintf("outbound-%d", i)
+        }
+    }
 
-func (w *Wrapper) GetSelectedWorker() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	return w.selectedWorker
-}
+    // Initial validation
+    tr, err := runner.NewTestRunner(runner.RunnerSettings{
+        WorkerPath: workerPath,
+    })
+    if err != nil {
+        return "", err
+    }
 
-func (w *Wrapper) SetSettings(jsonSettings string) string {
-	var settings WrapperSettings
-	if err := json.Unmarshal([]byte(jsonSettings), &settings); err != nil {
-		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
-	}
-	w.mu.Lock()
-	w.settings = settings
-	w.mu.Unlock()
-	return `{"success":true}`
-}
+    taggedConfigs, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
+    tr.Close()
+    if err != nil {
+        return "", err
+    }
 
-func (w *Wrapper) GetSettings() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	b, _ := json.Marshal(w.settings)
-	return string(b)
-}
+    errMap := make(map[string]bool)
+    for _, ve := range validationErrors {
+        errMap[ve.Tag] = true
+    }
 
-func (w *Wrapper) ParseConfigs(configStrings []string) string {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+    validConfigs := make([]parsers.ProxyConfig, 0)
+    for _, c := range taggedConfigs {
+        if c.Config != nil && !errMap[c.Config.Tag] {
+            validConfigs = append(validConfigs, c)
+        }
+    }
 
-	w.status = StatusParsing
-	w.stats = ConfigStats{Found: len(configStrings)}
+    if len(validConfigs) == 0 {
+        return "", fmt.Errorf("no_valid_configs")
+    }
 
-	var configs []parsers.ProxyConfig
-	parseErrors := 0
+    batchSize := settings.BatchSize
+    if !settings.TestByBatches {
+        batchSize = len(validConfigs)
+    }
 
-	for _, connURI := range configStrings {
-		connURI = strings.TrimSpace(connURI)
-		if connURI == "" {
-			continue
-		}
-		p, err := parsers.ParseConfig(connURI)
-		if err != nil {
-			parseErrors++
-			continue
-		}
-		configs = append(configs, *p)
-	}
+    var allResults []runner.LatencyTestResult
 
-	w.stats.ParseErr = parseErrors
-	w.configs = configs
-	w.stats.Found = len(configs)
+    for batchStart := 0; batchStart < len(validConfigs); batchStart += batchSize {
+        batchEnd := min(batchStart+batchSize, len(validConfigs))
+        batchConfigs := validConfigs[batchStart:batchEnd]
+        batchNum := batchStart/batchSize + 1
 
-	result := map[string]any{
-		"success": len(configs),
-		"errors":  parseErrors,
-	}
-	b, _ := json.Marshal(result)
-	return string(b)
-}
+        batchRunner, err := runner.NewTestRunner(runner.RunnerSettings{
+            WorkerPath: workerPath,
+        })
+        if err != nil {
+            continue
+        }
 
-func (w *Wrapper) GetConfigs() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+        _, batchValidationErrors, err := batchRunner.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
+        if err != nil {
+            batchRunner.Close()
+            continue
+        }
 
-	configs := make([]ProxyConfig, 0, len(w.configs))
-	for _, c := range w.configs {
-		if c.Config != nil {
-			configs = append(configs, ProxyConfig{
-				Tag:     c.Config.Tag,
-				Type:    c.Config.Type,
-				Server:  c.Config.Server,
-				Port:    int(c.Config.Port),
-				ConnURI: c.ConnURI,
-			})
-		}
-	}
-	b, _ := json.Marshal(configs)
-	return string(b)
-}
+        batchErrMap := make(map[string]bool)
+        for _, ve := range batchValidationErrors {
+            batchErrMap[ve.Tag] = true
+        }
 
-func (w *Wrapper) GetWorkingConfigs() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+        var batchTags []string
+        for _, c := range batchConfigs {
+            if c.Config != nil && !batchErrMap[c.Config.Tag] {
+                batchTags = append(batchTags, c.Config.Tag)
+            }
+        }
 
-	configs := make([]ProxyConfig, 0, len(w.workingConfigs))
-	for _, c := range w.workingConfigs {
-		if c.Config != nil {
-			configs = append(configs, ProxyConfig{
-				Tag:     c.Config.Tag,
-				Type:    c.Config.Type,
-				Server:  c.Config.Server,
-				Port:    int(c.Config.Port),
-				ConnURI: c.ConnURI,
-			})
-		}
-	}
-	b, _ := json.Marshal(configs)
-	return string(b)
-}
+        if len(batchTags) == 0 {
+            batchRunner.Close()
+            continue
+        }
 
-func (w *Wrapper) GetStats() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	b, _ := json.Marshal(w.stats)
-	return string(b)
-}
+        ltSettings := runner.LatencyTestRunnerSettings{
+            BaseTestRunnerSettings: runner.BaseTestRunnerSettings{
+                SortResults:  true,
+                FilterFailed: true,
+                Timeout:      settings.RoundTimeout,
+                Rounds:       settings.LatencyRounds,
+                RoundStartedCallback: func(round int, outboundsLen int) {
+                    callback.OnRoundStarted(batchNum, round+1, outboundsLen)
+                },
+                ProgressCallback: func(result runner.LatencyTestResult) {
+                    callback.OnProgress(result.Tag, result.Delay, result.Error != nil)
+                },
+                RoundEndedCallback: func(round int) {
+                    callback.OnRoundEnded(batchNum, round+1)
+                },
+            },
+            TestURL: "https://www.google.com/generate_204",
+        }
 
-func (w *Wrapper) GetTestProgress() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	b, _ := json.Marshal(w.testProgress)
-	return string(b)
-}
+        testResults, err := batchRunner.RunLatencyTests(ctx, batchTags, ltSettings)
+        if err == nil {
+            allResults = append(allResults, testResults.Results...)
+        }
 
-func (w *Wrapper) GetDownloadProgress() string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	b, _ := json.Marshal(w.downloadProgress)
-	return string(b)
-}
+        batchRunner.Close()
+    }
 
-func (w *Wrapper) GetStatus() int {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	return int(w.status)
-}
+    passedTags := make(map[string]struct{})
+    for _, result := range allResults {
+        if result.Error == nil {
+            passedTags[result.Tag] = struct{}{}
+        }
+    }
 
-func (w *Wrapper) ValidateConfigs() string {
-	w.mu.Lock()
-	if w.selectedWorker == "" {
-		w.mu.Unlock()
-		return `{"error":"no_worker"}`
-	}
-	w.status = StatusValidating
-	w.testProgress = TestProgress{
-		Phase:     TestPhaseValidation,
-		IsRunning: true,
-	}
-	w.mu.Unlock()
+    var workingConfigs []ProxyConfig
+    for _, cfg := range validConfigs {
+        if _, ok := passedTags[cfg.Config.Tag]; ok {
+            workingConfigs = append(workingConfigs, ProxyConfig{
+                Tag:     cfg.Config.Tag,
+                Type:    cfg.Config.Type,
+                Server:  cfg.Config.Server,
+                Port:    int(cfg.Config.Port),
+                ConnURI: cfg.ConnURI,
+            })
+        }
+    }
 
-	ctx := context.Background()
-	tr, err := runner.NewTestRunner(runner.RunnerSettings{
-		WorkerPath: w.selectedWorker,
-	})
-	if err != nil {
-		w.mu.Lock()
-		w.status = StatusError
-		w.mu.Unlock()
-		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
-	}
-	defer tr.Close()
-
-	w.mu.Lock()
-	configs := make([]parsers.ProxyConfig, len(w.configs))
-	copy(configs, w.configs)
-	w.mu.Unlock()
-
-	for i := range configs {
-		if configs[i].Config != nil && configs[i].Config.Tag == "" {
-			configs[i].Config.Tag = fmt.Sprintf("outbound-%d", i)
-		}
-	}
-
-	_, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
-	if err != nil {
-		w.mu.Lock()
-		w.status = StatusError
-		w.mu.Unlock()
-		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
-	}
-
-	validCount := 0
-	for _, c := range configs {
-		if c.Config != nil {
-			validCount++
-		}
-	}
-
-	w.mu.Lock()
-	w.stats.ValidErr = len(validationErrors)
-	w.stats.Working = validCount - len(validationErrors)
-	w.status = StatusIdle
-	w.testProgress.IsRunning = false
-	w.mu.Unlock()
-
-	result := map[string]any{
-		"valid":  validCount - len(validationErrors),
-		"errors": len(validationErrors),
-	}
-	b, _ := json.Marshal(result)
-	return string(b)
-}
-
-func (w *Wrapper) RunLatencyTests(callback TestCallback) string {
-	w.mu.Lock()
-	if w.selectedWorker == "" {
-		w.mu.Unlock()
-		return `{"error":"no_worker"}`
-	}
-	w.status = StatusTesting
-	settings := w.settings
-	configs := make([]parsers.ProxyConfig, len(w.configs))
-	copy(configs, w.configs)
-	w.mu.Unlock()
-
-	ctx := context.Background()
-
-	// Ensure tags are set before anything else
-	for i := range configs {
-		if configs[i].Config != nil && configs[i].Config.Tag == "" {
-			configs[i].Config.Tag = fmt.Sprintf("outbound-%d", i)
-		}
-	}
-
-	// 1. Initial Validation to filter broken ones
-	tr, err := runner.NewTestRunner(runner.RunnerSettings{
-		WorkerPath: w.selectedWorker,
-	})
-	if err != nil {
-		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
-	}
-
-	taggedConfigs, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
-	tr.Close()
-	if err != nil {
-		return fmt.Sprintf(`{"error":"%s"}`, err.Error())
-	}
-
-	// Filter based on validation errors
-	errMap := make(map[string]bool)
-	for _, ve := range validationErrors {
-		errMap[ve.Tag] = true
-	}
-
-	validConfigs := make([]parsers.ProxyConfig, 0)
-	for _, c := range taggedConfigs {
-		if c.Config != nil && !errMap[c.Config.Tag] {
-			validConfigs = append(validConfigs, c)
-		}
-	}
-
-	if len(validConfigs) == 0 {
-		return `{"error":"no_valid_configs"}`
-	}
-
-	batchSize := settings.BatchSize
-	if !settings.TestByBatches {
-		batchSize = len(validConfigs)
-	}
-
-	totalBatches := (len(validConfigs) + batchSize - 1) / batchSize
-	var allResults []runner.LatencyTestResult
-
-	// 2. Batch Processing
-	for batchStart := 0; batchStart < len(validConfigs); batchStart += batchSize {
-		batchEnd := min(batchStart+batchSize, len(validConfigs))
-		batchConfigs := validConfigs[batchStart:batchEnd]
-		batchNum := batchStart/batchSize + 1
-
-		batchRunner, err := runner.NewTestRunner(runner.RunnerSettings{
-			WorkerPath: w.selectedWorker,
-		})
-		if err != nil {
-			continue
-		}
-
-		// Re-validate for this specific batch runner instance
-		_, batchValidationErrors, err := batchRunner.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
-		if err != nil {
-			batchRunner.Close()
-			continue
-		}
-
-		// FIX: Extract ONLY the tags (strings) for RunLatencyTests
-		batchErrMap := make(map[string]bool)
-		for _, ve := range batchValidationErrors {
-			batchErrMap[ve.Tag] = true
-		}
-
-		var batchTags []string
-		for _, c := range batchConfigs {
-			if c.Config != nil && !batchErrMap[c.Config.Tag] {
-				batchTags = append(batchTags, c.Config.Tag)
-			}
-		}
-
-		if len(batchTags) == 0 {
-			batchRunner.Close()
-			continue
-		}
-
-		w.mu.Lock()
-		w.testProgress = TestProgress{
-			Phase:        TestPhaseLatency,
-			CurrentBatch: batchNum,
-			TotalBatches: totalBatches,
-			IsRunning:    true,
-		}
-		w.mu.Unlock()
-
-		ltSettings := runner.LatencyTestRunnerSettings{
-			BaseTestRunnerSettings: runner.BaseTestRunnerSettings{
-				SortResults:  true,
-				FilterFailed: true,
-				Timeout:      time.Duration(settings.RoundTimeout) * time.Second,
-				Rounds:       settings.LatencyRounds,
-				RoundStartedCallback: func(round int, outboundsLen int) {
-					w.mu.Lock()
-					w.testProgress.CurrentRound = round + 1
-					w.testProgress.TotalRounds = settings.LatencyRounds
-					w.testProgress.ElapsedSeconds = 0
-					w.testProgress.TotalSeconds = settings.RoundTimeout * outboundsLen
-					w.mu.Unlock()
-					callback.OnRoundStarted(batchNum, round+1, outboundsLen)
-				},
-				ProgressCallback: func(result runner.LatencyTestResult) {
-					w.mu.Lock()
-					w.testProgress.ElapsedSeconds++
-					w.mu.Unlock()
-					callback.OnProgress(result.Tag, result.Delay, result.Error != nil)
-				},
-				RoundEndedCallback: func(round int) {
-					callback.OnRoundEnded(batchNum, round+1)
-				},
-			},
-			TestURL: "https://www.google.com/generate_204",
-		}
-
-		// Fixed call: passing []string instead of []runner.ValidationError
-		testResults, err := batchRunner.RunLatencyTests(ctx, batchTags, ltSettings)
-		if err == nil {
-			allResults = append(allResults, testResults.Results...)
-		}
-
-		batchRunner.Close()
-	}
-
-	// 3. Update State
-	w.mu.Lock()
-	w.workingConfigs = make([]parsers.ProxyConfig, 0)
-	passedTags := make(map[string]struct{})
-	for _, result := range allResults {
-		if result.Error == nil {
-			passedTags[result.Tag] = struct{}{}
-		}
-	}
-	for _, cfg := range validConfigs {
-		if _, ok := passedTags[cfg.Config.Tag]; ok {
-			w.workingConfigs = append(w.workingConfigs, cfg)
-		}
-	}
-	w.stats.Working = len(w.workingConfigs)
-	w.status = StatusCompleted
-	w.testProgress.IsRunning = false
-	w.mu.Unlock()
-
-	result := map[string]any{
-		"working": len(w.workingConfigs),
-		"total":   len(validConfigs),
-	}
-	b, _ := json.Marshal(result)
-	return string(b)
-}
-
-func (w *Wrapper) GetWorkingProfileURIs() []string {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	uris := make([]string, 0, len(w.workingConfigs))
-	for _, c := range w.workingConfigs {
-		uris = append(uris, c.ConnURI)
-	}
-	return uris
-}
-
-func GetLibraryPath() string {
-	e, _ := os.Executable()
-	dir := filepath.Dir(e)
-
-	if runtime.GOOS == "android" {
-		return filepath.Join(dir, "lib")
-	}
-	return dir
+    b, err := json.Marshal(workingConfigs)
+    return string(b), err
 }
 
 func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+    if a < b {
+        return a
+    }
+    return b
 }

@@ -7,7 +7,11 @@ import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import com.bghorizon.proxytoolboxgui.ProxyToolBoxApplication
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 class AndroidPlatform(private val context: Context) : Platform {
     override val name: String = "Android ${Build.VERSION.SDK_INT}"
@@ -40,6 +44,14 @@ class AndroidPlatform(private val context: Context) : Platform {
 
     override fun showToast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun downloadSubscription(url: String, timeoutSeconds: Int): String {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        connection.connectTimeout = timeoutSeconds * 1000
+        connection.readTimeout = timeoutSeconds * 1000
+        connection.requestMethod = "GET"
+        return connection.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
     }
 }
 
