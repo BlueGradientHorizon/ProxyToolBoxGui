@@ -12,23 +12,6 @@ actual object GoBridge {
         return Wrapper.discoverWorkers(libraryPath)
     }
 
-//    actual fun parseConnUris(connUris: List<String>, performDedup: Boolean): ConnUrisParsingResult {
-//        val result = Wrapper.parseConnUris(connUris.toTypedArray(), performDedup)
-//        return ConnUrisParsingResult(
-//            configsJson = result.configsJson,
-//            duplicatedCount = result.duplicatedCount.toInt(),
-//            parseErrorCount = result.parseErrorCount.toInt()
-//        )
-//    }
-//
-//    actual fun validateConfigs(workerPath: String, configsJson: String): ConfigsValidationResult {
-//        val result = Wrapper.validateConfigs(workerPath, configsJson)
-//        return ConfigsValidationResult(
-//            configsJson = result.configsJson,
-//            validationErrorCount = result.validationErrorCount.toInt()
-//        )
-//    }
-
     actual fun runLatencyTests(
         workerPath: String,
         settings: AppSettings,
@@ -44,11 +27,13 @@ actual object GoBridge {
         val connUrisJson = JsonConfig.json.encodeToString(connUris)
         val result = Wrapper.runLatencyTests(workerPath, connUrisJson, performDedup, s, object : TestCallback {
             override fun onParseFailed(p0: String?) {
-//                TODO("Not yet implemented")
+                val tags = parseTagsJson(p0)
+                callback.onParseFailed(tags)
             }
 
             override fun onValidateFailed(p0: String?) {
-//                TODO("Not yet implemented")
+                val tags = parseTagsJson(p0)
+                callback.onValidateFailed(tags)
             }
 
             override fun onRoundStarted(batchNum: Long, roundNum: Long, total: Long) {
@@ -70,6 +55,15 @@ actual object GoBridge {
                 tag = it.tag,
                 connURI = it.connURI,
             )
+        }
+    }
+
+    private fun parseTagsJson(json: String?): List<String> {
+        if (json.isNullOrBlank()) return emptyList()
+        return try {
+            JsonConfig.json.decodeFromString<List<String>>(json)
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

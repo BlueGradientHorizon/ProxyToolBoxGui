@@ -129,29 +129,25 @@ class MainViewModel(
             _testProgress.value = TestProgress(isRunning = true)
 
             try {
-                _appStatus.value = AppStatus.PARSING
                 val storedUris = loadSubscriptionUris()
+                val configs = storedUris.mapIndexed { i, uri ->
+                    ProxyConfig(tag = "profile_$i", connURI = uri)
+                }
+                _stats.value = ConfigStats(found = configs.size)
 
-                val (parsedJson, dupCount, parseErrs) = GoBridge.parseConnUris(storedUris, _settings.value.performDedup)
-                val parsedConfigs = JsonConfig.json.decodeFromString<List<ProxyConfig>>(parsedJson)
-                _stats.value = ConfigStats(
-                    found = parsedConfigs.size,
-                    duplicated = dupCount,
-                    parseErr = parseErrs
-                )
-
-                _appStatus.value = AppStatus.VALIDATING
                 val workerPath = _settings.value.selectedWorker
-                val (validatedJson, validErrs) = GoBridge.validateConfigs(workerPath, parsedJson)
-                val validatedConfigs = JsonConfig.json.decodeFromString<List<ProxyConfig>>(validatedJson)
-                _stats.value = _stats.value.copy(validErr = validErrs)
-
-                _appStatus.value = AppStatus.TESTING
-                val resultJson = GoBridge.runLatencyTests(
+                val resultConfigs = GoBridge.runLatencyTests(
                     workerPath = workerPath,
-                    configsJson = validatedJson,
                     settings = _settings.value,
                     callback = object : GoTestCallback {
+                        override fun onParseFailed(tags: List<String>) {
+                            _stats.value = _stats.value.copy(parseErr = _stats.value.parseErr + tags.size)
+                        }
+
+                        override fun onValidateFailed(tags: List<String>) {
+                            _stats.value = _stats.value.copy(validErr = _stats.value.validErr + tags.size)
+                        }
+
                         override fun onRoundStarted(batch: Long, round: Long, total: Long) {
                             _testProgress.value = _testProgress.value.copy(
                                 currentBatch = batch.toInt(),
@@ -186,12 +182,13 @@ class MainViewModel(
                         override fun onRoundEnded(batch: Long, round: Long) {
                             _testProgress.value = _testProgress.value.copy(isRoundActive = false)
                         }
-                    }
+                    },
+                    connUris = configs,
+                    performDedup = _settings.value.performDedup
                 )
 
-                val working = JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
-                _workingConfigs.value = working
-                _stats.value = _stats.value.copy(working = working.size)
+                _workingConfigs.value = resultConfigs
+                _stats.value = _stats.value.copy(working = resultConfigs.size)
                 _appStatus.value = AppStatus.COMPLETED
             } catch (e: Exception) {
                 _appStatus.value = AppStatus.ERROR
