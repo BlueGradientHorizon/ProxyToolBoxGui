@@ -19,9 +19,6 @@ class MainViewModel(
     private val _currentScreen = MutableStateFlow<Screen>(Screen.Main)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
-    private val _stats = MutableStateFlow(ConfigStats())
-    val stats: StateFlow<ConfigStats> = _stats.asStateFlow()
-
     private val _testProgress = MutableStateFlow(TestProgress())
     val testProgress: StateFlow<TestProgress> = _testProgress.asStateFlow()
 
@@ -129,11 +126,32 @@ class MainViewModel(
             _testProgress.value = TestProgress(isRunning = true)
 
             try {
-                val storedUris = loadSubscriptionUris()
-                val configs = storedUris.mapIndexed { i, uri ->
-                    ProxyConfig(tag = "profile_$i", connURI = uri)
+                val subs = _subscriptions.value.toMutableList()
+                val configs = mutableListOf<ProxyConfig>()
+                val seenUris = mutableSetOf<String>()
+
+                subs.forEachIndexed { i, sub ->
+                    subs[i] = sub.copy(duplicated = 0, parseErr = 0, validErr = 0, working = 0)
                 }
-                _stats.value = ConfigStats(found = configs.size)
+                _subscriptions.value = subs
+
+                for (i in subs.indices) {
+                    val sub = subs[i]
+                    val uris = loadSubscriptionUris(sub.id)
+                    for ((uriIndex, uri) in uris.withIndex()) {
+                        if (uri.isBlank()) continue
+                        if (seenUris.contains(uri)) {
+                            subs[i] = subs[i].copy(duplicated = subs[i].duplicated + 1)
+                        } else {
+                            seenUris.add(uri)
+                            val tag = "sub-${sub.id}-${uriIndex}"
+                            configs.add(ProxyConfig(tag = tag, connURI = uri))
+                        }
+                    }
+                }
+                _subscriptions.value = subs
+
+                val subIdToIndex = subs.mapIndexed { i, sub -> sub.id to i }.toMap()
 
                 val workerPath = _settings.value.selectedWorker
                 val resultConfigs = GoBridge.runLatencyTests(
@@ -141,11 +159,27 @@ class MainViewModel(
                     settings = _settings.value,
                     callback = object : GoTestCallback {
                         override fun onParseFailed(tags: List<String>) {
-                            _stats.value = _stats.value.copy(parseErr = _stats.value.parseErr + tags.size)
+                            val current = _subscriptions.value.toMutableList()
+                            tags.forEach { tag ->
+                                val subId = extractSubId(tag)
+                                val idx = subIdToIndex[subId]
+                                if (idx != null) {
+                                    current[idx] = current[idx].copy(parseErr = current[idx].parseErr + 1)
+                                }
+                            }
+                            _subscriptions.value = current
                         }
 
                         override fun onValidateFailed(tags: List<String>) {
-                            _stats.value = _stats.value.copy(validErr = _stats.value.validErr + tags.size)
+                            val current = _subscriptions.value.toMutableList()
+                            tags.forEach { tag ->
+                                val subId = extractSubId(tag)
+                                val idx = subIdToIndex[subId]
+                                if (idx != null) {
+                                    current[idx] = current[idx].copy(validErr = current[idx].validErr + 1)
+                                }
+                            }
+                            _subscriptions.value = current
                         }
 
                         override fun onRoundStarted(batch: Long, round: Long, total: Long) {
@@ -187,8 +221,23 @@ class MainViewModel(
                     performDedup = _settings.value.performDedup
                 )
 
+                val subsFinal = _subscriptions.value.toMutableList()
+                val workingCounts = mutableMapOf<String, Int>()
+
+                resultConfigs.forEach { cfg ->
+                    val subId = extractSubId(cfg.tag)
+                    if (subId != null) {
+                        workingCounts[subId] = (workingCounts[subId] ?: 0) + 1
+                    }
+                }
+
+                subsFinal.indices.forEach { i ->
+                    val id = subsFinal[i].id
+                    subsFinal[i] = subsFinal[i].copy(working = workingCounts[id] ?: 0)
+                }
+
+                _subscriptions.value = subsFinal
                 _workingConfigs.value = resultConfigs
-                _stats.value = _stats.value.copy(working = resultConfigs.size)
                 _appStatus.value = AppStatus.COMPLETED
             } catch (e: Exception) {
                 _appStatus.value = AppStatus.ERROR
@@ -202,6 +251,13 @@ class MainViewModel(
         }
     }
 
+    private fun extractSubId(tag: String): String? {
+        if (!tag.startsWith("sub-")) return null
+        val content = tag.removePrefix("sub-")
+        val lastDash = content.lastIndexOf('-')
+        return if (lastDash > 0) content.substring(0, lastDash) else null
+    }
+
     fun stopTest() {
         testJob?.cancel()
         _appStatus.value = AppStatus.IDLE
@@ -213,7 +269,7 @@ class MainViewModel(
 
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
             _appStatus.value = AppStatus.DOWNLOADING
-            val subs = _subscriptions.value
+            val subs = _subscriptions.value.toMutableList()
             _downloadProgress.value = DownloadProgress(
                 total = subs.size,
                 isRunning = true
@@ -221,13 +277,21 @@ class MainViewModel(
 
             var succeeded = 0
             var failed = 0
-            val downloadedUris = mutableListOf<String>()
 
-            for (sub in subs) {
+            for (i in subs.indices) {
+                val sub = subs[i]
                 try {
                     val content = SubscriptionDownloader.download(sub.url, _settings.value.downloadTimeout)
                     val lines = content.lines().filter { it.isNotBlank() }
-                    downloadedUris.addAll(lines)
+                    saveSubscriptionUris(sub.id, lines)
+                    subs[i] = sub.copy(
+                        total = lines.size,
+                        duplicated = 0,
+                        parseErr = 0,
+                        validErr = 0,
+                        working = 0,
+                        updatedAt = System.currentTimeMillis()
+                    )
                     succeeded++
                 } catch (e: Exception) {
                     failed++
@@ -238,9 +302,10 @@ class MainViewModel(
                 )
             }
 
-            saveSubscriptionUris(downloadedUris)
+            _subscriptions.value = subs
             _downloadProgress.value = _downloadProgress.value.copy(isRunning = false)
             _appStatus.value = AppStatus.IDLE
+            saveSubscriptions()
         }
     }
 
@@ -319,11 +384,12 @@ class MainViewModel(
 
     fun saveSubscription(note: String, url: String) {
         val existing = _editingSubscription.value
+        val newId = generateUUID()
         val newSub = if (existing != null) {
             existing.copy(note = note, url = url)
         } else {
             Subscription(
-                id = System.currentTimeMillis().toString(),
+                id = newId,
                 note = note,
                 url = url
             )
@@ -349,8 +415,12 @@ class MainViewModel(
     fun confirmDeleteSubscription() {
         _showDeleteConfirmation.value?.let { sub ->
             _subscriptions.value = _subscriptions.value.filter { it.id != sub.id }
+            viewModelScope.launch {
+                val store = settingsRepository.getStore()
+                store.putString(subUriKey(sub.id), "[]")
+                saveSubscriptions()
+            }
         }
-        viewModelScope.launch { saveSubscriptions() }
         hideDeleteConfirmation()
     }
 
@@ -407,16 +477,27 @@ class MainViewModel(
         store.putString("subscriptions", json)
     }
 
-    private suspend fun loadSubscriptionUris(): List<String> {
+    private fun subUriKey(subId: String) = "sub_uris_$subId"
+
+    private suspend fun loadSubscriptionUris(subId: String): List<String> {
         val store = settingsRepository.getStore()
-        val json = store.getString("subscription_uris", "[]")
+        val json = store.getString(subUriKey(subId), "[]")
         return JsonConfig.json.decodeFromString(json)
     }
 
-    private suspend fun saveSubscriptionUris(uris: List<String>) {
+    private suspend fun saveSubscriptionUris(subId: String, uris: List<String>) {
         val store = settingsRepository.getStore()
         val json = JsonConfig.json.encodeToString(uris)
-        store.putString("subscription_uris", json)
+        store.putString(subUriKey(subId), json)
+    }
+
+    private fun generateUUID(): String {
+        val hexChars = "0123456789abcdef"
+        val random = kotlin.random.Random.Default
+        fun randomHex(length: Int) = buildString {
+            repeat(length) { append(hexChars[random.nextInt(16)]) }
+        }
+        return "${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-${(8 + random.nextInt(4)).toString(16)}${randomHex(3)}-${randomHex(12)}"
     }
 
     override fun onCleared() {

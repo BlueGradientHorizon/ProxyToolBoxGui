@@ -16,7 +16,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.data.AppStatus
 import com.bghorizon.proxytoolboxgui.data.BatchProgress
-import com.bghorizon.proxytoolboxgui.data.ConfigStats
 import com.bghorizon.proxytoolboxgui.data.DownloadProgress
 import com.bghorizon.proxytoolboxgui.data.TestProgress
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
@@ -53,13 +52,20 @@ import proxytoolboxgui.composeapp.generated.resources.working_profiles
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
-    val stats by viewModel.stats.collectAsState()
+    val subs by viewModel.subscriptions.collectAsState()
     val testProgress by viewModel.testProgress.collectAsState()
     val downloadProgress by viewModel.downloadProgress.collectAsState()
     val appStatus by viewModel.appStatus.collectAsState()
     val workers by viewModel.workers.collectAsState()
     val webServerRunning by viewModel.webServerRunning.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val workingConfigs by viewModel.workingConfigs.collectAsState()
+
+    val totalFound = subs.sumOf { it.total }
+    val totalDuplicate = subs.sumOf { it.duplicated }
+    val totalParseErr = subs.sumOf { it.parseErr }
+    val totalValidErr = subs.sumOf { it.validErr }
+    val totalWorking = subs.sumOf { it.working }
 
     Scaffold(
         topBar = {
@@ -98,7 +104,13 @@ fun MainScreen(viewModel: MainViewModel) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            StatsCard(stats)
+            StatsCard(
+                found = totalFound,
+                duplicated = totalDuplicate,
+                parseErr = totalParseErr,
+                validErr = totalValidErr,
+                working = totalWorking
+            )
 
             if (testProgress.batchProgresses.isNotEmpty()) {
                 LazyColumn(
@@ -142,14 +154,14 @@ fun MainScreen(viewModel: MainViewModel) {
                 Button(
                     onClick = { viewModel.copyWorkingConfigs() },
                     modifier = Modifier.weight(1f),
-                    enabled = stats.working > 0
+                    enabled = totalWorking > 0
                 ) {
                     Text(stringResource(Res.string.copy))
                 }
                 Button(
                     onClick = { viewModel.exportWorkingConfigs() },
                     modifier = Modifier.weight(1f),
-                    enabled = stats.working > 0
+                    enabled = totalWorking > 0
                 ) {
                     Text(stringResource(Res.string.export))
                 }
@@ -197,7 +209,13 @@ fun MainScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-private fun StatsCard(stats: ConfigStats) {
+private fun StatsCard(
+    found: Int,
+    duplicated: Int,
+    parseErr: Int,
+    validErr: Int,
+    working: Int
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -208,12 +226,12 @@ private fun StatsCard(stats: ConfigStats) {
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            StatLine(stringResource(Res.string.profiles_found, stats.found))
-            StatLine(stringResource(Res.string.profiles_duplicated, stats.duplicated))
-            StatLine(stringResource(Res.string.parsing_errors, stats.parseErr))
-            StatLine(stringResource(Res.string.validation_errors, stats.validErr))
+            StatLine(stringResource(Res.string.profiles_found, found))
+            StatLine(stringResource(Res.string.profiles_duplicated, duplicated))
+            StatLine(stringResource(Res.string.parsing_errors, parseErr))
+            StatLine(stringResource(Res.string.validation_errors, validErr))
             StatLine(
-                stringResource(Res.string.working_profiles, stats.working),
+                stringResource(Res.string.working_profiles, working),
                 isHighlighted = true
             )
         }

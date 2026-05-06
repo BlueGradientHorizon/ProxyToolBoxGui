@@ -18,16 +18,10 @@ data class Subscription(
     val url: String,
     val total: Int = 0,
     val working: Int = 0,
-    val updatedAt: Long = 0L
-)
-
-@Serializable
-data class ConfigStats(
-    val found: Int = 0,
+    val updatedAt: Long = 0L,
     val duplicated: Int = 0,
     val parseErr: Int = 0,
-    val validErr: Int = 0,
-    val working: Int = 0
+    val validErr: Int = 0
 )
 
 @Serializable
