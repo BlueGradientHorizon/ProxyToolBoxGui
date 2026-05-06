@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,40 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.bghorizon.proxytoolboxgui.data.AppSettings
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
-import com.bghorizon.proxytoolboxgui.data.WorkerInfo
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
-import proxytoolboxgui.composeapp.generated.resources.Res
-import proxytoolboxgui.composeapp.generated.resources.back
-import proxytoolboxgui.composeapp.generated.resources.batch_size
-import proxytoolboxgui.composeapp.generated.resources.cancel
-import proxytoolboxgui.composeapp.generated.resources.category_appearance
-import proxytoolboxgui.composeapp.generated.resources.category_download
-import proxytoolboxgui.composeapp.generated.resources.category_testing
-import proxytoolboxgui.composeapp.generated.resources.category_web_server
-import proxytoolboxgui.composeapp.generated.resources.category_worker
-import proxytoolboxgui.composeapp.generated.resources.count_hint
-import proxytoolboxgui.composeapp.generated.resources.current_worker
-import proxytoolboxgui.composeapp.generated.resources.error_invalid_port
-import proxytoolboxgui.composeapp.generated.resources.latency_test_rounds
-import proxytoolboxgui.composeapp.generated.resources.no_workers_available
-import proxytoolboxgui.composeapp.generated.resources.perform_deduplication
-import proxytoolboxgui.composeapp.generated.resources.port_hint
-import proxytoolboxgui.composeapp.generated.resources.round_timeout
-import proxytoolboxgui.composeapp.generated.resources.save
-import proxytoolboxgui.composeapp.generated.resources.seconds_hint
-import proxytoolboxgui.composeapp.generated.resources.settings
-import proxytoolboxgui.composeapp.generated.resources.subscription_download_timeout
-import proxytoolboxgui.composeapp.generated.resources.test_by_batches
-import proxytoolboxgui.composeapp.generated.resources.theme
-import proxytoolboxgui.composeapp.generated.resources.theme_dark
-import proxytoolboxgui.composeapp.generated.resources.theme_light
-import proxytoolboxgui.composeapp.generated.resources.theme_system
-import proxytoolboxgui.composeapp.generated.resources.auto_start_web_server
-import proxytoolboxgui.composeapp.generated.resources.web_server_localhost
-import proxytoolboxgui.composeapp.generated.resources.web_server_port
+import proxytoolboxgui.composeapp.generated.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +34,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.settings)) },
+                title = { Text(stringResource(Res.string.title_settings)) },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateBack() }) {
                         Icon(
@@ -85,11 +56,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
             item {
                 SettingsCategory(title = stringResource(Res.string.category_appearance))
                 SettingsClickableItem(
-                    title = stringResource(Res.string.theme),
+                    title = stringResource(Res.string.app_theme),
                     subtitle = when (settings.theme) {
-                        ThemeMode.LIGHT -> stringResource(Res.string.theme_light)
-                        ThemeMode.DARK -> stringResource(Res.string.theme_dark)
-                        ThemeMode.SYSTEM -> stringResource(Res.string.theme_system)
+                        ThemeMode.LIGHT -> stringResource(Res.string.app_theme_light)
+                        ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
+                        ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
                     },
                     onClick = { viewModel.showThemeDialog() }
                 )
@@ -108,8 +79,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
             item {
                 SettingsCategory(title = stringResource(Res.string.category_download))
                 SettingsClickableItem(
-                    title = stringResource(Res.string.subscription_download_timeout),
-                    subtitle = stringResource(Res.string.seconds_hint, settings.downloadTimeout),
+                    title = stringResource(Res.string.sub_download_timeout),
+                    subtitle = stringResource(Res.string.hint_seconds_preview, settings.downloadTimeout),
                     onClick = { viewModel.showDownloadTimeoutDialog() }
                 )
                 SettingsSwitchItem(
@@ -125,12 +96,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SettingsCategory(title = stringResource(Res.string.category_testing))
                 SettingsClickableItem(
                     title = stringResource(Res.string.latency_test_rounds),
-                    subtitle = stringResource(Res.string.count_hint, settings.latencyRounds),
+                    subtitle = stringResource(Res.string.hint_rounds_preview, settings.latencyRounds),
                     onClick = { viewModel.showLatencyRoundsDialog() }
                 )
                 SettingsClickableItem(
                     title = stringResource(Res.string.round_timeout),
-                    subtitle = stringResource(Res.string.seconds_hint, settings.roundTimeout),
+                    subtitle = stringResource(Res.string.hint_seconds_preview, settings.roundTimeout),
                     onClick = { viewModel.showRoundTimeoutDialog() }
                 )
                 SettingsSwitchItem(
@@ -142,7 +113,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 )
                 SettingsClickableItem(
                     title = stringResource(Res.string.batch_size),
-                    subtitle = stringResource(Res.string.count_hint, settings.batchSize),
+                    //subtitle = stringResource(Res.string.hint_rounds_preview, settings.batchSize),
+                    subtitle = settings.batchSize.toString(),
                     enabled = settings.testByBatches,
                     onClick = { viewModel.showBatchSizeDialog() }
                 )
@@ -151,7 +123,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             item {
                 SettingsCategory(title = stringResource(Res.string.category_web_server))
                 SettingsSwitchItem(
-                    title = stringResource(Res.string.auto_start_web_server),
+                    title = stringResource(Res.string.web_server_auto_start),
                     checked = settings.autoStartWebServer,
                     onCheckedChange = {
                         viewModel.updateSettings(settings.copy(autoStartWebServer = it))
@@ -159,7 +131,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 )
                 SettingsClickableItem(
                     title = stringResource(Res.string.web_server_port),
-                    subtitle = stringResource(Res.string.port_hint),
+                    subtitle = settings.webServerPort.toString(),
                     onClick = { viewModel.showPortDialog() }
                 )
                 SettingsSwitchItem(
@@ -174,67 +146,96 @@ fun SettingsScreen(viewModel: MainViewModel) {
     }
 
     if (showThemeDialog) {
-        ThemeSelectionDialog(
-            currentTheme = settings.theme,
+        SelectionDialog(
+            title = stringResource(Res.string.app_theme),
+            items = ThemeMode.entries,
+            selectedItem = settings.theme,
             onDismiss = { viewModel.hideThemeDialog() },
-            onSelect = { viewModel.updateTheme(it) }
+            onSelect = { viewModel.updateTheme(it) },
+            itemLabel = { theme ->
+                when (theme) {
+                    ThemeMode.LIGHT -> stringResource(Res.string.app_theme_light)
+                    ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
+                    ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
+                }
+            }
         )
     }
 
     if (showWorkerDialog) {
-        WorkerSelectionDialog(
-            workers = workers,
-            currentWorker = settings.selectedWorker,
+        SelectionDialog(
+            title = stringResource(Res.string.current_worker),
+            items = workers,
+            selectedItem = workers.find { it.path == settings.selectedWorker },
             onDismiss = { viewModel.hideWorkerDialog() },
-            onSelect = { viewModel.selectWorker(it) }
+            onSelect = { viewModel.selectWorker(it.path) },
+            emptyText = stringResource(Res.string.no_workers_available),
+            itemLabel = { it.name },
+            itemSecondaryLabel = { it.version }
         )
     }
 
     if (showDownloadTimeoutDialog) {
         NumberInputDialog(
-            title = stringResource(Res.string.subscription_download_timeout),
-            currentValue = settings.downloadTimeout,
-            hint = stringResource(Res.string.seconds_hint, settings.downloadTimeout),
+            title = stringResource(Res.string.sub_download_timeout),
+            initialValue = settings.downloadTimeout,
+            hint = stringResource(Res.string.hint_seconds, settings.downloadTimeout),
             onDismiss = { viewModel.hideDownloadTimeoutDialog() },
-            onSave = { viewModel.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1))) }
+            onSave = { 
+                viewModel.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1)))
+                true
+            }
         )
     }
 
     if (showLatencyRoundsDialog) {
         NumberInputDialog(
             title = stringResource(Res.string.latency_test_rounds),
-            currentValue = settings.latencyRounds,
-            hint = stringResource(Res.string.count_hint, settings.latencyRounds),
+            initialValue = settings.latencyRounds,
+            hint = stringResource(Res.string.hint_rounds),
             onDismiss = { viewModel.hideLatencyRoundsDialog() },
-            onSave = { viewModel.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1))) }
+            onSave = { 
+                viewModel.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1)))
+                true
+            }
         )
     }
 
     if (showRoundTimeoutDialog) {
         NumberInputDialog(
             title = stringResource(Res.string.round_timeout),
-            currentValue = settings.roundTimeout,
-            hint = stringResource(Res.string.seconds_hint, settings.roundTimeout),
+            initialValue = settings.roundTimeout,
+            hint = stringResource(Res.string.hint_seconds, settings.roundTimeout),
             onDismiss = { viewModel.hideRoundTimeoutDialog() },
-            onSave = { viewModel.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1))) }
+            onSave = { 
+                viewModel.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1)))
+                true
+            }
         )
     }
 
     if (showBatchSizeDialog) {
         NumberInputDialog(
             title = stringResource(Res.string.batch_size),
-            currentValue = settings.batchSize,
-            hint = stringResource(Res.string.count_hint, settings.batchSize),
+            initialValue = settings.batchSize,
+            hint = stringResource(Res.string.hint_number),
             onDismiss = { viewModel.hideBatchSizeDialog() },
-            onSave = { viewModel.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1))) }
+            onSave = { 
+                viewModel.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1)))
+                true
+            }
         )
     }
 
     if (showPortDialog) {
-        PortInputDialog(
-            currentValue = settings.webServerPort,
+        NumberInputDialog(
+            title = stringResource(Res.string.web_server_port),
+            initialValue = settings.webServerPort,
+            hint = stringResource(Res.string.hint_number_specify, stringResource(Res.string.hint_allowed_ports)),
             onDismiss = { viewModel.hidePortDialog() },
-            onSave = { viewModel.savePort(it) }
+            onSave = { viewModel.savePort(it) },
+            isValid = { it in 1024..65535 },
+            errorText = stringResource(Res.string.error_invalid_port)
         )
     }
 }
@@ -311,188 +312,133 @@ private fun SettingsSwitchItem(
 }
 
 @Composable
-private fun ThemeSelectionDialog(
-    currentTheme: ThemeMode,
+private fun SettingsDialog(
+    title: String,
     onDismiss: () -> Unit,
-    onSelect: (ThemeMode) -> Unit
+    confirmText: String = stringResource(Res.string.dialog_btn_cancel),
+    onConfirm: (() -> Boolean)? = null,
+    confirmEnabled: Boolean = true,
+    showCancel: Boolean = onConfirm != null,
+    content: @Composable ColumnScope.() -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.theme)) },
+        title = { Text(title) },
         text = {
-            Column {
-                ThemeMode.entries.forEach { theme ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = when (theme) {
-                                ThemeMode.LIGHT -> stringResource(Res.string.theme_light)
-                                ThemeMode.DARK -> stringResource(Res.string.theme_dark)
-                                ThemeMode.SYSTEM -> stringResource(Res.string.theme_system)
-                            }
-                        )
-                        RadioButton(
-                            selected = currentTheme == theme,
-                            onClick = {
-                                onSelect(theme)
-                                onDismiss()
-                            }
-                        )
-                    }
-                }
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                content()
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.cancel))
+            TextButton(
+                onClick = {
+                    if (onConfirm == null || onConfirm()) {
+                        onDismiss()
+                    }
+                },
+                enabled = confirmEnabled
+            ) {
+                Text(confirmText)
             }
-        }
+        },
+        dismissButton = if (showCancel) {
+            {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(Res.string.dialog_btn_cancel))
+                }
+            }
+        } else null
     )
 }
 
 @Composable
-private fun WorkerSelectionDialog(
-    workers: List<WorkerInfo>,
-    currentWorker: String,
+private fun <T> SelectionDialog(
+    title: String,
+    items: List<T>,
+    selectedItem: T?,
     onDismiss: () -> Unit,
-    onSelect: (String) -> Unit
+    onSelect: (T) -> Unit,
+    emptyText: String? = null,
+    itemLabel: @Composable (T) -> String,
+    itemSecondaryLabel: (@Composable (T) -> String)? = null
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.current_worker)) },
-        text = {
-            if (workers.isEmpty()) {
-                Text(stringResource(Res.string.no_workers_available))
-            } else {
-                Column {
-                    workers.forEach { worker ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(worker.name)
-                                Text(
-                                    worker.version,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            RadioButton(
-                                selected = currentWorker == worker.path,
-                                onClick = {
-                                    onSelect(worker.path)
-                                    onDismiss()
-                                }
+    SettingsDialog(title = title, onDismiss = onDismiss) {
+        if (items.isEmpty() && emptyText != null) {
+            Text(emptyText)
+        } else {
+            items.forEach { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onSelect(item)
+                            onDismiss()
+                        }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(itemLabel(item))
+                        itemSecondaryLabel?.let {
+                            Text(
+                                text = it(item),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+                    RadioButton(
+                        selected = item == selectedItem,
+                        onClick = {
+                            onSelect(item)
+                            onDismiss()
+                        }
+                    )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.cancel))
-            }
         }
-    )
+    }
 }
 
 @Composable
 private fun NumberInputDialog(
     title: String,
-    currentValue: Int,
+    initialValue: Int,
     hint: String,
     onDismiss: () -> Unit,
-    onSave: (Int) -> Unit
+    onSave: (Int) -> Boolean,
+    isValid: (Int) -> Boolean = { true },
+    errorText: String? = null
 ) {
-    var text by remember { mutableStateOf(currentValue.toString()) }
+    var text by remember { mutableStateOf(initialValue.toString()) }
+    val number = text.toIntOrNull() ?: 0
+    val isNumberValid = text.toIntOrNull() != null && isValid(number)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.filter { c -> c.isDigit() } },
-                label = { Text(hint) },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                ),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    text.toIntOrNull()?.let { onSave(it) }
-                    onDismiss()
-                },
-                enabled = text.toIntOrNull() != null
-            ) {
-                Text(stringResource(Res.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun PortInputDialog(
-    currentValue: Int,
-    onDismiss: () -> Unit,
-    onSave: (Int) -> Boolean
-) {
-    var text by remember { mutableStateOf(currentValue.toString()) }
-    val isValid = text.toIntOrNull()?.let { it in 1024..65535 } == true
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.web_server_port)) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.filter { c -> c.isDigit() } },
-                label = { Text(stringResource(Res.string.port_hint)) },
-                isError = !isValid && text.isNotEmpty(),
-                supportingText = {
-                    if (!isValid && text.isNotEmpty()) {
-                        Text(stringResource(Res.string.error_invalid_port))
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                ),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val port = text.toIntOrNull() ?: 0
-                    if (onSave(port)) {
-                        onDismiss()
-                    }
-                },
-                enabled = isValid
-            ) {
-                Text(stringResource(Res.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.cancel))
-            }
-        }
-    )
+    SettingsDialog(
+        title = title,
+        onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.dialog_btn_save),
+        onConfirm = { onSave(number) },
+        confirmEnabled = isNumberValid
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it.filter { c -> c.isDigit() } },
+            label = { Text(hint) },
+            isError = !isNumberValid && text.isNotEmpty(),
+            supportingText = if (!isNumberValid && text.isNotEmpty() && errorText != null) {
+                { Text(errorText) }
+            } else null,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }

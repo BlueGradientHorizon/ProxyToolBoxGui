@@ -130,20 +130,25 @@ class MainViewModel(
                 val configs = mutableListOf<ProxyConfig>()
                 val seenUris = mutableSetOf<String>()
 
+                // Reset performance statistics for each subscription before starting the test
                 subs.forEachIndexed { i, sub ->
                     subs[i] = sub.copy(duplicated = 0, parseErr = 0, validErr = 0, working = 0)
                 }
                 _subscriptions.value = subs
 
+                // Iterate through all subscriptions to collect their proxy URIs
                 for (i in subs.indices) {
                     val sub = subs[i]
                     val uris = loadSubscriptionUris(sub.id)
+                    // Process each URI in the subscription and filter out duplicates
                     for ((uriIndex, uri) in uris.withIndex()) {
                         if (uri.isBlank()) continue
                         if (seenUris.contains(uri)) {
+                            // If URI is already seen, increment duplication count for the subscription
                             subs[i] = subs[i].copy(duplicated = subs[i].duplicated + 1)
                         } else {
                             seenUris.add(uri)
+                            // Create a unique tag for each proxy config to track its source subscription
                             val tag = "sub-${sub.id}-${uriIndex}"
                             configs.add(ProxyConfig(tag = tag, connURI = uri))
                         }
@@ -160,6 +165,7 @@ class MainViewModel(
                     callback = object : GoTestCallback {
                         override fun onParseFailed(tags: List<String>) {
                             val current = _subscriptions.value.toMutableList()
+                            // Update parse error counts for subscriptions based on reported failed tags
                             tags.forEach { tag ->
                                 val subId = extractSubId(tag)
                                 val idx = subIdToIndex[subId]
@@ -172,6 +178,7 @@ class MainViewModel(
 
                         override fun onValidateFailed(tags: List<String>) {
                             val current = _subscriptions.value.toMutableList()
+                            // Update validation error counts for subscriptions based on reported failed tags
                             tags.forEach { tag ->
                                 val subId = extractSubId(tag)
                                 val idx = subIdToIndex[subId]
@@ -209,7 +216,7 @@ class MainViewModel(
 
                             _testProgress.value = current.copy(
                                 batchProgresses = updatedProgresses,
-                                elapsedSeconds = current.elapsedSeconds + 1
+                                elapsedSeconds = current.elapsedSeconds + 1 // completely wrong, onProgress isnt called linearly, it may be called hundreds if not thousands times a second
                             )
                         }
 
@@ -224,6 +231,7 @@ class MainViewModel(
                 val subsFinal = _subscriptions.value.toMutableList()
                 val workingCounts = mutableMapOf<String, Int>()
 
+                // Aggregate working configuration counts for each subscription from the test results
                 resultConfigs.forEach { cfg ->
                     val subId = extractSubId(cfg.tag)
                     if (subId != null) {
@@ -231,6 +239,7 @@ class MainViewModel(
                     }
                 }
 
+                // Update the final list of subscriptions with their respective counts of working configurations
                 subsFinal.indices.forEach { i ->
                     val id = subsFinal[i].id
                     subsFinal[i] = subsFinal[i].copy(working = workingCounts[id] ?: 0)

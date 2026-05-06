@@ -1,20 +1,25 @@
 <resources>
     <string name="app_name">ProxyToolBoxGUI</string>
 
+    <!-- Dialogs -->
+    <string name="dialog_btn_cancel">Cancel</string>
+    <string name="dialog_btn_save">Save</string>
+    <string name="dialog_btn_delete">Delete</string>
+
     <!-- Main Screen -->
-    <string name="profiles_found">Profiles found total: %1$d</string>
-    <string name="profiles_duplicated">Profiles duplicated total: %1$d</string>
-    <string name="parsing_errors">Parsing errors total: %1$d</string>
-    <string name="validation_errors">Validation errors total: %1$d</string>
-    <string name="working_profiles">Working profiles total: %1$d</string>
+    <string name="lbl_profiles_found">Profiles found total: %1$d</string>
+    <string name="lbl_profiles_duplicated">Profiles duplicated total: %1$d</string>
+    <string name="lbl_parsing_errors">Parsing errors total: %1$d</string>
+    <string name="lbl_validation_errors">Validation errors total: %1$d</string>
+    <string name="lbl_working_profiles">Working profiles total: %1$d</string>
     <string name="subscriptions">Subscriptions</string>
-    <string name="update">Update</string>
-    <string name="updating_progress">Updating... (%1$d/%2$d/%3$d)</string>
-    <string name="copy">Copy</string>
-    <string name="export">Export</string>
-    <string name="web_server">Web-Server</string>
-    <string name="test">TEST</string>
-    <string name="stop">STOP</string>
+    <string name="btn_subs_update">Update</string>
+    <string name="btn_subs_update_in_progress">Updating... (%1$d/%2$d/%3$d)</string>
+    <string name="btn_copy">Copy</string>
+    <string name="btn_export">Export</string>
+    <string name="btn_web_server">Web-Server</string>
+    <string name="btn_test">TEST</string>
+    <string name="btn_test_stop">STOP</string>
     <string name="no_workers_found">No workers were found</string>
     <string name="ready">Ready</string>
     <string name="testing">Testing...</string>
@@ -30,39 +35,44 @@
     <string name="column_succeeded">Succeeded</string>
 
     <!-- Subscriptions Screen -->
+    <string name="title_manage_subscriptions">Manage Subscriptions</string>
     <string name="back">Back</string>
-    <string name="manage_subscriptions">Manage Subscriptions</string>
-    <string name="add_subscription">Add Subscription</string>
-    <string name="edit_subscription">Edit Subscription</string>
-    <string name="note">Note</string>
-    <string name="link">Link</string>
-    <string name="cancel">Cancel</string>
-    <string name="save">Save</string>
-    <string name="delete">Delete</string>
-    <string name="delete_confirmation">Delete subscription "%1$s"?</string>
-    <string name="total_working">Total: %1$d | Working: %2$d</string>
-    <string name="add">Add</string>
+    <string name="sub_add">Add Subscription</string>
+    <string name="sub_edit">Edit Subscription</string>
+    <string name="sub_edit_note">Note</string>
+    <string name="sub_edit_link">Link</string>
+    <string name="sub_del_confirm">Delete subscription "%1$s"?</string>
+    <string name="sub_item_total_working">Total: %1$d | Working: %2$d</string>
+<!--    <string name="sub_add">Add</string>-->
 
     <!-- Settings Screen -->
-    <string name="settings">Settings</string>
-    <string name="theme">Theme</string>
-    <string name="theme_light">Light</string>
-    <string name="theme_dark">Dark</string>
-    <string name="theme_system">System</string>
+    <string name="title_settings">Settings</string>
+
+    <!-- Hints -->
+    <string name="hint_allowed_ports">1024-65535</string>
+    <string name="hint_number">Number</string>
+    <string name="hint_number_specify">Number (%1$s)</string>
+    <string name="hint_seconds">Seconds</string>
+    <string name="hint_seconds_preview">%1$d seconds</string>
+    <string name="hint_rounds">Rounds</string>
+    <string name="hint_rounds_preview">%1$d round(s)</string>
+
+    <string name="app_theme">Theme</string>
+    <string name="app_theme_light">Light</string>
+    <string name="app_theme_dark">Dark</string>
+    <string name="app_theme_system">System</string>
+
     <string name="current_worker">Current Worker Program</string>
-    <string name="subscription_download_timeout">Subscription download timeout</string>
-    <string name="seconds_hint">%1$d seconds</string>
+    <string name="no_workers_available">No workers available</string>
+    <string name="sub_download_timeout">Subscription download timeout</string>
     <string name="perform_deduplication">Perform deduplication</string>
     <string name="latency_test_rounds">Latency test rounds</string>
-    <string name="count_hint">Count</string>
     <string name="round_timeout">Round timeout</string>
     <string name="test_by_batches">Test by batches</string>
     <string name="batch_size">Batch size</string>
-    <string name="auto_start_web_server">Auto-start web-server after test</string>
+    <string name="web_server_auto_start">Auto-start web-server after test</string>
     <string name="web_server_port">Web-server port</string>
-    <string name="port_hint">1024-65535</string>
     <string name="web_server_localhost">Web-server listens only localhost</string>
-    <string name="no_workers_available">No workers available</string>
 
     <!-- Settings Categories -->
     <string name="category_appearance">Appearance</string>

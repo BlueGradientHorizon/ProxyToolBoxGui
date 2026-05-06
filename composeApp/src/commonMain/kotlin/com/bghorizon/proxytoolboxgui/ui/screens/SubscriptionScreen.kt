@@ -18,19 +18,18 @@ import com.bghorizon.proxytoolboxgui.data.Subscription
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
-import proxytoolboxgui.composeapp.generated.resources.add
-import proxytoolboxgui.composeapp.generated.resources.add_subscription
+import proxytoolboxgui.composeapp.generated.resources.sub_add
 import proxytoolboxgui.composeapp.generated.resources.back
-import proxytoolboxgui.composeapp.generated.resources.cancel
-import proxytoolboxgui.composeapp.generated.resources.delete
-import proxytoolboxgui.composeapp.generated.resources.delete_confirmation
-import proxytoolboxgui.composeapp.generated.resources.edit_subscription
-import proxytoolboxgui.composeapp.generated.resources.link
-import proxytoolboxgui.composeapp.generated.resources.manage_subscriptions
-import proxytoolboxgui.composeapp.generated.resources.note
-import proxytoolboxgui.composeapp.generated.resources.save
-import proxytoolboxgui.composeapp.generated.resources.total_working
-import proxytoolboxgui.composeapp.generated.resources.update
+import proxytoolboxgui.composeapp.generated.resources.dialog_btn_cancel
+import proxytoolboxgui.composeapp.generated.resources.dialog_btn_delete
+import proxytoolboxgui.composeapp.generated.resources.sub_del_confirm
+import proxytoolboxgui.composeapp.generated.resources.sub_edit
+import proxytoolboxgui.composeapp.generated.resources.sub_edit_link
+import proxytoolboxgui.composeapp.generated.resources.title_manage_subscriptions
+import proxytoolboxgui.composeapp.generated.resources.sub_edit_note
+import proxytoolboxgui.composeapp.generated.resources.dialog_btn_save
+import proxytoolboxgui.composeapp.generated.resources.sub_item_total_working
+import proxytoolboxgui.composeapp.generated.resources.btn_subs_update
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -46,7 +45,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.manage_subscriptions)) },
+                title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateBack() }) {
                         Icon(
@@ -59,7 +58,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                     IconButton(onClick = { viewModel.updateSubscriptions() }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(Res.string.update)
+                            contentDescription = stringResource(Res.string.btn_subs_update)
                         )
                     }
                 }
@@ -69,7 +68,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
             FloatingActionButton(onClick = { viewModel.showAddSubscription() }) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.add)
+                    contentDescription = stringResource(Res.string.sub_add)
                 )
             }
         }
@@ -134,7 +133,7 @@ private fun SubscriptionItem(
                 )
                 Text(
                     text = stringResource(
-                        Res.string.total_working,
+                        Res.string.sub_item_total_working,
                         subscription.total,
                         subscription.working
                     ),
@@ -156,13 +155,13 @@ private fun SubscriptionItem(
                 IconButton(onClick = onEdit) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = stringResource(Res.string.edit_subscription)
+                        contentDescription = stringResource(Res.string.sub_edit)
                     )
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(Res.string.delete)
+                        contentDescription = stringResource(Res.string.dialog_btn_delete)
                     )
                 }
             }
@@ -185,9 +184,9 @@ private fun AddSubscriptionDialog(
         title = {
             Text(
                 if (editingSubscription != null)
-                    stringResource(Res.string.edit_subscription)
+                    stringResource(Res.string.sub_edit)
                 else
-                    stringResource(Res.string.add_subscription)
+                    stringResource(Res.string.sub_add)
             )
         },
         text = {
@@ -198,7 +197,7 @@ private fun AddSubscriptionDialog(
                         note = it
                         error = false
                     },
-                    label = { Text(stringResource(Res.string.note)) },
+                    label = { Text(stringResource(Res.string.sub_edit_note)) },
                     isError = error && note.isBlank(),
                     singleLine = true
                 )
@@ -208,7 +207,7 @@ private fun AddSubscriptionDialog(
                         url = it
                         error = false
                     },
-                    label = { Text(stringResource(Res.string.link)) },
+                    label = { Text(stringResource(Res.string.sub_edit_link)) },
                     isError = error && url.isBlank(),
                     singleLine = true
                 )
@@ -224,12 +223,12 @@ private fun AddSubscriptionDialog(
                     }
                 }
             ) {
-                Text(stringResource(Res.string.save))
+                Text(stringResource(Res.string.dialog_btn_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.cancel))
+                Text(stringResource(Res.string.dialog_btn_cancel))
             }
         }
     )
@@ -243,9 +242,9 @@ private fun DeleteConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.delete)) },
+        title = { Text(stringResource(Res.string.dialog_btn_delete)) },
         text = {
-            Text(stringResource(Res.string.delete_confirmation, subscription.note))
+            Text(stringResource(Res.string.sub_del_confirm, subscription.note))
         },
         confirmButton = {
             TextButton(
@@ -254,12 +253,12 @@ private fun DeleteConfirmationDialog(
                     contentColor = MaterialTheme.colorScheme.error
                 )
             ) {
-                Text(stringResource(Res.string.delete))
+                Text(stringResource(Res.string.dialog_btn_delete))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.cancel))
+                Text(stringResource(Res.string.dialog_btn_cancel))
             }
         }
     )

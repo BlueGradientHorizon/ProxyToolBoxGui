@@ -5,7 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import kotlinx.coroutines.delay
 import androidx.compose.material3.*
@@ -29,25 +28,25 @@ import proxytoolboxgui.composeapp.generated.resources.column_running
 import proxytoolboxgui.composeapp.generated.resources.column_succeeded
 import proxytoolboxgui.composeapp.generated.resources.column_total
 import proxytoolboxgui.composeapp.generated.resources.completed
-import proxytoolboxgui.composeapp.generated.resources.copy
+import proxytoolboxgui.composeapp.generated.resources.btn_copy
 import proxytoolboxgui.composeapp.generated.resources.error
-import proxytoolboxgui.composeapp.generated.resources.export
+import proxytoolboxgui.composeapp.generated.resources.btn_export
 import proxytoolboxgui.composeapp.generated.resources.no_workers_found
-import proxytoolboxgui.composeapp.generated.resources.parsing_errors
-import proxytoolboxgui.composeapp.generated.resources.profiles_duplicated
-import proxytoolboxgui.composeapp.generated.resources.profiles_found
+import proxytoolboxgui.composeapp.generated.resources.lbl_parsing_errors
+import proxytoolboxgui.composeapp.generated.resources.lbl_profiles_duplicated
+import proxytoolboxgui.composeapp.generated.resources.lbl_profiles_found
 import proxytoolboxgui.composeapp.generated.resources.ready
-import proxytoolboxgui.composeapp.generated.resources.settings
-import proxytoolboxgui.composeapp.generated.resources.stop
+import proxytoolboxgui.composeapp.generated.resources.title_settings
+import proxytoolboxgui.composeapp.generated.resources.btn_test_stop
 import proxytoolboxgui.composeapp.generated.resources.subscriptions
-import proxytoolboxgui.composeapp.generated.resources.test
+import proxytoolboxgui.composeapp.generated.resources.btn_test
 import proxytoolboxgui.composeapp.generated.resources.test_progress_status
 import proxytoolboxgui.composeapp.generated.resources.testing
-import proxytoolboxgui.composeapp.generated.resources.update
-import proxytoolboxgui.composeapp.generated.resources.updating_progress
-import proxytoolboxgui.composeapp.generated.resources.validation_errors
-import proxytoolboxgui.composeapp.generated.resources.web_server
-import proxytoolboxgui.composeapp.generated.resources.working_profiles
+import proxytoolboxgui.composeapp.generated.resources.btn_subs_update
+import proxytoolboxgui.composeapp.generated.resources.btn_subs_update_in_progress
+import proxytoolboxgui.composeapp.generated.resources.lbl_validation_errors
+import proxytoolboxgui.composeapp.generated.resources.btn_web_server
+import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,9 +75,9 @@ fun MainScreen(viewModel: MainViewModel) {
                         val dp by viewModel.downloadProgress.collectAsState()
                         Text(
                             if (dp.isRunning)
-                                stringResource(Res.string.updating_progress, dp.total, dp.succeeded, dp.failed)
+                                stringResource(Res.string.btn_subs_update_in_progress, dp.total, dp.succeeded, dp.failed)
                             else
-                                stringResource(Res.string.update)
+                                stringResource(Res.string.btn_subs_update)
                         )
                     }
                     IconButton(onClick = { viewModel.navigateTo(Screen.Subscriptions) }) {
@@ -90,7 +89,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     IconButton(onClick = { viewModel.navigateTo(Screen.Settings) }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = stringResource(Res.string.settings)
+                            contentDescription = stringResource(Res.string.title_settings)
                         )
                     }
                 }
@@ -156,14 +155,14 @@ fun MainScreen(viewModel: MainViewModel) {
                     modifier = Modifier.weight(1f),
                     enabled = totalWorking > 0
                 ) {
-                    Text(stringResource(Res.string.copy))
+                    Text(stringResource(Res.string.btn_copy))
                 }
                 Button(
                     onClick = { viewModel.exportWorkingConfigs() },
                     modifier = Modifier.weight(1f),
                     enabled = totalWorking > 0
                 ) {
-                    Text(stringResource(Res.string.export))
+                    Text(stringResource(Res.string.btn_export))
                 }
                 Button(
                     onClick = { viewModel.toggleWebServer() },
@@ -175,7 +174,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         )
                     } else ButtonDefaults.buttonColors()
                 ) {
-                    Text(stringResource(Res.string.web_server))
+                    Text(stringResource(Res.string.btn_web_server))
                 }
             }
 
@@ -198,9 +197,9 @@ fun MainScreen(viewModel: MainViewModel) {
             ) {
                 Text(
                     text = when {
-                        appStatus == AppStatus.TESTING -> stringResource(Res.string.stop)
+                        appStatus == AppStatus.TESTING -> stringResource(Res.string.btn_test_stop)
                         workers.isEmpty() -> stringResource(Res.string.no_workers_found)
-                        else -> stringResource(Res.string.test)
+                        else -> stringResource(Res.string.btn_test)
                     }
                 )
             }
@@ -226,12 +225,12 @@ private fun StatsCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            StatLine(stringResource(Res.string.profiles_found, found))
-            StatLine(stringResource(Res.string.profiles_duplicated, duplicated))
-            StatLine(stringResource(Res.string.parsing_errors, parseErr))
-            StatLine(stringResource(Res.string.validation_errors, validErr))
+            StatLine(stringResource(Res.string.lbl_profiles_found, found))
+            StatLine(stringResource(Res.string.lbl_profiles_duplicated, duplicated))
+            StatLine(stringResource(Res.string.lbl_parsing_errors, parseErr))
+            StatLine(stringResource(Res.string.lbl_validation_errors, validErr))
             StatLine(
-                stringResource(Res.string.working_profiles, working),
+                stringResource(Res.string.lbl_working_profiles, working),
                 isHighlighted = true
             )
         }
@@ -345,7 +344,7 @@ private fun DownloadProgressIndicator(progress: DownloadProgress) {
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         Text(
             text = stringResource(
-                Res.string.updating_progress,
+                Res.string.btn_subs_update_in_progress,
                 progress.total,
                 progress.succeeded,
                 progress.failed
