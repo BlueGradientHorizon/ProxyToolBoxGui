@@ -21,26 +21,11 @@ type WorkerInfo struct {
 }
 
 type ProxyConfig struct {
-	Tag string `json:"tag"`
-	// Type    string `json:"type"`
-	// Server  string `json:"server"`
-	// Port    int    `json:"port"`
+	Tag     string `json:"tag"`
 	ConnURI string `json:"conn_uri"`
 }
 
-type ParseConfigsResult struct {
-	ConfigsJson     string `json:"configsJson"`
-	DuplicatedCount int    `json:"duplicatedCount"`
-	ParseErrorCount int    `json:"parseErrorCount"`
-}
-
-type ValidateConfigsResult struct {
-	ConfigsJson          string `json:"configsJson"`
-	ValidationErrorCount int    `json:"validationErrorCount"`
-}
-
 type LatencyTestSettings struct {
-	PerformDedup  bool
 	LatencyRounds int
 	RoundTimeout  int
 	TestByBatches bool
@@ -48,13 +33,15 @@ type LatencyTestSettings struct {
 }
 
 type TestCallback interface {
+	OnParseFailed(tagsJson string)
+	OnValidateFailed(tagsJson string)
 	OnRoundStarted(batchNum, roundNum, total int)
 	OnProgress(tag string, delay int64, failed bool)
 	OnRoundEnded(batchNum, roundNum int)
 }
 
 // DiscoverWorkers finds all valid worker programs in libraryPath.
-// Returns JSON []WorkerInfo.
+// Returns JSON[]WorkerInfo.
 func DiscoverWorkers(libraryPath string) (string, error) {
 	reg := registry.NewRegistry()
 	reg.Discover(libraryPath)
@@ -75,127 +62,64 @@ func DiscoverWorkers(libraryPath string) (string, error) {
 	return string(b), err
 }
 
-// ParseConfigs parses connection URIs into ProxyConfig structs.
-// Returns (*ParseConfigsResult, error).
-func ParseConfigs(configStrings []string, performDedup bool) (*ParseConfigsResult, error) {
-	seen := make(map[string]bool)
-	var configs []parsers.ProxyConfig
-	dupCount := 0
-	parseErrs := 0
+// RunLatencyTests parses, validates, and performs batched latency tests.
+// Returns (json[]ProxyConfig workingConfigs, error).
+func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, settings *LatencyTestSettings, callback TestCallback) (string, error) {
+	var inputConfigs []ProxyConfig
+	if err := json.Unmarshal([]byte(connUrisJson), &inputConfigs); err != nil {
+		return "", err
+	}
 
-	for _, connURI := range configStrings {
-		connURI = strings.TrimSpace(connURI)
+	// Ensure tags are present
+	for _, c := range inputConfigs {
+		if strings.TrimSpace(c.Tag) == "" {
+			return "", fmt.Errorf("empty tag found")
+		}
+	}
+
+	// 1. Parse configs and deduplicate
+	seen := make(map[string]bool)
+	var parsedConfigs []parsers.ProxyConfig
+	parseFailedTags := []string{}
+
+	for _, c := range inputConfigs {
+		connURI := strings.TrimSpace(c.ConnURI)
 		if connURI == "" {
+			parseFailedTags = append(parseFailedTags, c.Tag)
 			continue
 		}
 		if performDedup {
 			if seen[connURI] {
-				dupCount++
 				continue
 			}
 			seen[connURI] = true
 		}
+
 		p, err := parsers.ParseConfig(connURI)
-		if err != nil {
-			parseErrs++
+		if err != nil || p.Config == nil {
+			parseFailedTags = append(parseFailedTags, c.Tag)
 			continue
 		}
-		configs = append(configs, *p)
+
+		// Apply the specified tag instead of auto-generating
+		p.Config.Tag = c.Tag
+		// p.ConnURI = c.ConnURI // wrong, p.ConnURI returned from ParseConfig may be different (fixed)
+		parsedConfigs = append(parsedConfigs, *p)
 	}
 
-	var out []ProxyConfig
-	for _, c := range configs {
-		if c.Config != nil {
-			out = append(out, ProxyConfig{
-				Tag: c.Config.Tag,
-				// Type:    c.Config.Type,
-				// Server:  c.Config.Server,
-				// Port:    int(c.Config.Port),
-				ConnURI: c.ConnURI,
-			})
-		}
+	// Emit parse error callback
+	{
+		b, _ := json.Marshal(parseFailedTags)
+		callback.OnParseFailed(string(b))
 	}
 
-	b, err := json.Marshal(out)
-	if err != nil {
-		return nil, err
-	}
-	return &ParseConfigsResult{
-		ConfigsJson:     string(b),
-		DuplicatedCount: dupCount,
-		ParseErrorCount: parseErrs,
-	}, nil
-}
-
-// ValidateConfigs validates configs against a worker program.
-// Returns (*ValidateConfigsResult, error).
-func ValidateConfigs(workerPath string, configsJson string) (*ValidateConfigsResult, error) {
-	var configs []parsers.ProxyConfig
-	if err := json.Unmarshal([]byte(configsJson), &configs); err != nil {
-		return nil, err
-	}
-
-	ctx := context.Background()
-	tr, err := runner.NewTestRunner(runner.RunnerSettings{
-		WorkerPath: workerPath,
-	})
-	if err != nil {
-		return nil, err
-	}
-	defer tr.Close()
-
-	for i := range configs {
-		if configs[i].Config != nil && configs[i].Config.Tag == "" {
-			configs[i].Config.Tag = fmt.Sprintf("outbound-%d", i)
-		}
-	}
-
-	taggedConfigs, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
-	if err != nil {
-		return nil, err
-	}
-
-	var out []ProxyConfig
-	for _, c := range taggedConfigs {
-		if c.Config != nil {
-			out = append(out, ProxyConfig{
-				Tag: c.Config.Tag,
-				// Type:    c.Config.Type,
-				// Server:  c.Config.Server,
-				// Port:    int(c.Config.Port),
-				ConnURI: c.ConnURI,
-			})
-		}
-	}
-
-	b, err := json.Marshal(out)
-	if err != nil {
-		return nil, err
-	}
-	return &ValidateConfigsResult{
-		ConfigsJson:          string(b),
-		ValidationErrorCount: len(validationErrors),
-	}, nil
-}
-
-// RunLatencyTests performs batched latency tests.
-// Returns (json []ProxyConfig workingConfigs, error).
-func RunLatencyTests(workerPath string, configsJson string, settings *LatencyTestSettings, callback TestCallback) (string, error) {
-	var configs []parsers.ProxyConfig
-	if err := json.Unmarshal([]byte(configsJson), &configs); err != nil {
-		return "", err
+	if len(parsedConfigs) == 0 {
+		return "", fmt.Errorf("no_valid_configs")
 	}
 
 	ctx := context.Background()
 
-	// Ensure tags
-	for i := range configs {
-		if configs[i].Config != nil && configs[i].Config.Tag == "" {
-			configs[i].Config.Tag = fmt.Sprintf("outbound-%d", i)
-		}
-	}
-
-	// Initial validation
+	// 2. Initial Validation
 	tr, err := runner.NewTestRunner(runner.RunnerSettings{
 		WorkerPath: workerPath,
 	})
@@ -203,15 +127,23 @@ func RunLatencyTests(workerPath string, configsJson string, settings *LatencyTes
 		return "", err
 	}
 
-	taggedConfigs, validationErrors, err := tr.Validate(ctx, configs, runner.DefaultConfigTaggerFunc)
+	taggedConfigs, validationErrors, err := tr.Validate(ctx, parsedConfigs, runner.DefaultConfigTaggerFunc)
 	tr.Close()
 	if err != nil {
 		return "", err
 	}
 
+	validateFailedTags := []string{}
 	errMap := make(map[string]bool)
 	for _, ve := range validationErrors {
+		validateFailedTags = append(validateFailedTags, ve.Tag)
 		errMap[ve.Tag] = true
+	}
+
+	// Emit validate error callback
+	{
+		b, _ := json.Marshal(validateFailedTags)
+		callback.OnValidateFailed(string(b))
 	}
 
 	validConfigs := make([]parsers.ProxyConfig, 0)
@@ -225,8 +157,9 @@ func RunLatencyTests(workerPath string, configsJson string, settings *LatencyTes
 		return "", fmt.Errorf("no_valid_configs")
 	}
 
+	// 3. Batched Latency Tests
 	batchSize := settings.BatchSize
-	if !settings.TestByBatches {
+	if !settings.TestByBatches || batchSize <= 0 {
 		batchSize = len(validConfigs)
 	}
 
@@ -294,6 +227,7 @@ func RunLatencyTests(workerPath string, configsJson string, settings *LatencyTes
 		batchRunner.Close()
 	}
 
+	// 4. Wrap up working configs
 	passedTags := make(map[string]struct{})
 	for _, result := range allResults {
 		if result.Error == nil {
@@ -301,14 +235,11 @@ func RunLatencyTests(workerPath string, configsJson string, settings *LatencyTes
 		}
 	}
 
-	var workingConfigs []ProxyConfig
+	workingConfigs := []ProxyConfig{}
 	for _, cfg := range validConfigs {
 		if _, ok := passedTags[cfg.Config.Tag]; ok {
 			workingConfigs = append(workingConfigs, ProxyConfig{
-				Tag: cfg.Config.Tag,
-				// Type:    cfg.Config.Type,
-				// Server:  cfg.Config.Server,
-				// Port:    int(cfg.Config.Port),
+				Tag:     cfg.Config.Tag,
 				ConnURI: cfg.ConnURI,
 			})
 		}

@@ -132,7 +132,7 @@ class MainViewModel(
                 _appStatus.value = AppStatus.PARSING
                 val storedUris = loadSubscriptionUris()
 
-                val (parsedJson, dupCount, parseErrs) = GoBridge.parseConfigs(storedUris, _settings.value.performDedup)
+                val (parsedJson, dupCount, parseErrs) = GoBridge.parseConnUris(storedUris, _settings.value.performDedup)
                 val parsedConfigs = JsonConfig.json.decodeFromString<List<ProxyConfig>>(parsedJson)
                 _stats.value = ConfigStats(
                     found = parsedConfigs.size,

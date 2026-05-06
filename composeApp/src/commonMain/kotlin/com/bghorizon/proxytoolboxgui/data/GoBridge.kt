@@ -1,15 +1,15 @@
 package com.bghorizon.proxytoolboxgui.data
-
 expect object GoBridge {
     fun discoverWorkers(libraryPath: String): String
-    fun parseConfigs(configStrings: List<String>, performDedup: Boolean): GoParseResult
-    fun validateConfigs(workerPath: String, configsJson: String): GoValidateResult
+//    fun parseConnUris(connUris: List<String>, performDedup: Boolean): ConnUrisParsingResult
+//    fun validateConfigs(workerPath: String, configsJson: String): ConfigsValidationResult
     fun runLatencyTests(
-        workerPath: String,
-        configsJson: String,
-        settings: AppSettings,
-        callback: GoTestCallback
-    ): String
+    workerPath: String,
+    settings: AppSettings,
+    callback: GoTestCallback,
+    connUris: List<ProxyConfig>,
+    performDedup: Boolean
+    ): List<ProxyConfig>
 }
 
 interface GoTestCallback {
@@ -18,13 +18,13 @@ interface GoTestCallback {
     fun onRoundEnded(batch: Long, round: Long)
 }
 
-data class GoParseResult(
-    val configsJson: String,
-    val duplicatedCount: Int,
-    val parseErrorCount: Int
-)
-
-data class GoValidateResult(
-    val configsJson: String,
-    val validationErrorCount: Int
-)
+//data class ConnUrisParsingResult(
+//    val configsJson: String,
+//    val duplicatedCount: Int,
+//    val parseErrorCount: Int
+//)
+//
+//data class ConfigsValidationResult(
+//    val configsJson: String,
+//    val validationErrorCount: Int
+//)

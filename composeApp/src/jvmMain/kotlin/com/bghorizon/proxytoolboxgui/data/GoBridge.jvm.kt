@@ -1,6 +1,5 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -23,8 +22,8 @@ actual object GoBridge {
         return process.inputStream.bufferedReader().readText()
     }
 
-    actual fun parseConfigs(configStrings: List<String>, performDedup: Boolean): GoParseResult {
-        val input = JsonConfig.json.encodeToString(configStrings)
+    actual fun parseConnUris(connUris: List<String>, performDedup: Boolean): com.bghorizon.proxytoolboxgui.data.ConnUrisParsingResult {
+        val input = JsonConfig.json.encodeToString(connUris)
         val process = ProcessBuilder(
             findWrapperBinary(),
             "parse",
@@ -36,10 +35,10 @@ actual object GoBridge {
         process.waitFor(30, TimeUnit.SECONDS)
         val output = process.inputStream.bufferedReader().readText()
         val result = JsonConfig.json.decodeFromString<ParseResult>(output)
-        return GoParseResult(result.configsJson, result.duplicatedCount, result.parseErrorCount)
+        return com.bghorizon.proxytoolboxgui.data.ConnUrisParsingResult(result.configsJson, result.duplicatedCount, result.parseErrorCount)
     }
 
-    actual fun validateConfigs(workerPath: String, configsJson: String): GoValidateResult {
+    actual fun validateConfigs(workerPath: String, configsJson: String): com.bghorizon.proxytoolboxgui.data.ConfigsValidationResult {
         val process = ProcessBuilder(
             findWrapperBinary(),
             "validate",
@@ -51,7 +50,7 @@ actual object GoBridge {
         process.waitFor(60, TimeUnit.SECONDS)
         val output = process.inputStream.bufferedReader().readText()
         val result = JsonConfig.json.decodeFromString<ValidateResult>(output)
-        return GoValidateResult(result.configsJson, result.validationErrorCount)
+        return com.bghorizon.proxytoolboxgui.data.ConfigsValidationResult(result.configsJson, result.validationErrorCount)
     }
 
     actual fun runLatencyTests(

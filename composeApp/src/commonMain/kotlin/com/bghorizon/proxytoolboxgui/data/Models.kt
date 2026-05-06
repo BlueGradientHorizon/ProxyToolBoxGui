@@ -64,9 +64,6 @@ data class DownloadProgress(
 @Serializable
 data class ProxyConfig(
     val tag: String,
-    val type: String,
-    val server: String,
-    val port: Int,
     val connURI: String
 )
 
