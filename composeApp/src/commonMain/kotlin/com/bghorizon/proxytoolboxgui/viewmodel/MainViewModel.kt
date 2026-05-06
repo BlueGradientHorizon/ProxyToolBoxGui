@@ -74,6 +74,7 @@ class MainViewModel(
     val showPortDialog: StateFlow<Boolean> = _showPortDialog.asStateFlow()
 
     private var testJob: Job? = null
+    private var timerJob: Job? = null
     private var downloadJob: Job? = null
     private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
 
@@ -122,6 +123,7 @@ class MainViewModel(
         if (_workers.value.isEmpty() || testJob?.isActive == true) return
 
         testJob = viewModelScope.launch(Dispatchers.IO) {
+            val currentSettings = _settings.value
             _appStatus.value = AppStatus.TESTING
             _testProgress.value = TestProgress(isRunning = true)
 
@@ -158,10 +160,10 @@ class MainViewModel(
 
                 val subIdToIndex = subs.mapIndexed { i, sub -> sub.id to i }.toMap()
 
-                val workerPath = _settings.value.selectedWorker
+                val workerPath = currentSettings.selectedWorker
                 val resultConfigs = GoBridge.runLatencyTests(
                     workerPath = workerPath,
-                    settings = _settings.value,
+                    settings = currentSettings,
                     callback = object : GoTestCallback {
                         override fun onParseFailed(tags: List<String>) {
                             val current = _subscriptions.value.toMutableList()
@@ -190,42 +192,77 @@ class MainViewModel(
                         }
 
                         override fun onRoundStarted(batch: Long, round: Long, total: Long) {
-                            _testProgress.value = _testProgress.value.copy(
-                                currentBatch = batch.toInt(),
-                                currentRound = round.toInt(),
-                                totalSeconds = total.toInt() * _settings.value.roundTimeout,
-                                elapsedSeconds = 0,
-                                isRunning = true,
-                                isRoundActive = true
-                            )
-                        }
+                            val totalBatches = total.toInt()
+                            val latencyRounds = currentSettings.latencyRounds
+                            val roundTimeout = currentSettings.roundTimeout
+                            val currentRoundAbsolute = (batch.toInt() - 1) * latencyRounds + round.toInt()
 
-                        override fun onProgress(tag: String, delay: Long, failed: Boolean) {
-                            val current = _testProgress.value
-                            val updatedProgresses = current.batchProgresses.toMutableList()
-                            val batchIndex = updatedProgresses.indexOfFirst { it.batchNum == current.currentBatch }
+                            _testProgress.update { current ->
+                                val updatedProgresses = current.batchProgresses.toMutableList()
+                                if (updatedProgresses.none { it.batchNum == batch.toInt() }) {
+                                    val totalInBatch = if (batch.toInt() < totalBatches) {
+                                        currentSettings.batchSize
+                                    } else {
+                                        val totalConfigs = configs.size
+                                        val rem = totalConfigs % currentSettings.batchSize
+                                        if (rem == 0 && totalConfigs > 0) currentSettings.batchSize else rem
+                                    }
+                                    updatedProgresses.add(
+                                        BatchProgress(
+                                            batchNum = batch.toInt(),
+                                            total = totalInBatch,
+                                            running = totalInBatch
+                                        )
+                                    )
+                                }
 
-                            if (batchIndex >= 0) {
-                                val bp = updatedProgresses[batchIndex]
-                                updatedProgresses[batchIndex] = bp.copy(
-                                    running = bp.running - 1,
-                                    failed = if (failed) bp.failed + 1 else bp.failed,
-                                    succeeded = if (!failed) bp.succeeded + 1 else bp.succeeded
+                                current.copy(
+                                    currentBatch = batch.toInt(),
+                                    totalBatches = totalBatches,
+                                    currentRound = round.toInt(),
+                                    totalRounds = latencyRounds,
+                                    totalSeconds = totalBatches * latencyRounds * roundTimeout,
+                                    elapsedSeconds = (currentRoundAbsolute - 1) * roundTimeout,
+                                    isRunning = true,
+                                    isRoundActive = true,
+                                    batchProgresses = updatedProgresses
                                 )
                             }
 
-                            _testProgress.value = current.copy(
-                                batchProgresses = updatedProgresses,
-                                elapsedSeconds = current.elapsedSeconds + 1 // completely wrong, onProgress isnt called linearly, it may be called hundreds if not thousands times a second
-                            )
+                            timerJob?.cancel()
+                            timerJob = viewModelScope.launch {
+                                while (isActive) {
+                                    delay(1000)
+                                    _testProgress.update { it.copy(elapsedSeconds = it.elapsedSeconds + 1) }
+                                }
+                            }
+                        }
+
+                        override fun onProgress(tag: String, delay: Long, failed: Boolean) {
+                            _testProgress.update { current ->
+                                val updatedProgresses = current.batchProgresses.toMutableList()
+                                val batchIndex = updatedProgresses.indexOfFirst { it.batchNum == current.currentBatch }
+
+                                if (batchIndex >= 0) {
+                                    val bp = updatedProgresses[batchIndex]
+                                    updatedProgresses[batchIndex] = bp.copy(
+                                        running = bp.running - 1,
+                                        failed = if (failed) bp.failed + 1 else bp.failed,
+                                        succeeded = if (!failed) bp.succeeded + 1 else bp.succeeded
+                                    )
+                                }
+
+                                current.copy(batchProgresses = updatedProgresses)
+                            }
                         }
 
                         override fun onRoundEnded(batch: Long, round: Long) {
-                            _testProgress.value = _testProgress.value.copy(isRoundActive = false)
+                            timerJob?.cancel()
+                            _testProgress.update { it.copy(isRoundActive = false) }
                         }
                     },
                     connUris = configs,
-                    performDedup = _settings.value.performDedup
+                    performDedup = currentSettings.performDedup
                 )
 
                 val subsFinal = _subscriptions.value.toMutableList()
@@ -252,8 +289,9 @@ class MainViewModel(
                 _appStatus.value = AppStatus.ERROR
                 e.printStackTrace()
             } finally {
-                _testProgress.value = _testProgress.value.copy(isRunning = false, isRoundActive = false)
-                if (_settings.value.autoStartWebServer) {
+                timerJob?.cancel()
+                _testProgress.update { it.copy(isRunning = false, isRoundActive = false) }
+                if (currentSettings.autoStartWebServer) {
                     startWebServer()
                 }
             }
@@ -269,6 +307,7 @@ class MainViewModel(
 
     fun stopTest() {
         testJob?.cancel()
+        timerJob?.cancel()
         _appStatus.value = AppStatus.IDLE
         _testProgress.value = TestProgress()
     }
@@ -512,6 +551,7 @@ class MainViewModel(
     override fun onCleared() {
         super.onCleared()
         testJob?.cancel()
+        timerJob?.cancel()
         downloadJob?.cancel()
         stopWebServer()
     }
