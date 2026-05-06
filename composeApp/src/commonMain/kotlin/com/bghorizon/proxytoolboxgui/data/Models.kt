@@ -49,7 +49,8 @@ data class TestProgress(
     val batchProgresses: List<BatchProgress> = emptyList(),
     val elapsedSeconds: Int = 0,
     val totalSeconds: Int = 0,
-    val isRunning: Boolean = false
+    val isRunning: Boolean = false,
+    val isRoundActive: Boolean = false
 )
 
 @Serializable
@@ -63,9 +64,6 @@ data class DownloadProgress(
 @Serializable
 data class ProxyConfig(
     val tag: String,
-    val type: String,
-    val server: String,
-    val port: Int,
     val connURI: String
 )
 

@@ -19,14 +19,33 @@ import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.back
+import proxytoolboxgui.composeapp.generated.resources.batch_size
 import proxytoolboxgui.composeapp.generated.resources.cancel
+import proxytoolboxgui.composeapp.generated.resources.category_appearance
+import proxytoolboxgui.composeapp.generated.resources.category_download
+import proxytoolboxgui.composeapp.generated.resources.category_testing
+import proxytoolboxgui.composeapp.generated.resources.category_web_server
+import proxytoolboxgui.composeapp.generated.resources.category_worker
+import proxytoolboxgui.composeapp.generated.resources.count_hint
 import proxytoolboxgui.composeapp.generated.resources.current_worker
+import proxytoolboxgui.composeapp.generated.resources.error_invalid_port
+import proxytoolboxgui.composeapp.generated.resources.latency_test_rounds
 import proxytoolboxgui.composeapp.generated.resources.no_workers_available
+import proxytoolboxgui.composeapp.generated.resources.perform_deduplication
+import proxytoolboxgui.composeapp.generated.resources.port_hint
+import proxytoolboxgui.composeapp.generated.resources.round_timeout
+import proxytoolboxgui.composeapp.generated.resources.save
+import proxytoolboxgui.composeapp.generated.resources.seconds_hint
 import proxytoolboxgui.composeapp.generated.resources.settings
+import proxytoolboxgui.composeapp.generated.resources.subscription_download_timeout
+import proxytoolboxgui.composeapp.generated.resources.test_by_batches
 import proxytoolboxgui.composeapp.generated.resources.theme
 import proxytoolboxgui.composeapp.generated.resources.theme_dark
 import proxytoolboxgui.composeapp.generated.resources.theme_light
 import proxytoolboxgui.composeapp.generated.resources.theme_system
+import proxytoolboxgui.composeapp.generated.resources.auto_start_web_server
+import proxytoolboxgui.composeapp.generated.resources.web_server_localhost
+import proxytoolboxgui.composeapp.generated.resources.web_server_port
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +54,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val workers by viewModel.workers.collectAsState()
     val showThemeDialog by viewModel.showThemeDialog.collectAsState()
     val showWorkerDialog by viewModel.showWorkerDialog.collectAsState()
+    val showDownloadTimeoutDialog by viewModel.showDownloadTimeoutDialog.collectAsState()
+    val showLatencyRoundsDialog by viewModel.showLatencyRoundsDialog.collectAsState()
+    val showRoundTimeoutDialog by viewModel.showRoundTimeoutDialog.collectAsState()
+    val showBatchSizeDialog by viewModel.showBatchSizeDialog.collectAsState()
+    val showPortDialog by viewModel.showPortDialog.collectAsState()
 
     Scaffold(
         topBar = {
@@ -59,7 +83,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             item {
-                SettingsCategory(title = "Appearance")
+                SettingsCategory(title = stringResource(Res.string.category_appearance))
                 SettingsClickableItem(
                     title = stringResource(Res.string.theme),
                     subtitle = when (settings.theme) {
@@ -72,7 +96,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
 
             item {
-                SettingsCategory(title = "Worker")
+                SettingsCategory(title = stringResource(Res.string.category_worker))
                 SettingsClickableItem(
                     title = stringResource(Res.string.current_worker),
                     subtitle = workers.find { it.path == settings.selectedWorker }?.name
@@ -82,17 +106,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
 
             item {
-                SettingsCategory(title = "Download")
-                SettingsNumberItem(
-                    title = "Subscription download timeout",
-                    value = settings.downloadTimeout,
-                    hint = "Seconds",
-                    onValueChange = {
-                        viewModel.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1)))
-                    }
+                SettingsCategory(title = stringResource(Res.string.category_download))
+                SettingsClickableItem(
+                    title = stringResource(Res.string.subscription_download_timeout),
+                    subtitle = stringResource(Res.string.seconds_hint, settings.downloadTimeout),
+                    onClick = { viewModel.showDownloadTimeoutDialog() }
                 )
                 SettingsSwitchItem(
-                    title = "Perform deduplication",
+                    title = stringResource(Res.string.perform_deduplication),
                     checked = settings.performDedup,
                     onCheckedChange = {
                         viewModel.updateSettings(settings.copy(performDedup = it))
@@ -101,61 +122,48 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
 
             item {
-                SettingsCategory(title = "Testing")
-                SettingsNumberItem(
-                    title = "Latency test rounds",
-                    value = settings.latencyRounds,
-                    hint = "Count",
-                    onValueChange = {
-                        viewModel.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1)))
-                    }
+                SettingsCategory(title = stringResource(Res.string.category_testing))
+                SettingsClickableItem(
+                    title = stringResource(Res.string.latency_test_rounds),
+                    subtitle = stringResource(Res.string.count_hint, settings.latencyRounds),
+                    onClick = { viewModel.showLatencyRoundsDialog() }
                 )
-                SettingsNumberItem(
-                    title = "Round timeout",
-                    value = settings.roundTimeout,
-                    hint = "Seconds",
-                    onValueChange = {
-                        viewModel.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1)))
-                    }
+                SettingsClickableItem(
+                    title = stringResource(Res.string.round_timeout),
+                    subtitle = stringResource(Res.string.seconds_hint, settings.roundTimeout),
+                    onClick = { viewModel.showRoundTimeoutDialog() }
                 )
                 SettingsSwitchItem(
-                    title = "Test by batches",
+                    title = stringResource(Res.string.test_by_batches),
                     checked = settings.testByBatches,
                     onCheckedChange = {
                         viewModel.updateSettings(settings.copy(testByBatches = it))
                     }
                 )
-                SettingsNumberItem(
-                    title = "Batch size",
-                    value = settings.batchSize,
-                    hint = "Count",
+                SettingsClickableItem(
+                    title = stringResource(Res.string.batch_size),
+                    subtitle = stringResource(Res.string.count_hint, settings.batchSize),
                     enabled = settings.testByBatches,
-                    onValueChange = {
-                        viewModel.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1)))
-                    }
+                    onClick = { viewModel.showBatchSizeDialog() }
                 )
             }
 
             item {
-                SettingsCategory(title = "Web Server")
+                SettingsCategory(title = stringResource(Res.string.category_web_server))
                 SettingsSwitchItem(
-                    title = "Auto-start web-server after test",
+                    title = stringResource(Res.string.auto_start_web_server),
                     checked = settings.autoStartWebServer,
                     onCheckedChange = {
                         viewModel.updateSettings(settings.copy(autoStartWebServer = it))
                     }
                 )
-                SettingsNumberItem(
-                    title = "Web-server port",
-                    value = settings.webServerPort,
-                    hint = "1024-65535",
-                    onValueChange = {
-                        val port = it.coerceIn(1024, 65535)
-                        viewModel.updateSettings(settings.copy(webServerPort = port))
-                    }
+                SettingsClickableItem(
+                    title = stringResource(Res.string.web_server_port),
+                    subtitle = stringResource(Res.string.port_hint),
+                    onClick = { viewModel.showPortDialog() }
                 )
                 SettingsSwitchItem(
-                    title = "Web-server listens only localhost",
+                    title = stringResource(Res.string.web_server_localhost),
                     checked = settings.webServerLocalhost,
                     onCheckedChange = {
                         viewModel.updateSettings(settings.copy(webServerLocalhost = it))
@@ -181,6 +189,54 @@ fun SettingsScreen(viewModel: MainViewModel) {
             onSelect = { viewModel.selectWorker(it) }
         )
     }
+
+    if (showDownloadTimeoutDialog) {
+        NumberInputDialog(
+            title = stringResource(Res.string.subscription_download_timeout),
+            currentValue = settings.downloadTimeout,
+            hint = stringResource(Res.string.seconds_hint, settings.downloadTimeout),
+            onDismiss = { viewModel.hideDownloadTimeoutDialog() },
+            onSave = { viewModel.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1))) }
+        )
+    }
+
+    if (showLatencyRoundsDialog) {
+        NumberInputDialog(
+            title = stringResource(Res.string.latency_test_rounds),
+            currentValue = settings.latencyRounds,
+            hint = stringResource(Res.string.count_hint, settings.latencyRounds),
+            onDismiss = { viewModel.hideLatencyRoundsDialog() },
+            onSave = { viewModel.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1))) }
+        )
+    }
+
+    if (showRoundTimeoutDialog) {
+        NumberInputDialog(
+            title = stringResource(Res.string.round_timeout),
+            currentValue = settings.roundTimeout,
+            hint = stringResource(Res.string.seconds_hint, settings.roundTimeout),
+            onDismiss = { viewModel.hideRoundTimeoutDialog() },
+            onSave = { viewModel.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1))) }
+        )
+    }
+
+    if (showBatchSizeDialog) {
+        NumberInputDialog(
+            title = stringResource(Res.string.batch_size),
+            currentValue = settings.batchSize,
+            hint = stringResource(Res.string.count_hint, settings.batchSize),
+            onDismiss = { viewModel.hideBatchSizeDialog() },
+            onSave = { viewModel.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1))) }
+        )
+    }
+
+    if (showPortDialog) {
+        PortInputDialog(
+            currentValue = settings.webServerPort,
+            onDismiss = { viewModel.hidePortDialog() },
+            onSave = { viewModel.savePort(it) }
+        )
+    }
 }
 
 @Composable
@@ -197,11 +253,13 @@ private fun SettingsCategory(title: String) {
 private fun SettingsClickableItem(
     title: String,
     subtitle: String,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -215,47 +273,6 @@ private fun SettingsClickableItem(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsNumberItem(
-    title: String,
-    value: Int,
-    hint: String,
-    enabled: Boolean = true,
-    onValueChange: (Int) -> Unit
-) {
-    var text by remember(value) { mutableStateOf(value.toString()) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            OutlinedTextField(
-                value = text,
-                onValueChange = { newText ->
-                    text = newText.filter { it.isDigit() }
-                    text.toIntOrNull()?.let { onValueChange(it) }
-                },
-                label = { Text(hint) },
-                enabled = enabled,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                ),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -376,6 +393,103 @@ private fun WorkerSelectionDialog(
             }
         },
         confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun NumberInputDialog(
+    title: String,
+    currentValue: Int,
+    hint: String,
+    onDismiss: () -> Unit,
+    onSave: (Int) -> Unit
+) {
+    var text by remember { mutableStateOf(currentValue.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.filter { c -> c.isDigit() } },
+                label = { Text(hint) },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    text.toIntOrNull()?.let { onSave(it) }
+                    onDismiss()
+                },
+                enabled = text.toIntOrNull() != null
+            ) {
+                Text(stringResource(Res.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun PortInputDialog(
+    currentValue: Int,
+    onDismiss: () -> Unit,
+    onSave: (Int) -> Boolean
+) {
+    var text by remember { mutableStateOf(currentValue.toString()) }
+    val isValid = text.toIntOrNull()?.let { it in 1024..65535 } == true
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.web_server_port)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.filter { c -> c.isDigit() } },
+                label = { Text(stringResource(Res.string.port_hint)) },
+                isError = !isValid && text.isNotEmpty(),
+                supportingText = {
+                    if (!isValid && text.isNotEmpty()) {
+                        Text(stringResource(Res.string.error_invalid_port))
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val port = text.toIntOrNull() ?: 0
+                    if (onSave(port)) {
+                        onDismiss()
+                    }
+                },
+                enabled = isValid
+            ) {
+                Text(stringResource(Res.string.save))
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.cancel))
             }

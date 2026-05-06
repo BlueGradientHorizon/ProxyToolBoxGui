@@ -5,7 +5,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import kotlinx.coroutines.delay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,9 +39,12 @@ import proxytoolboxgui.composeapp.generated.resources.profiles_duplicated
 import proxytoolboxgui.composeapp.generated.resources.profiles_found
 import proxytoolboxgui.composeapp.generated.resources.ready
 import proxytoolboxgui.composeapp.generated.resources.settings
+import proxytoolboxgui.composeapp.generated.resources.stop
 import proxytoolboxgui.composeapp.generated.resources.subscriptions
 import proxytoolboxgui.composeapp.generated.resources.test
+import proxytoolboxgui.composeapp.generated.resources.test_progress_status
 import proxytoolboxgui.composeapp.generated.resources.testing
+import proxytoolboxgui.composeapp.generated.resources.update
 import proxytoolboxgui.composeapp.generated.resources.updating_progress
 import proxytoolboxgui.composeapp.generated.resources.validation_errors
 import proxytoolboxgui.composeapp.generated.resources.web_server
@@ -61,6 +66,15 @@ fun MainScreen(viewModel: MainViewModel) {
             TopAppBar(
                 title = { Text(stringResource(Res.string.app_name)) },
                 actions = {
+                    TextButton(onClick = { viewModel.updateSubscriptions() }) {
+                        val dp by viewModel.downloadProgress.collectAsState()
+                        Text(
+                            if (dp.isRunning)
+                                stringResource(Res.string.updating_progress, dp.total, dp.succeeded, dp.failed)
+                            else
+                                stringResource(Res.string.update)
+                        )
+                    }
                     IconButton(onClick = { viewModel.navigateTo(Screen.Subscriptions) }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.List,
@@ -144,8 +158,8 @@ fun MainScreen(viewModel: MainViewModel) {
                     modifier = Modifier.weight(1f),
                     colors = if (webServerRunning) {
                         ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     } else ButtonDefaults.buttonColors()
                 ) {
@@ -171,12 +185,10 @@ fun MainScreen(viewModel: MainViewModel) {
                 } else ButtonDefaults.buttonColors()
             ) {
                 Text(
-                    text = if (appStatus == AppStatus.TESTING) {
-                        "STOP"
-                    } else if (workers.isEmpty()) {
-                        stringResource(Res.string.no_workers_found)
-                    } else {
-                        stringResource(Res.string.test)
+                    text = when {
+                        appStatus == AppStatus.TESTING -> stringResource(Res.string.stop)
+                        workers.isEmpty() -> stringResource(Res.string.no_workers_found)
+                        else -> stringResource(Res.string.test)
                     }
                 )
             }
@@ -285,17 +297,23 @@ private fun TableCell(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun TestProgressBar(progress: TestProgress) {
-    val progressValue = if (progress.totalSeconds > 0) {
-        progress.elapsedSeconds.toFloat() / progress.totalSeconds.toFloat()
-    } else 0f
-
+    var remaining by remember { mutableIntStateOf(progress.totalSeconds - progress.elapsedSeconds) }
+    LaunchedEffect(progress.isRoundActive, progress.totalSeconds, progress.elapsedSeconds) {
+        remaining = progress.totalSeconds - progress.elapsedSeconds
+        if (!progress.isRoundActive) return@LaunchedEffect
+        while (remaining > 0 && progress.isRoundActive) {
+            delay(1000)
+            remaining--
+        }
+    }
+    val fraction = if (progress.totalSeconds > 0) 1f - (remaining.toFloat() / progress.totalSeconds.toFloat()) else 0f
     Column(modifier = Modifier.fillMaxWidth()) {
         LinearProgressIndicator(
-            progress = { progressValue.coerceIn(0f, 1f) },
+            progress = { fraction.coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = "Batch ${progress.currentBatch}/${progress.totalBatches} • Round ${progress.currentRound}/${progress.totalRounds}",
+            text = stringResource(Res.string.test_progress_status, remaining, progress.currentBatch, progress.totalBatches, progress.currentRound, progress.totalRounds),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
