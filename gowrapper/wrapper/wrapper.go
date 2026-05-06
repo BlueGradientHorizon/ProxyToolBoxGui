@@ -1,4 +1,4 @@
-package wrapper
+package main
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	_ "golang.org/x/mobile/bind"
 
 	"github.com/bluegradienthorizon/proxytoolbox/parsers"
 	"github.com/bluegradienthorizon/proxytoolbox/registry"
@@ -248,3 +246,5 @@ func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, 
 	b, err := json.Marshal(workingConfigs)
 	return string(b), err
 }
+
+func main() {}
