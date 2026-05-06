@@ -2,6 +2,7 @@ package com.bghorizon.proxytoolboxgui.data
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
 
 @Serializable
 data class WorkerInfo(
@@ -94,5 +95,6 @@ object JsonConfig {
     val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
+        namingStrategy = JsonNamingStrategy.SnakeCase
     }
 }
