@@ -4,6 +4,16 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.encodeToString
 
+/*
+*
+* EVERYTHING HERE IS BULLSHIT, WRAPPER IS A C-SHARED GO LIBRARY, NOT A BINARY!!!
+* PROPER BINDINGS REQUIRED!!!
+* LOOK AT GoBridge.android.kt TO UNDERSTAND WHAT I MEAN
+* Right now I'm moving away from gomobile, and now I want to use https://github.com/jnr/jnr-ffi
+* The reason is I want a unified interface (desktop+android) to call go wrapper's functions
+* Unresolved wrapper imports are leftovers from old wrapper.aar
+*
+* */
 actual object GoBridge {
     private fun findWrapperBinary(): String {
         val jarPath = File(System.getProperty("java.class.path").split(File.pathSeparator)[0])

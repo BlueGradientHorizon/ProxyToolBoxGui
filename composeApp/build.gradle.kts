@@ -23,8 +23,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
-            implementation(files("libs/wrapper.aar"))
-//            implementation(files("libs/wrapper-sources.jar"))
+//            implementation(files("libs/wrapper.aar"))
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
