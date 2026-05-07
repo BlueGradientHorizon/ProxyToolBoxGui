@@ -83,9 +83,37 @@ class MainViewModel(
             settingsRepository.settings.collect { _settings.value = it }
         }
         viewModelScope.launch {
-            settingsRepository.loadSettings()
-            _subscriptions.value = loadSubscriptions()
-            discoverWorkers()
+            try {
+                settingsRepository.loadSettings()
+                val loadedSubs = loadSubscriptions()
+                val configs = loadWorkingConfigs()
+                
+                _subscriptions.value = loadedSubs
+                _workingConfigs.value = configs
+                
+                if (configs.isNotEmpty()) {
+                    _appStatus.value = AppStatus.COMPLETED
+                    
+                    // If working configs exist but subscriptions have 0 working count, re-sync them
+                    if (loadedSubs.any { it.working > 0 }.not()) {
+                        val workingCounts = mutableMapOf<String, Int>()
+                        configs.forEach { cfg ->
+                            extractSubId(cfg.tag)?.let { id ->
+                                workingCounts[id] = (workingCounts[id] ?: 0) + 1
+                            }
+                        }
+                        if (workingCounts.isNotEmpty()) {
+                            _subscriptions.value = loadedSubs.map { 
+                                it.copy(working = workingCounts[it.id] ?: 0)
+                            }
+                        }
+                    }
+                }
+                discoverWorkers()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _appStatus.value = AppStatus.ERROR
+            }
         }
     }
 
@@ -321,6 +349,8 @@ class MainViewModel(
                 _subscriptions.value = subsFinal
                 _workingConfigs.value = resultConfigs
                 _appStatus.value = AppStatus.COMPLETED
+                saveSubscriptions()
+                saveWorkingConfigs()
             } catch (e: Exception) {
                 _appStatus.value = AppStatus.ERROR
                 e.printStackTrace()
@@ -560,6 +590,23 @@ class MainViewModel(
         val store = settingsRepository.getStore()
         val json = JsonConfig.json.encodeToString(_subscriptions.value)
         store.putString("subscriptions", json)
+    }
+
+    private suspend fun loadWorkingConfigs(): List<ProxyConfig> {
+        return try {
+            val store = settingsRepository.getStore()
+            val json = store.getString("working_configs", "[]")
+            JsonConfig.json.decodeFromString(json)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    private suspend fun saveWorkingConfigs() {
+        val store = settingsRepository.getStore()
+        val json = JsonConfig.json.encodeToString(_workingConfigs.value)
+        store.putString("working_configs", json)
     }
 
     private fun subUriKey(subId: String) = "sub_uris_$subId"
