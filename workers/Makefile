@@ -8,7 +8,6 @@ ifeq ($(OS),Windows_NT)
     ENV_SET = set $(1)=$(2)&&
     NDK_HOST_TAG := windows-x86_64
     CLANG_EXT := .cmd
-    MSYS2_DIR := $(dir $(firstword $(shell where msys2.exe 2>NUL)))/mingw64/bin
 else
     EXE :=
     MKDIR = mkdir -p $(1)
