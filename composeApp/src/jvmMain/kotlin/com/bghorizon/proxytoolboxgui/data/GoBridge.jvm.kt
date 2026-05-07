@@ -88,7 +88,6 @@ object NativeLoader {
 
 actual object GoBridge {
     actual fun discoverWorkers(libraryPath: String): String {
-        NativeLoader.init()
         val ptr = NativeLoader.lib.DiscoverWorkers(libraryPath)
         val result = ptr.getString(0) ?: "[]"
         NativeLoader.lib.FreeString(ptr)
@@ -102,7 +101,6 @@ actual object GoBridge {
         connUris: List<ProxyConfig>,
         performDedup: Boolean
     ): List<ProxyConfig> {
-        NativeLoader.init()
         val connUrisJson = JsonConfig.json.encodeToString(connUris)
         
         val ptr = NativeLoader.lib.RunLatencyTests(

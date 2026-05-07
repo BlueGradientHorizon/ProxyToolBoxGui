@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.platform
 
+import com.bghorizon.proxytoolboxgui.data.NativeLoader
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.io.File
@@ -15,8 +16,7 @@ class JVMPlatform : Platform {
     }
 
     override fun getWorkerLibraryPath(): String {
-        val jarPath = File(System.getProperty("java.class.path").split(File.pathSeparator)[0])
-        return if (jarPath.isFile) jarPath.parentFile.absolutePath else System.getProperty("user.dir")
+        return NativeLoader.tempDir
     }
 
     override fun copyToClipboard(text: String) {
