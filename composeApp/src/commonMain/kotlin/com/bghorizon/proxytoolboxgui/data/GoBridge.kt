@@ -9,6 +9,8 @@ expect object GoBridge {
         connUris: List<ProxyConfig>,
         performDedup: Boolean
     ): List<ProxyConfig>
+
+    fun stopTests()
 }
 
 interface GoTestCallback {

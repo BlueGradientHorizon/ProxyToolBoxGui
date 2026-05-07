@@ -31,6 +31,7 @@ interface GoLibrary {
         cbProgress: CbProgress,
         cbRoundEnded: CbRoundEnded
     ): Pointer
+    fun StopTests()
     fun FreeString(ptr: Pointer)
 }
 
@@ -120,6 +121,10 @@ actual object GoBridge {
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    actual fun stopTests() {
+        NativeLoader.lib.StopTests()
     }
 
     private fun parseTagsJson(json: String): List<String> {

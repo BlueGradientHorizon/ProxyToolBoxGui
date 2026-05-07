@@ -29,6 +29,7 @@
 
     <!-- Batch Table -->
     <string name="batch_title">Batch %1$d</string>
+    <string name="column_round">Round</string>
     <string name="column_total">Total</string>
     <string name="column_running">Running</string>
     <string name="column_failed">Failed</string>

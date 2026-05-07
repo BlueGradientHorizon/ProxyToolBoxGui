@@ -123,9 +123,10 @@ class MainViewModel(
         if (_workers.value.isEmpty() || testJob?.isActive == true) return
 
         testJob = viewModelScope.launch(Dispatchers.IO) {
+            val job = coroutineContext[Job]
             val currentSettings = _settings.value
             _appStatus.value = AppStatus.TESTING
-            _testProgress.value = TestProgress(isRunning = true)
+            _testProgress.update { it.copy(isRunning = true) }
 
             try {
                 val subs = _subscriptions.value.toMutableList()
@@ -158,6 +159,30 @@ class MainViewModel(
                 }
                 _subscriptions.value = subs
 
+                val totalBatches = if (currentSettings.testByBatches && currentSettings.batchSize > 0) {
+                    (configs.size + currentSettings.batchSize - 1) / currentSettings.batchSize
+                } else {
+                    1
+                }
+                val totalRounds = currentSettings.latencyRounds
+                val roundTimeout = currentSettings.roundTimeout
+                val totalSeconds = totalBatches * totalRounds * roundTimeout
+
+                val initialProgresses = (1..totalBatches).flatMap { b ->
+                    (1..totalRounds).map { r ->
+                        BatchProgress(batchNum = b, roundNum = r)
+                    }
+                }
+                _testProgress.update { it.copy(
+                    batchProgresses = initialProgresses,
+                    totalBatches = totalBatches,
+                    totalRounds = totalRounds,
+                    totalSeconds = totalSeconds,
+                    elapsedSeconds = 0,
+                    currentBatch = 0,
+                    currentRound = 0
+                ) }
+
                 val subIdToIndex = subs.mapIndexed { i, sub -> sub.id to i }.toMap()
 
                 val workerPath = currentSettings.selectedWorker
@@ -166,6 +191,7 @@ class MainViewModel(
                     settings = currentSettings,
                     callback = object : GoTestCallback {
                         override fun onParseFailed(tags: List<String>) {
+                            if (job?.isActive != true) return
                             val current = _subscriptions.value.toMutableList()
                             // Update parse error counts for subscriptions based on reported failed tags
                             tags.forEach { tag ->
@@ -179,6 +205,7 @@ class MainViewModel(
                         }
 
                         override fun onValidateFailed(tags: List<String>) {
+                            if (job?.isActive != true) return
                             val current = _subscriptions.value.toMutableList()
                             // Update validation error counts for subscriptions based on reported failed tags
                             tags.forEach { tag ->
@@ -192,36 +219,39 @@ class MainViewModel(
                         }
 
                         override fun onRoundStarted(batch: Long, round: Long, total: Long) {
-                            val totalBatches = total.toInt()
+                            if (job?.isActive != true) return
                             val latencyRounds = currentSettings.latencyRounds
                             val roundTimeout = currentSettings.roundTimeout
                             val currentRoundAbsolute = (batch.toInt() - 1) * latencyRounds + round.toInt()
 
                             _testProgress.update { current ->
                                 val updatedProgresses = current.batchProgresses.toMutableList()
-                                if (updatedProgresses.none { it.batchNum == batch.toInt() }) {
-                                    val totalInBatch = if (batch.toInt() < totalBatches) {
-                                        currentSettings.batchSize
+                                val idx = updatedProgresses.indexOfFirst { it.batchNum == batch.toInt() && it.roundNum == round.toInt() }
+                                if (idx >= 0) {
+                                    val totalForThisRound = if (round.toInt() == 1) {
+                                        if (!currentSettings.testByBatches) {
+                                            configs.size
+                                        } else if (batch.toInt() < totalBatches) {
+                                            currentSettings.batchSize
+                                        } else {
+                                            val rem = configs.size % currentSettings.batchSize
+                                            if (rem == 0 && configs.size > 0) currentSettings.batchSize else rem
+                                        }
                                     } else {
-                                        val totalConfigs = configs.size
-                                        val rem = totalConfigs % currentSettings.batchSize
-                                        if (rem == 0 && totalConfigs > 0) currentSettings.batchSize else rem
+                                        updatedProgresses.find { 
+                                            it.batchNum == batch.toInt() && it.roundNum == round.toInt() - 1 
+                                        }?.succeeded ?: 0
                                     }
-                                    updatedProgresses.add(
-                                        BatchProgress(
-                                            batchNum = batch.toInt(),
-                                            total = totalInBatch,
-                                            running = totalInBatch
-                                        )
+
+                                    updatedProgresses[idx] = updatedProgresses[idx].copy(
+                                        total = totalForThisRound,
+                                        running = totalForThisRound
                                     )
                                 }
 
                                 current.copy(
                                     currentBatch = batch.toInt(),
-                                    totalBatches = totalBatches,
                                     currentRound = round.toInt(),
-                                    totalRounds = latencyRounds,
-                                    totalSeconds = totalBatches * latencyRounds * roundTimeout,
                                     elapsedSeconds = (currentRoundAbsolute - 1) * roundTimeout,
                                     isRunning = true,
                                     isRoundActive = true,
@@ -239,9 +269,12 @@ class MainViewModel(
                         }
 
                         override fun onProgress(tag: String, delay: Long, failed: Boolean) {
+                            if (job?.isActive != true) return
                             _testProgress.update { current ->
                                 val updatedProgresses = current.batchProgresses.toMutableList()
-                                val batchIndex = updatedProgresses.indexOfFirst { it.batchNum == current.currentBatch }
+                                val batchIndex = updatedProgresses.indexOfFirst { 
+                                    it.batchNum == current.currentBatch && it.roundNum == current.currentRound 
+                                }
 
                                 if (batchIndex >= 0) {
                                     val bp = updatedProgresses[batchIndex]
@@ -257,6 +290,7 @@ class MainViewModel(
                         }
 
                         override fun onRoundEnded(batch: Long, round: Long) {
+                            if (job?.isActive != true) return
                             timerJob?.cancel()
                             _testProgress.update { it.copy(isRoundActive = false) }
                         }
@@ -264,6 +298,8 @@ class MainViewModel(
                     connUris = configs,
                     performDedup = currentSettings.performDedup
                 )
+
+                if (job?.isActive != true) return@launch
 
                 val subsFinal = _subscriptions.value.toMutableList()
                 val workingCounts = mutableMapOf<String, Int>()
@@ -307,9 +343,10 @@ class MainViewModel(
 
     fun stopTest() {
         testJob?.cancel()
-        timerJob?.cancel()
-        _appStatus.value = AppStatus.IDLE
-        _testProgress.value = TestProgress()
+        viewModelScope.launch(Dispatchers.IO) {
+            GoBridge.stopTests()
+            _appStatus.value = AppStatus.IDLE
+        }
     }
 
     fun updateSubscriptions() {

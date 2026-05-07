@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -29,6 +30,25 @@ import (
 	"github.com/bluegradienthorizon/proxytoolbox/registry"
 	"github.com/bluegradienthorizon/proxytoolbox/runner"
 )
+
+var (
+	testMu     sync.Mutex
+	testCancel context.CancelFunc
+	testRunner *runner.TestRunner
+)
+
+// StopTests cancels any running latency tests and closes the active worker process.
+//export StopTests
+func StopTests() {
+	testMu.Lock()
+	defer testMu.Unlock()
+	if testCancel != nil {
+		testCancel()
+	}
+	if testRunner != nil {
+		testRunner.Close()
+	}
+}
 
 type WorkerInfo struct {
 	Name    string `json:"name"`
@@ -141,7 +161,17 @@ func RunLatencyTests(
 		return C.CString("[]") // TODO: should return "no valid configs" error
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	testMu.Lock()
+	testCancel = cancel
+	testMu.Unlock()
+	defer func() {
+		testMu.Lock()
+		testCancel = nil
+		testRunner = nil
+		testMu.Unlock()
+		cancel()
+	}()
 
 	// 2. Initial Validation
 	tr, err := runner.NewTestRunner(runner.RunnerSettings{
@@ -151,8 +181,17 @@ func RunLatencyTests(
 		return C.CString("[]")
 	}
 
+	testMu.Lock()
+	testRunner = tr
+	testMu.Unlock()
+
 	taggedConfigs, validationErrors, err := tr.Validate(ctx, parsedConfigs, runner.DefaultConfigTaggerFunc)
+
 	tr.Close()
+	testMu.Lock()
+	testRunner = nil
+	testMu.Unlock()
+
 	if err != nil {
 		return C.CString("[]") // TODO: should return err
 	}
@@ -192,6 +231,10 @@ func RunLatencyTests(
 	var allResults []runner.LatencyTestResult
 
 	for batchStart := 0; batchStart < len(validConfigs); batchStart += goBatchSize {
+		if ctx.Err() != nil {
+			break
+		}
+
 		batchEnd := min(batchStart+goBatchSize, len(validConfigs))
 		batchConfigs := validConfigs[batchStart:batchEnd]
 		batchNum := batchStart/goBatchSize + 1
@@ -203,9 +246,19 @@ func RunLatencyTests(
 			continue
 		}
 
+		testMu.Lock()
+		testRunner = batchRunner
+		testMu.Unlock()
+
 		_, batchValidationErrors, err := batchRunner.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
 		if err != nil {
 			batchRunner.Close()
+			testMu.Lock()
+			testRunner = nil
+			testMu.Unlock()
+			if ctx.Err() != nil {
+				break
+			}
 			continue
 		}
 
@@ -223,6 +276,9 @@ func RunLatencyTests(
 
 		if len(batchTags) == 0 {
 			batchRunner.Close()
+			testMu.Lock()
+			testRunner = nil
+			testMu.Unlock()
 			continue
 		}
 
@@ -257,6 +313,13 @@ func RunLatencyTests(
 		}
 
 		batchRunner.Close()
+		testMu.Lock()
+		testRunner = nil
+		testMu.Unlock()
+
+		if ctx.Err() != nil {
+			break
+		}
 	}
 
 	// 4. Wrap up working configs

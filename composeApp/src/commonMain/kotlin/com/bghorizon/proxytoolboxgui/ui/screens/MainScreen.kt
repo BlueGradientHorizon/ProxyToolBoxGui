@@ -24,6 +24,7 @@ import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.app_name
 import proxytoolboxgui.composeapp.generated.resources.batch_title
 import proxytoolboxgui.composeapp.generated.resources.column_failed
+import proxytoolboxgui.composeapp.generated.resources.column_round
 import proxytoolboxgui.composeapp.generated.resources.column_running
 import proxytoolboxgui.composeapp.generated.resources.column_succeeded
 import proxytoolboxgui.composeapp.generated.resources.column_total
@@ -112,12 +113,15 @@ fun MainScreen(viewModel: MainViewModel) {
             )
 
             if (testProgress.batchProgresses.isNotEmpty()) {
+                val groupedBatches = remember(testProgress.batchProgresses) {
+                    testProgress.batchProgresses.groupBy { it.batchNum }.toList().sortedBy { it.first }
+                }
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(testProgress.batchProgresses) { batch ->
-                        BatchTable(batch)
+                    items(groupedBatches) { (batchNum, rounds) ->
+                        BatchTable(batchNum, rounds)
                     }
                 }
             } else {
@@ -252,7 +256,7 @@ private fun StatLine(text: String, isHighlighted: Boolean = false) {
 }
 
 @Composable
-private fun BatchTable(batch: BatchProgress) {
+private fun BatchTable(batchNum: Int, rounds: List<BatchProgress>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -261,7 +265,7 @@ private fun BatchTable(batch: BatchProgress) {
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
-                text = stringResource(Res.string.batch_title, batch.batchNum),
+                text = stringResource(Res.string.batch_title, batchNum),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
@@ -270,22 +274,26 @@ private fun BatchTable(batch: BatchProgress) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
+                TableHeaderCell(stringResource(Res.string.column_round), Modifier.weight(0.7f))
                 TableHeaderCell(stringResource(Res.string.column_total), Modifier.weight(1f))
                 TableHeaderCell(stringResource(Res.string.column_running), Modifier.weight(1f))
                 TableHeaderCell(stringResource(Res.string.column_failed), Modifier.weight(1f))
                 TableHeaderCell(stringResource(Res.string.column_succeeded), Modifier.weight(1f))
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            rounds.sortedBy { it.roundNum }.forEach { round ->
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                TableCell(batch.total.toString(), Modifier.weight(1f))
-                TableCell(batch.running.toString(), Modifier.weight(1f))
-                TableCell(batch.failed.toString(), Modifier.weight(1f))
-                TableCell(batch.succeeded.toString(), Modifier.weight(1f))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    TableCell(round.roundNum.toString(), Modifier.weight(0.7f))
+                    TableCell(round.total.toString(), Modifier.weight(1f))
+                    TableCell(round.running.toString(), Modifier.weight(1f))
+                    TableCell(round.failed.toString(), Modifier.weight(1f))
+                    TableCell(round.succeeded.toString(), Modifier.weight(1f))
+                }
             }
         }
     }
