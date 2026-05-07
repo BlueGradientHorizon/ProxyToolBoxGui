@@ -24,4 +24,9 @@ node_modules/
 *.txt
 .vscode/
 bin/
-composeApp/libs
+composeApp/libscomposeApp/src/jvmMain/resources/*
+!composeApp/src/jvmMain/resources/.gitkeep
+composeApp/src/androidMain/jniLibs/*
+!composeApp/src/androidMain/jniLibs/.gitkeep
+workers/*
+!workers/Makefile

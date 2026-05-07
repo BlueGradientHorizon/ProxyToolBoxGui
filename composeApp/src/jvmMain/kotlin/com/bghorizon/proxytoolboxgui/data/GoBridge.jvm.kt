@@ -51,11 +51,20 @@ object NativeLoader {
         val isWin = osName.contains("win")
         val isMac = osName.contains("mac")
         val extLib = when { isWin -> ".dll"; isMac -> ".dylib"; else -> ".so" }
-        val extExe = if (isWin) ".exe" else ""
         
-        val filesToExtract = listOf("libwrapper$extLib", "xraycore-worker$extExe", "singbox-worker$extExe")
+        val filesToExtract = mutableListOf("libwrapper$extLib")
+        
+        // Extract all files from resources to tempDir
+        val resourcesDir = File("src/jvmMain/resources")
+        if (resourcesDir.exists()) {
+            resourcesDir.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    filesToExtract.add(file.name)
+                }
+            }
+        }
 
-        for (fileName in filesToExtract) {
+        for (fileName in filesToExtract.distinct()) {
             val stream = Thread.currentThread().contextClassLoader.getResourceAsStream(fileName)
             
             if (stream != null) {
