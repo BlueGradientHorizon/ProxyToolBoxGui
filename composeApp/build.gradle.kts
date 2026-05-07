@@ -108,66 +108,58 @@ val osName = System.getProperty("os.name").lowercase()
 val isWindows = osName.contains("win")
 val desktopTarget = if (isWindows) "windows_x64" else "linux_x64"
 
-tasks.register<Exec>("buildGoWrapperDesktop") {
+val runBuildGoWrapperDesktop = tasks.register<Exec>("runBuildGoWrapperDesktop") {
     group = "build"
     workingDir = file("../gowrapper")
     commandLine("make", desktopTarget)
-    
-    doLast {
-        val srcDir = if (isWindows) "../gowrapper/bin/windows/x64" else "../gowrapper/bin/linux/x64"
-        val destDir = file("src/jvmMain/resources")
-        destDir.mkdirs()
-        copy {
-            from(srcDir)
-            into(destDir)
-        }
-    }
 }
 
-tasks.register<Exec>("buildWorkersDesktop") {
+tasks.register<Copy>("buildGoWrapperDesktop") {
+    group = "build"
+    dependsOn(runBuildGoWrapperDesktop)
+    val srcDir = if (isWindows) "../gowrapper/bin/windows/x64" else "../gowrapper/bin/linux/x64"
+    from(srcDir)
+    into("src/jvmMain/resources")
+}
+
+val runBuildWorkersDesktop = tasks.register<Exec>("runBuildWorkersDesktop") {
     group = "build"
     workingDir = file("../workers")
     commandLine("make", desktopTarget)
-    
-    doLast {
-        val srcDir = if (isWindows) "../workers/bin/windows/x64" else "../workers/bin/linux/x64"
-        val destDir = file("src/jvmMain/resources")
-        destDir.mkdirs()
-        copy {
-            from(srcDir)
-            into(destDir)
-        }
-    }
 }
 
-tasks.register<Exec>("buildGoWrapperAndroid") {
+tasks.register<Copy>("buildWorkersDesktop") {
+    group = "build"
+    dependsOn(runBuildWorkersDesktop)
+    val srcDir = if (isWindows) "../workers/bin/windows/x64" else "../workers/bin/linux/x64"
+    from(srcDir)
+    into("src/jvmMain/resources")
+}
+
+val runBuildGoWrapperAndroid = tasks.register<Exec>("runBuildGoWrapperAndroid") {
     group = "build"
     workingDir = file("../gowrapper")
     commandLine("make", "android")
-    
-    doLast {
-        val srcDir = "../gowrapper/bin/android"
-        val destDir = file("src/androidMain/jniLibs")
-        copy {
-            from(srcDir)
-            into(destDir)
-        }
-    }
 }
 
-tasks.register<Exec>("buildWorkersAndroid") {
+tasks.register<Copy>("buildGoWrapperAndroid") {
+    group = "build"
+    dependsOn(runBuildGoWrapperAndroid)
+    from("../gowrapper/bin/android")
+    into("src/androidMain/jniLibs")
+}
+
+val runBuildWorkersAndroid = tasks.register<Exec>("runBuildWorkersAndroid") {
     group = "build"
     workingDir = file("../workers")
     commandLine("make", "android")
-    
-    doLast {
-        val srcDir = "../workers/bin/android"
-        val destDir = file("src/androidMain/jniLibs")
-        copy {
-            from(srcDir)
-            into(destDir)
-        }
-    }
+}
+
+tasks.register<Copy>("buildWorkersAndroid") {
+    group = "build"
+    dependsOn(runBuildWorkersAndroid)
+    from("../workers/bin/android")
+    into("src/androidMain/jniLibs")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -176,6 +168,10 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     } else if (name.contains("Android")) {
         dependsOn("buildGoWrapperAndroid", "buildWorkersAndroid")
     }
+}
+
+tasks.matching { it.name == "jvmProcessResources" }.configureEach {
+    dependsOn("buildGoWrapperDesktop", "buildWorkersDesktop")
 }
 
 tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configureEach {
