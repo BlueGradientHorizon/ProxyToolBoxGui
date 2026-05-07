@@ -52,36 +52,36 @@ build: clone
 windows_x64: clone
 	$(foreach w,$(WORKERS), \
 		cd $(REPO_DIR)/internal/workers/$(w) && \
-		$(call ENV_SET,GOOS,windows)$(call ENV_SET,GOARCH,amd64)$(call ENV_SET,CGO_ENABLED,1) go build -o $(CURDIR)/$(OUT_DIR)/windows/x64/$(w)-worker.exe . && \
+		$(call ENV_SET,GOOS,windows) $(call ENV_SET,GOARCH,amd64) $(call ENV_SET,CGO_ENABLED,1) go build -o $(CURDIR)/$(OUT_DIR)/windows/x64/$(w)-worker.exe . && \
 		cd $(CURDIR) && \
 	) cd .
 
 linux_x64: clone
 	$(foreach w,$(WORKERS), \
 		cd $(REPO_DIR)/internal/workers/$(w) && \
-		$(call ENV_SET,GOOS,linux)$(call ENV_SET,GOARCH,amd64)$(call ENV_SET,CGO_ENABLED,1) go build -o $(CURDIR)/$(OUT_DIR)/linux/x64/$(w)-worker . && \
+		$(call ENV_SET,GOOS,linux) $(call ENV_SET,GOARCH,amd64) $(call ENV_SET,CGO_ENABLED,1) go build -o $(CURDIR)/$(OUT_DIR)/linux/x64/$(w)-worker . && \
 		cd $(CURDIR) && \
 	) cd .
 
 android: clone
 	$(foreach w,$(WORKERS), \
 		cd $(REPO_DIR)/internal/workers/$(w) && \
-		$(call ENV_SET,GOOS,android)$(call ENV_SET,GOARCH,arm64)$(call ENV_SET,CGO_ENABLED,1)$(call ENV_SET,CC,$(NDK_BIN)/aarch64-linux-android$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/arm64-v8a/lib$(w)-worker.so . && \
+		$(call ENV_SET,GOOS,android) $(call ENV_SET,GOARCH,arm64) $(call ENV_SET,CGO_ENABLED,1) $(call ENV_SET,CC,$(NDK_BIN)/aarch64-linux-android$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/arm64-v8a/lib$(w)-worker.so . && \
 		cd $(CURDIR) && \
 	) cd .
 	$(foreach w,$(WORKERS), \
 		cd $(REPO_DIR)/internal/workers/$(w) && \
-		$(call ENV_SET,GOOS,android)$(call ENV_SET,GOARCH,arm)$(call ENV_SET,GOARM,7)$(call ENV_SET,CGO_ENABLED,1)$(call ENV_SET,CC,$(NDK_BIN)/armv7a-linux-androideabi$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/armeabi-v7a/lib$(w)-worker.so . && \
+		$(call ENV_SET,GOOS,android) $(call ENV_SET,GOARCH,arm) $(call ENV_SET,GOARM,7) $(call ENV_SET,CGO_ENABLED,1) $(call ENV_SET,CC,$(NDK_BIN)/armv7a-linux-androideabi$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/armeabi-v7a/lib$(w)-worker.so . && \
 		cd $(CURDIR) && \
 	) cd .
 	$(foreach w,$(WORKERS), \
 		cd $(REPO_DIR)/internal/workers/$(w) && \
-		$(call ENV_SET,GOOS,android)$(call ENV_SET,GOARCH,amd64)$(call ENV_SET,CGO_ENABLED,1)$(call ENV_SET,CC,$(NDK_BIN)/x86_64-linux-android$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/x86_64/lib$(w)-worker.so . && \
+		$(call ENV_SET,GOOS,android) $(call ENV_SET,GOARCH,amd64) $(call ENV_SET,CGO_ENABLED,1) $(call ENV_SET,CC,$(NDK_BIN)/x86_64-linux-android$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/x86_64/lib$(w)-worker.so . && \
 		cd $(CURDIR) && \
 	) cd .
 	$(foreach w,$(WORKERS), \
 		cd $(REPO_DIR)/internal/workers/$(w) && \
-		$(call ENV_SET,GOOS,android)$(call ENV_SET,GOARCH,386)$(call ENV_SET,CGO_ENABLED,1)$(call ENV_SET,CC,$(NDK_BIN)/i686-linux-android$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/x86/lib$(w)-worker.so . && \
+		$(call ENV_SET,GOOS,android) $(call ENV_SET,GOARCH,386) $(call ENV_SET,CGO_ENABLED,1) $(call ENV_SET,CC,$(NDK_BIN)/i686-linux-android$(ANDROID_API)-clang$(CLANG_EXT)) go build -o $(CURDIR)/$(OUT_DIR)/android/x86/lib$(w)-worker.so . && \
 		cd $(CURDIR) && \
 	) cd .
 

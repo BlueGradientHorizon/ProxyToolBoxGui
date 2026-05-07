@@ -23,7 +23,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
-//            implementation(files("libs/wrapper.aar"))
+            implementation("com.github.jnr:jnr-ffi:2.2.19")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -52,6 +52,7 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlinx.datetime)
+            implementation("com.github.jnr:jnr-ffi:2.2.19")
         }
     }
 }
@@ -66,13 +67,14 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            pickFirsts += listOf("libgojni.so")
+            // jnr-ffi relies on standard jniLibs behavior
         }
     }
     buildTypes {
@@ -98,49 +100,88 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "com.bghorizon.proxytoolboxgui"
             packageVersion = "1.0.0"
-            appResourcesRootDir.set(project.layout.projectDirectory.dir("../gowrapper/bin"))
         }
     }
 }
 
-tasks.register<Exec>("buildGoWrapper") {
+val osName = System.getProperty("os.name").lowercase()
+val isWindows = osName.contains("win")
+val desktopTarget = if (isWindows) "windows_x64" else "linux_x64"
+
+tasks.register<Exec>("buildGoWrapperDesktop") {
     group = "build"
-    description = "Builds the Go wrapper binary and workers"
-
-    val makeCmd = "make"
-
     workingDir = file("../gowrapper")
-    commandLine(makeCmd, "build")
-
+    commandLine("make", desktopTarget)
+    
     doLast {
-        println("Go wrapper built successfully")
+        val srcDir = if (isWindows) "../gowrapper/bin/windows/x64" else "../gowrapper/bin/linux/x64"
+        val destDir = file("src/jvmMain/resources")
+        destDir.mkdirs()
+        copy {
+            from(srcDir)
+            into(destDir)
+        }
     }
 }
 
-tasks.register<Exec>("buildAndroidWrapper") {
+tasks.register<Exec>("buildWorkersDesktop") {
     group = "build"
-    description = "Builds the Android Go wrapper AAR using gomobile"
-
-    val makeCmd = "make"
-
-    workingDir = file("../gowrapper")
-    commandLine(makeCmd, "android")
-
+    workingDir = file("../workers")
+    commandLine("make", desktopTarget)
+    
     doLast {
-        println("Android wrapper built successfully")
+        val srcDir = if (isWindows) "../workers/bin/windows/x64" else "../workers/bin/linux/x64"
+        val destDir = file("src/jvmMain/resources")
+        destDir.mkdirs()
+        copy {
+            from(srcDir)
+            into(destDir)
+        }
     }
 }
 
-// Fail the whole build if the wrapper/workers cannot be built
+tasks.register<Exec>("buildGoWrapperAndroid") {
+    group = "build"
+    workingDir = file("../gowrapper")
+    commandLine("make", "android")
+    
+    doLast {
+        val srcDir = "../gowrapper/bin/android"
+        val destDir = file("src/androidMain/jniLibs")
+        copy {
+            from(srcDir)
+            into(destDir)
+        }
+    }
+}
+
+tasks.register<Exec>("buildWorkersAndroid") {
+    group = "build"
+    workingDir = file("../workers")
+    commandLine("make", "android")
+    
+    doLast {
+        val srcDir = "../workers/bin/android"
+        val destDir = file("src/androidMain/jniLibs")
+        copy {
+            from(srcDir)
+            into(destDir)
+        }
+    }
+}
+
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    dependsOn("buildGoWrapper")
+    if (name.contains("Jvm")) {
+        dependsOn("buildGoWrapperDesktop", "buildWorkersDesktop")
+    } else if (name.contains("Android")) {
+        dependsOn("buildGoWrapperAndroid", "buildWorkersAndroid")
+    }
 }
 
 tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configureEach {
-    dependsOn("buildAndroidWrapper")
+    dependsOn("buildGoWrapperAndroid", "buildWorkersAndroid")
 }
 
-// Ensure desktop packaging also triggers native build
 tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractRunDistributableTask>().configureEach {
-    dependsOn("buildGoWrapper")
+    dependsOn("buildGoWrapperDesktop", "buildWorkersDesktop")
 }
