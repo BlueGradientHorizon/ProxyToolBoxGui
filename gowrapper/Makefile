@@ -6,7 +6,7 @@ ifeq ($(OS),Windows_NT)
     ENV_SET = set $(1)=$(2)&&
     NDK_HOST_TAG := windows-x86_64
     CLANG_EXT := .cmd
-    MSYS2_BIN := $(shell where msys2.exe 2>NUL)
+    MSYS2_BIN := $(shell where.exe msys2.exe 2>NUL)
     ifneq ($(MSYS2_BIN),)
         MSYS2_DIR := $(dir $(firstword $(MSYS2_BIN)))mingw64/bin
     else
@@ -39,7 +39,7 @@ build:
 	$(call ENV_SET,CGO_ENABLED,1) go build -buildmode=c-shared -o $(OUT_DIR)/libwrapper$(LIB)
 
 windows_x64:
-	@if not exist "$(MSYS2_DIR)" ( echo MSYS2/MinGW64 not found at $(MSYS2_DIR) && exit 1 )
+	@cmd.exe /c "if not exist "$(MSYS2_DIR)" ( echo MSYS2/MinGW64 not found at $(MSYS2_DIR) && exit 1 )"
 	$(call ENV_SET,PATH,%PATH%;$(MSYS2_DIR)) $(call ENV_SET,GOOS,windows) $(call ENV_SET,GOARCH,amd64) $(call ENV_SET,CGO_ENABLED,1) $(call ENV_SET,CC,$(MSYS2_DIR)\x86_64-w64-mingw32-gcc.exe) go build -buildmode=c-shared -o $(OUT_DIR)/windows/x64/libwrapper.dll
 
 linux_x64:
