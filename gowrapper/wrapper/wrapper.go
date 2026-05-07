@@ -1,11 +1,29 @@
 package main
 
+/*
+#include <stdlib.h>
+#include <stdbool.h>
+
+typedef void (*cb_parse_failed_t)(const char* tagsJson);
+typedef void (*cb_validate_failed_t)(const char* tagsJson);
+typedef void (*cb_round_started_t)(int batchNum, int roundNum, int total);
+typedef void (*cb_progress_t)(const char* tag, long long delay, int failed);
+typedef void (*cb_round_ended_t)(int batchNum, int roundNum);
+
+static inline void invoke_parse_failed(cb_parse_failed_t cb, const char* tagsJson) { cb(tagsJson); }
+static inline void invoke_validate_failed(cb_validate_failed_t cb, const char* tagsJson) { cb(tagsJson); }
+static inline void invoke_round_started(cb_round_started_t cb, int batchNum, int roundNum, int total) { cb(batchNum, roundNum, total); }
+static inline void invoke_progress(cb_progress_t cb, const char* tag, long long delay, int failed) { cb(tag, delay, failed); }
+static inline void invoke_round_ended(cb_round_ended_t cb, int batchNum, int roundNum) { cb(batchNum, roundNum); }
+*/
+import "C"
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/bluegradienthorizon/proxytoolbox/parsers"
 	"github.com/bluegradienthorizon/proxytoolbox/registry"
@@ -23,26 +41,13 @@ type ProxyConfig struct {
 	ConnURI string `json:"conn_uri"`
 }
 
-type LatencyTestSettings struct {
-	LatencyRounds int
-	RoundTimeout  int
-	TestByBatches bool
-	BatchSize     int
-}
-
-type TestCallback interface {
-	OnParseFailed(tagsJson string)
-	OnValidateFailed(tagsJson string)
-	OnRoundStarted(batchNum, roundNum, total int)
-	OnProgress(tag string, delay int64, failed bool)
-	OnRoundEnded(batchNum, roundNum int)
-}
-
 // DiscoverWorkers finds all valid worker programs in libraryPath.
 // Returns JSON[]WorkerInfo.
-func DiscoverWorkers(libraryPath string) (string, error) {
+//export DiscoverWorkers
+func DiscoverWorkers(libraryPath *C.char) *C.char {
+	goLibraryPath := C.GoString(libraryPath)
 	reg := registry.NewRegistry()
-	reg.Discover(libraryPath)
+	reg.Discover(goLibraryPath)
 
 	workersMap := reg.All()
 	workers := make([]WorkerInfo, 0)
@@ -56,22 +61,41 @@ func DiscoverWorkers(libraryPath string) (string, error) {
 		}
 	}
 
-	b, err := json.Marshal(workers)
-	return string(b), err
+	b, _ := json.Marshal(workers)
+	return C.CString(string(b))
 }
 
 // RunLatencyTests parses, validates, and performs batched latency tests.
 // Returns (json[]ProxyConfig workingConfigs, error).
-func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, settings *LatencyTestSettings, callback TestCallback) (string, error) {
+//export RunLatencyTests
+func RunLatencyTests(
+	workerPath *C.char,
+	connUrisJson *C.char,
+	performDedup C.int,
+	latencyRounds C.int,
+	roundTimeout C.int,
+	testByBatches C.int,
+	batchSize C.int,
+	cbParseFailed C.cb_parse_failed_t,
+	cbValidateFailed C.cb_validate_failed_t,
+	cbRoundStarted C.cb_round_started_t,
+	cbProgress C.cb_progress_t,
+	cbRoundEnded C.cb_round_ended_t,
+) *C.char {
+	goWorkerPath := C.GoString(workerPath)
+	goConnUrisJson := C.GoString(connUrisJson)
+	goPerformDedup := performDedup != 0
+	goTestByBatches := testByBatches != 0
+
 	var inputConfigs []ProxyConfig
-	if err := json.Unmarshal([]byte(connUrisJson), &inputConfigs); err != nil {
-		return "", err
+	if err := json.Unmarshal([]byte(goConnUrisJson), &inputConfigs); err != nil {
+		return C.CString(fmt.Sprintf("[]"))
 	}
 
 	// Ensure tags are present
 	for _, c := range inputConfigs {
 		if strings.TrimSpace(c.Tag) == "" {
-			return "", fmt.Errorf("empty tag found")
+			return C.CString("[]") // TODO: should return "empty tag found" error
 		}
 	}
 
@@ -86,7 +110,7 @@ func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, 
 			parseFailedTags = append(parseFailedTags, c.Tag)
 			continue
 		}
-		if performDedup {
+		if goPerformDedup {
 			if seen[connURI] {
 				continue
 			}
@@ -108,27 +132,29 @@ func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, 
 	// Emit parse error callback
 	{
 		b, _ := json.Marshal(parseFailedTags)
-		callback.OnParseFailed(string(b))
+		cTagsJson := C.CString(string(b))
+		C.invoke_parse_failed(cbParseFailed, cTagsJson)
+		C.free(unsafe.Pointer(cTagsJson))
 	}
 
 	if len(parsedConfigs) == 0 {
-		return "", fmt.Errorf("no_valid_configs")
+		return C.CString("[]") // TODO: should return "no valid configs" error
 	}
 
 	ctx := context.Background()
 
 	// 2. Initial Validation
 	tr, err := runner.NewTestRunner(runner.RunnerSettings{
-		WorkerPath: workerPath,
+		WorkerPath: goWorkerPath,
 	})
 	if err != nil {
-		return "", err
+		return C.CString("[]")
 	}
 
 	taggedConfigs, validationErrors, err := tr.Validate(ctx, parsedConfigs, runner.DefaultConfigTaggerFunc)
 	tr.Close()
 	if err != nil {
-		return "", err
+		return C.CString("[]") // TODO: should return err
 	}
 
 	validateFailedTags := []string{}
@@ -141,7 +167,9 @@ func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, 
 	// Emit validate error callback
 	{
 		b, _ := json.Marshal(validateFailedTags)
-		callback.OnValidateFailed(string(b))
+		cTagsJson := C.CString(string(b))
+		C.invoke_validate_failed(cbValidateFailed, cTagsJson)
+		C.free(unsafe.Pointer(cTagsJson))
 	}
 
 	validConfigs := make([]parsers.ProxyConfig, 0)
@@ -152,24 +180,24 @@ func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, 
 	}
 
 	if len(validConfigs) == 0 {
-		return "", fmt.Errorf("no_valid_configs")
+		return C.CString("[]") // TODO: should return "no valid configs" error
 	}
 
 	// 3. Batched Latency Tests
-	batchSize := settings.BatchSize
-	if !settings.TestByBatches || batchSize <= 0 {
-		batchSize = len(validConfigs)
+	goBatchSize := int(batchSize)
+	if !goTestByBatches || goBatchSize <= 0 {
+		goBatchSize = len(validConfigs)
 	}
 
 	var allResults []runner.LatencyTestResult
 
-	for batchStart := 0; batchStart < len(validConfigs); batchStart += batchSize {
-		batchEnd := min(batchStart+batchSize, len(validConfigs))
+	for batchStart := 0; batchStart < len(validConfigs); batchStart += goBatchSize {
+		batchEnd := min(batchStart+goBatchSize, len(validConfigs))
 		batchConfigs := validConfigs[batchStart:batchEnd]
-		batchNum := batchStart/batchSize + 1
+		batchNum := batchStart/goBatchSize + 1
 
 		batchRunner, err := runner.NewTestRunner(runner.RunnerSettings{
-			WorkerPath: workerPath,
+			WorkerPath: goWorkerPath,
 		})
 		if err != nil {
 			continue
@@ -202,16 +230,22 @@ func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, 
 			BaseTestRunnerSettings: runner.BaseTestRunnerSettings{
 				SortResults:  true,
 				FilterFailed: true,
-				Timeout:      time.Duration(settings.RoundTimeout) * time.Second,
-				Rounds:       settings.LatencyRounds,
+				Timeout:      time.Duration(int(roundTimeout)) * time.Second,
+				Rounds:       int(latencyRounds),
 				RoundStartedCallback: func(round int, outboundsLen int) {
-					callback.OnRoundStarted(batchNum, round+1, outboundsLen)
+					C.invoke_round_started(cbRoundStarted, C.int(batchNum), C.int(round+1), C.int(outboundsLen))
 				},
 				ProgressCallback: func(result runner.LatencyTestResult) {
-					callback.OnProgress(result.Tag, result.Delay, result.Error != nil)
+					cTag := C.CString(result.Tag)
+					cFailed := 0
+					if result.Error != nil {
+						cFailed = 1
+					}
+					C.invoke_progress(cbProgress, cTag, C.longlong(result.Delay), C.int(cFailed))
+					C.free(unsafe.Pointer(cTag))
 				},
 				RoundEndedCallback: func(round int) {
-					callback.OnRoundEnded(batchNum, round+1)
+					C.invoke_round_ended(cbRoundEnded, C.int(batchNum), C.int(round+1))
 				},
 			},
 			TestURL: "https://www.google.com/generate_204",
@@ -243,8 +277,13 @@ func RunLatencyTests(workerPath string, connUrisJson string, performDedup bool, 
 		}
 	}
 
-	b, err := json.Marshal(workingConfigs)
-	return string(b), err
+	b, _ := json.Marshal(workingConfigs)
+	return C.CString(string(b))
+}
+
+//export FreeString
+func FreeString(ptr *C.char) {
+	C.free(unsafe.Pointer(ptr))
 }
 
 func main() {}

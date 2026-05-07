@@ -51,8 +51,9 @@ object NativeLoader {
         val isWin = osName.contains("win")
         val isMac = osName.contains("mac")
         val extLib = when { isWin -> ".dll"; isMac -> ".dylib"; else -> ".so" }
+        val libWrapper = "libwrapper$extLib"
         
-        val filesToExtract = mutableListOf("libwrapper$extLib")
+        val filesToExtract = mutableListOf(libWrapper)
         
         // Extract all files from resources to tempDir
         val resourcesDir = File("src/jvmMain/resources")
@@ -80,7 +81,7 @@ object NativeLoader {
 
         val loader = LibraryLoader.create(GoLibrary::class.java)
         loader.search(tempDir)
-        lib = loader.load("wrapper")
+        lib = loader.load(libWrapper)
         runtime = Runtime.getRuntime(lib)
     }
 }
