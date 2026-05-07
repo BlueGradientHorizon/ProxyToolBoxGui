@@ -1,15 +1,56 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import wrapper.Wrapper
-import wrapper.TestCallback
-import wrapper.LatencyTestSettings
-import wrapper.ProxyConfig as ProxyConfigWrapper
+import jnr.ffi.LibraryLoader
+import jnr.ffi.Pointer
+import jnr.ffi.Runtime
+import jnr.ffi.annotations.Delegate
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+interface CbParseFailed { @Delegate fun invoke(tagsJson: Pointer?) }
+interface CbValidateFailed { @Delegate fun invoke(tagsJson: Pointer?) }
+interface CbRoundStarted { @Delegate fun invoke(batchNum: Int, roundNum: Int, total: Int) }
+interface CbProgress { @Delegate fun invoke(tag: Pointer?, delay: Long, failed: Int) }
+interface CbRoundEnded { @Delegate fun invoke(batchNum: Int, roundNum: Int) }
+
+interface GoLibrary {
+    fun DiscoverWorkers(libraryPath: String): Pointer
+    fun RunLatencyTests(
+        workerPath: String,
+        connUrisJson: String,
+        performDedup: Int,
+        latencyRounds: Int,
+        roundTimeout: Int,
+        testByBatches: Int,
+        batchSize: Int,
+        cbParseFailed: CbParseFailed,
+        cbValidateFailed: CbValidateFailed,
+        cbRoundStarted: CbRoundStarted,
+        cbProgress: CbProgress,
+        cbRoundEnded: CbRoundEnded
+    ): Pointer
+    fun FreeString(ptr: Pointer)
+}
+
+object NativeLoader {
+    val lib: GoLibrary
+    val runtime: Runtime
+
+    init {
+        val loader = LibraryLoader.create(GoLibrary::class.java)
+        lib = loader.load("wrapper")
+        runtime = Runtime.getRuntime(lib)
+    }
+}
 
 actual object GoBridge {
     actual fun discoverWorkers(libraryPath: String): String {
-        return Wrapper.discoverWorkers(libraryPath)
+        val ptr = NativeLoader.lib.DiscoverWorkers(libraryPath)
+        val result = ptr.getString(0) ?: "[]"
+        NativeLoader.lib.FreeString(ptr)
+        return result
     }
 
     actual fun runLatencyTests(
@@ -19,47 +60,70 @@ actual object GoBridge {
         connUris: List<ProxyConfig>,
         performDedup: Boolean
     ): List<ProxyConfig> {
-        val s = LatencyTestSettings()
-        s.latencyRounds = settings.latencyRounds.toLong()
-        s.roundTimeout = settings.roundTimeout.toLong()
-        s.testByBatches = settings.testByBatches
-        s.batchSize = settings.batchSize.toLong()
         val connUrisJson = JsonConfig.json.encodeToString(connUris)
-        val result = Wrapper.runLatencyTests(workerPath, connUrisJson, performDedup, s, object : TestCallback {
-            override fun onParseFailed(p0: String?) {
-                val tags = parseTagsJson(p0)
-                callback.onParseFailed(tags)
+        
+        val ptr = NativeLoader.lib.RunLatencyTests(
+            workerPath,
+            connUrisJson,
+            if (performDedup) 1 else 0,
+            settings.latencyRounds,
+            settings.roundTimeout,
+            if (settings.testByBatches) 1 else 0,
+            settings.batchSize,
+            object : CbParseFailed {
+                override fun invoke(tagsJson: Pointer?) {
+                    val json = tagsJson?.getString(0) ?: ""
+                    val tags = parseTagsJson(json)
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onParseFailed(tags)
+                    }
+                }
+            },
+            object : CbValidateFailed {
+                override fun invoke(tagsJson: Pointer?) {
+                    val json = tagsJson?.getString(0) ?: ""
+                    val tags = parseTagsJson(json)
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onValidateFailed(tags)
+                    }
+                }
+            },
+            object : CbRoundStarted {
+                override fun invoke(batchNum: Int, roundNum: Int, total: Int) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onRoundStarted(batchNum.toLong(), roundNum.toLong(), total.toLong())
+                    }
+                }
+            },
+            object : CbProgress {
+                override fun invoke(tag: Pointer?, delay: Long, failed: Int) {
+                    val tagStr = tag?.getString(0) ?: ""
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onProgress(tagStr, delay, failed != 0)
+                    }
+                }
+            },
+            object : CbRoundEnded {
+                override fun invoke(batchNum: Int, roundNum: Int) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onRoundEnded(batchNum.toLong(), roundNum.toLong())
+                    }
+                }
             }
+        )
 
-            override fun onValidateFailed(p0: String?) {
-                val tags = parseTagsJson(p0)
-                callback.onValidateFailed(tags)
-            }
-
-            override fun onRoundStarted(batchNum: Long, roundNum: Long, total: Long) {
-                callback.onRoundStarted(batchNum, roundNum, total)
-            }
-
-            override fun onProgress(tag: String, delay: Long, failed: Boolean) {
-                callback.onProgress(tag, delay, failed)
-            }
-
-            override fun onRoundEnded(batchNum: Long, roundNum: Long) {
-                callback.onRoundEnded(batchNum, roundNum)
-            }
-        })
-
-        val wrapped = JsonConfig.json.decodeFromString<List<ProxyConfigWrapper>>(result)
-        return wrapped.map {
-            ProxyConfig(
-                tag = it.tag,
-                connURI = it.connURI,
-            )
+        val resultJson = ptr.getString(0) ?: "[]"
+        NativeLoader.lib.FreeString(ptr)
+        
+        return try {
+            JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 
-    private fun parseTagsJson(json: String?): List<String> {
-        if (json.isNullOrBlank()) return emptyList()
+    private fun parseTagsJson(json: String): List<String> {
+        if (json.isBlank()) return emptyList()
         return try {
             JsonConfig.json.decodeFromString<List<String>>(json)
         } catch (e: Exception) {

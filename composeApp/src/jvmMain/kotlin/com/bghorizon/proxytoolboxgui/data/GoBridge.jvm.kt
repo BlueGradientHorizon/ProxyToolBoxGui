@@ -1,36 +1,97 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import java.io.File
-import java.util.concurrent.TimeUnit
+import jnr.ffi.LibraryLoader
+import jnr.ffi.Pointer
+import jnr.ffi.Runtime
+import jnr.ffi.annotations.Delegate
 import kotlinx.serialization.encodeToString
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
+import java.nio.file.Files
 
-/*
-*
-* EVERYTHING HERE IS BULLSHIT, WRAPPER IS A C-SHARED GO LIBRARY, NOT A BINARY!!!
-* PROPER BINDINGS REQUIRED!!!
-* LOOK AT GoBridge.android.kt TO UNDERSTAND WHAT I MEAN
-* Right now I'm moving away from gomobile, and now I want to use https://github.com/jnr/jnr-ffi
-* The reason is I want a unified interface (desktop+android) to call go wrapper's functions
-* Unresolved wrapper imports are leftovers from old wrapper.aar
-*
-* */
-actual object GoBridge {
-    private fun findWrapperBinary(): String {
-        val jarPath = File(System.getProperty("java.class.path").split(File.pathSeparator)[0])
-        val binDir = if (jarPath.isFile) jarPath.parentFile else File(System.getProperty("user.dir"))
-        val wrapper = File(binDir, "wrapper")
-        if (wrapper.exists()) return wrapper.absolutePath
-        val wrapperExe = File(binDir, "wrapper.exe")
-        if (wrapperExe.exists()) return wrapperExe.absolutePath
-        return "wrapper"
+interface CbParseFailed { @Delegate fun invoke(tagsJson: Pointer?) }
+interface CbValidateFailed { @Delegate fun invoke(tagsJson: Pointer?) }
+interface CbRoundStarted { @Delegate fun invoke(batchNum: Int, roundNum: Int, total: Int) }
+interface CbProgress { @Delegate fun invoke(tag: Pointer?, delay: Long, failed: Int) }
+interface CbRoundEnded { @Delegate fun invoke(batchNum: Int, roundNum: Int) }
+
+interface GoLibrary {
+    fun DiscoverWorkers(libraryPath: String): Pointer
+    fun RunLatencyTests(
+        workerPath: String,
+        connUrisJson: String,
+        performDedup: Int,
+        latencyRounds: Int,
+        roundTimeout: Int,
+        testByBatches: Int,
+        batchSize: Int,
+        cbParseFailed: CbParseFailed,
+        cbValidateFailed: CbValidateFailed,
+        cbRoundStarted: CbRoundStarted,
+        cbProgress: CbProgress,
+        cbRoundEnded: CbRoundEnded
+    ): Pointer
+    fun FreeString(ptr: Pointer)
+}
+
+object NativeLoader {
+    lateinit var lib: GoLibrary
+    lateinit var runtime: Runtime
+    lateinit var tempDir: String
+
+    fun init() {
+        if (this::lib.isInitialized) return
+        val tempFileDir = Files.createTempDirectory("proxytoolbox_native").toFile()
+        tempFileDir.deleteOnExit()
+        tempDir = tempFileDir.absolutePath
+
+        val osName = System.getProperty("os.name").lowercase()
+        val isWin = osName.contains("win")
+        val isMac = osName.contains("mac")
+        val extLib = when { isWin -> ".dll"; isMac -> ".dylib"; else -> ".so" }
+        
+        val filesToExtract = mutableListOf("libwrapper$extLib")
+        
+        // Extract all files from resources to tempDir
+        val resourcesDir = File("src/jvmMain/resources")
+        if (resourcesDir.exists()) {
+            resourcesDir.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    filesToExtract.add(file.name)
+                }
+            }
+        }
+
+        for (fileName in filesToExtract.distinct()) {
+            val stream = Thread.currentThread().contextClassLoader.getResourceAsStream(fileName)
+            
+            if (stream != null) {
+                val dest = File(tempFileDir, fileName)
+                stream.use { input ->
+                    dest.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                dest.setExecutable(true)
+            }
+        }
+
+        val loader = LibraryLoader.create(GoLibrary::class.java)
+        loader.search(tempDir)
+        lib = loader.load("wrapper")
+        runtime = Runtime.getRuntime(lib)
     }
+}
 
+actual object GoBridge {
     actual fun discoverWorkers(libraryPath: String): String {
-        val process = ProcessBuilder(findWrapperBinary(), "discover", libraryPath)
-            .redirectErrorStream(true)
-            .start()
-        process.waitFor(30, TimeUnit.SECONDS)
-        return process.inputStream.bufferedReader().readText()
+        NativeLoader.init()
+        val ptr = NativeLoader.lib.DiscoverWorkers(libraryPath)
+        val result = ptr.getString(0) ?: "[]"
+        NativeLoader.lib.FreeString(ptr)
+        return result
     }
 
     actual fun runLatencyTests(
@@ -40,62 +101,71 @@ actual object GoBridge {
         connUris: List<ProxyConfig>,
         performDedup: Boolean
     ): List<ProxyConfig> {
+        NativeLoader.init()
         val connUrisJson = JsonConfig.json.encodeToString(connUris)
-        val settingsObj = object {
-            val performDedup = performDedup
-            val latencyRounds = settings.latencyRounds
-            val roundTimeout = settings.roundTimeout
-            val testByBatches = settings.testByBatches
-            val batchSize = settings.batchSize
-        }
-        val settingsJson = JsonConfig.json.encodeToString(settingsObj)
-
-        val process = ProcessBuilder(
-            findWrapperBinary(),
-            "test",
+        
+        val ptr = NativeLoader.lib.RunLatencyTests(
             workerPath,
             connUrisJson,
-            settingsJson
-        )
-            .redirectErrorStream(true)
-            .start()
-
-        val reader = process.inputStream.bufferedReader()
-        var resultJson = "[]"
-        reader.forEachLine { line ->
-            when {
-                line.startsWith("PARSE_FAILED:") -> {
-                    val json = line.removePrefix("PARSE_FAILED:").trim()
+            if (performDedup) 1 else 0,
+            settings.latencyRounds,
+            settings.roundTimeout,
+            if (settings.testByBatches) 1 else 0,
+            settings.batchSize,
+            object : CbParseFailed {
+                override fun invoke(tagsJson: Pointer?) {
+                    val json = tagsJson?.getString(0) ?: ""
                     val tags = parseTagsJson(json)
-                    callback.onParseFailed(tags)
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onParseFailed(tags)
+                    }
                 }
-                line.startsWith("VALIDATE_FAILED:") -> {
-                    val json = line.removePrefix("VALIDATE_FAILED:").trim()
+            },
+            object : CbValidateFailed {
+                override fun invoke(tagsJson: Pointer?) {
+                    val json = tagsJson?.getString(0) ?: ""
                     val tags = parseTagsJson(json)
-                    callback.onValidateFailed(tags)
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onValidateFailed(tags)
+                    }
                 }
-                line.startsWith("ROUND_STARTED:") -> {
-                    val parts = line.removePrefix("ROUND_STARTED:").split(",")
-                    callback.onRoundStarted(parts[0].toLong(), parts[1].toLong(), parts[2].toLong())
+            },
+            object : CbRoundStarted {
+                override fun invoke(batchNum: Int, roundNum: Int, total: Int) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onRoundStarted(batchNum.toLong(), roundNum.toLong(), total.toLong())
+                    }
                 }
-                line.startsWith("PROGRESS:") -> {
-                    val parts = line.removePrefix("PROGRESS:").split(",")
-                    callback.onProgress(parts[0], parts[1].toLong(), parts[2].toBoolean())
+            },
+            object : CbProgress {
+                override fun invoke(tag: Pointer?, delay: Long, failed: Int) {
+                    val tagStr = tag?.getString(0) ?: ""
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onProgress(tagStr, delay, failed != 0)
+                    }
                 }
-                line.startsWith("ROUND_ENDED:") -> {
-                    val parts = line.removePrefix("ROUND_ENDED:").split(",")
-                    callback.onRoundEnded(parts[0].toLong(), parts[1].toLong())
-                }
-                line.startsWith("RESULT:") -> {
-                    resultJson = line.removePrefix("RESULT:").trim()
+            },
+            object : CbRoundEnded {
+                override fun invoke(batchNum: Int, roundNum: Int) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onRoundEnded(batchNum.toLong(), roundNum.toLong())
+                    }
                 }
             }
+        )
+
+        val resultJson = ptr.getString(0) ?: "[]"
+        NativeLoader.lib.FreeString(ptr)
+        
+        return try {
+            JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
+        } catch (e: Exception) {
+            emptyList()
         }
-        process.waitFor()
-        return JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
     }
 
     private fun parseTagsJson(json: String): List<String> {
+        if (json.isBlank()) return emptyList()
         return try {
             JsonConfig.json.decodeFromString<List<String>>(json)
         } catch (e: Exception) {
