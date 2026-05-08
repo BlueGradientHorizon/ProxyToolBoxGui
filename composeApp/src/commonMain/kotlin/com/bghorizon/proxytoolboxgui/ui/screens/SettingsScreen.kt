@@ -21,15 +21,16 @@ import proxytoolboxgui.composeapp.generated.resources.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
-    val settings by viewModel.settings.collectAsState()
-    val workers by viewModel.workers.collectAsState()
-    val showThemeDialog by viewModel.showThemeDialog.collectAsState()
-    val showWorkerDialog by viewModel.showWorkerDialog.collectAsState()
-    val showDownloadTimeoutDialog by viewModel.showDownloadTimeoutDialog.collectAsState()
-    val showLatencyRoundsDialog by viewModel.showLatencyRoundsDialog.collectAsState()
-    val showRoundTimeoutDialog by viewModel.showRoundTimeoutDialog.collectAsState()
-    val showBatchSizeDialog by viewModel.showBatchSizeDialog.collectAsState()
-    val showPortDialog by viewModel.showPortDialog.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val settings = uiState.settings
+    val workers = uiState.workers
+    val showThemeDialog = uiState.showThemeDialog
+    val showWorkerDialog = uiState.showWorkerDialog
+    val showDownloadTimeoutDialog = uiState.showDownloadTimeoutDialog
+    val showLatencyRoundsDialog = uiState.showLatencyRoundsDialog
+    val showRoundTimeoutDialog = uiState.showRoundTimeoutDialog
+    val showBatchSizeDialog = uiState.showBatchSizeDialog
+    val showPortDialog = uiState.showPortDialog
 
     Scaffold(
         topBar = {

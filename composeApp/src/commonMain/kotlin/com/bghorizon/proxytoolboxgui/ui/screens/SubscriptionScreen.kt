@@ -37,10 +37,11 @@ import kotlinx.datetime.toLocalDateTime
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionsScreen(viewModel: MainViewModel) {
-    val subscriptions by viewModel.subscriptions.collectAsState()
-    val showAddDialog by viewModel.showAddSubscription.collectAsState()
-    val editingSub by viewModel.editingSubscription.collectAsState()
-    val showDeleteDialog by viewModel.showDeleteConfirmation.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val subscriptions = uiState.subscriptions
+    val showAddDialog = uiState.showAddSubscription
+    val editingSub = uiState.editingSubscription
+    val showDeleteDialog = uiState.showDeleteConfirmation
 
     Scaffold(
         topBar = {
@@ -100,7 +101,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
 
     if (showDeleteDialog != null) {
         DeleteConfirmationDialog(
-            subscription = showDeleteDialog!!,
+            subscription = showDeleteDialog,
             onDismiss = { viewModel.hideDeleteConfirmation() },
             onConfirm = { viewModel.confirmDeleteSubscription() }
         )

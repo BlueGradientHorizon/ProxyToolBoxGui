@@ -12,67 +12,35 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
+data class MainUiState(
+    val currentScreen: Screen = Screen.Main,
+    val testProgress: TestProgress = TestProgress(),
+    val downloadProgress: DownloadProgress = DownloadProgress(),
+    val subscriptions: List<Subscription> = emptyList(),
+    val workers: List<WorkerInfo> = emptyList(),
+    val appStatus: AppStatus = AppStatus.IDLE,
+    val webServerRunning: Boolean = false,
+    val workingConfigs: List<ProxyConfig> = emptyList(),
+    val settings: AppSettings = AppSettings(),
+    val showAddSubscription: Boolean = false,
+    val editingSubscription: Subscription? = null,
+    val showDeleteConfirmation: Subscription? = null,
+    val showThemeDialog: Boolean = false,
+    val showWorkerDialog: Boolean = false,
+    val showDownloadTimeoutDialog: Boolean = false,
+    val showLatencyRoundsDialog: Boolean = false,
+    val showRoundTimeoutDialog: Boolean = false,
+    val showBatchSizeDialog: Boolean = false,
+    val showPortDialog: Boolean = false
+)
+
 class MainViewModel(
     private val platform: Platform,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val _currentScreen = MutableStateFlow<Screen>(Screen.Main)
-    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
-
-    private val _testProgress = MutableStateFlow(TestProgress())
-    val testProgress: StateFlow<TestProgress> = _testProgress.asStateFlow()
-
-    private val _downloadProgress = MutableStateFlow(DownloadProgress())
-    val downloadProgress: StateFlow<DownloadProgress> = _downloadProgress.asStateFlow()
-
-    private val _subscriptions = MutableStateFlow<List<Subscription>>(emptyList())
-    val subscriptions: StateFlow<List<Subscription>> = _subscriptions.asStateFlow()
-
-    private val _workers = MutableStateFlow<List<WorkerInfo>>(emptyList())
-    val workers: StateFlow<List<WorkerInfo>> = _workers.asStateFlow()
-
-    private val _appStatus = MutableStateFlow(AppStatus.IDLE)
-    val appStatus: StateFlow<AppStatus> = _appStatus.asStateFlow()
-
-    private val _webServerRunning = MutableStateFlow(false)
-    val webServerRunning: StateFlow<Boolean> = _webServerRunning.asStateFlow()
-
-    private val _workingConfigs = MutableStateFlow<List<ProxyConfig>>(emptyList())
-    val workingConfigs: StateFlow<List<ProxyConfig>> = _workingConfigs.asStateFlow()
-
-    private val _settings = MutableStateFlow(AppSettings())
-    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
-
-    private val _showAddSubscription = MutableStateFlow(false)
-    val showAddSubscription: StateFlow<Boolean> = _showAddSubscription.asStateFlow()
-
-    private val _editingSubscription = MutableStateFlow<Subscription?>(null)
-    val editingSubscription: StateFlow<Subscription?> = _editingSubscription.asStateFlow()
-
-    private val _showDeleteConfirmation = MutableStateFlow<Subscription?>(null)
-    val showDeleteConfirmation: StateFlow<Subscription?> = _showDeleteConfirmation.asStateFlow()
-
-    private val _showThemeDialog = MutableStateFlow(false)
-    val showThemeDialog: StateFlow<Boolean> = _showThemeDialog.asStateFlow()
-
-    private val _showWorkerDialog = MutableStateFlow(false)
-    val showWorkerDialog: StateFlow<Boolean> = _showWorkerDialog.asStateFlow()
-
-    private val _showDownloadTimeoutDialog = MutableStateFlow(false)
-    val showDownloadTimeoutDialog: StateFlow<Boolean> = _showDownloadTimeoutDialog.asStateFlow()
-
-    private val _showLatencyRoundsDialog = MutableStateFlow(false)
-    val showLatencyRoundsDialog: StateFlow<Boolean> = _showLatencyRoundsDialog.asStateFlow()
-
-    private val _showRoundTimeoutDialog = MutableStateFlow(false)
-    val showRoundTimeoutDialog: StateFlow<Boolean> = _showRoundTimeoutDialog.asStateFlow()
-
-    private val _showBatchSizeDialog = MutableStateFlow(false)
-    val showBatchSizeDialog: StateFlow<Boolean> = _showBatchSizeDialog.asStateFlow()
-
-    private val _showPortDialog = MutableStateFlow(false)
-    val showPortDialog: StateFlow<Boolean> = _showPortDialog.asStateFlow()
+    private val _uiState = MutableStateFlow(MainUiState())
+    val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private var testJob: Job? = null
     private var timerJob: Job? = null
@@ -81,7 +49,9 @@ class MainViewModel(
 
     init {
         viewModelScope.launch {
-            settingsRepository.settings.collect { _settings.value = it }
+            settingsRepository.settings.collect { settings ->
+                _uiState.update { it.copy(settings = settings) }
+            }
         }
         viewModelScope.launch {
             try {
@@ -89,11 +59,10 @@ class MainViewModel(
                 val loadedSubs = loadSubscriptions()
                 val configs = loadWorkingConfigs()
                 
-                _subscriptions.value = loadedSubs
-                _workingConfigs.value = configs
+                _uiState.update { it.copy(subscriptions = loadedSubs, workingConfigs = configs) }
                 
                 if (configs.isNotEmpty()) {
-                    _appStatus.value = AppStatus.COMPLETED
+                    _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
                     
                     // If working configs exist but subscriptions have 0 working count, re-sync them
                     if (loadedSubs.any { it.working > 0 }.not()) {
@@ -104,8 +73,10 @@ class MainViewModel(
                             }
                         }
                         if (workingCounts.isNotEmpty()) {
-                            _subscriptions.value = loadedSubs.map { 
-                                it.copy(working = workingCounts[it.id] ?: 0)
+                            _uiState.update { state ->
+                                state.copy(subscriptions = state.subscriptions.map { 
+                                    it.copy(working = workingCounts[it.id] ?: 0)
+                                })
                             }
                         }
                     }
@@ -113,17 +84,17 @@ class MainViewModel(
                 discoverWorkers()
             } catch (e: Exception) {
                 e.printStackTrace()
-                _appStatus.value = AppStatus.ERROR
+                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
             }
         }
     }
 
     fun navigateTo(screen: Screen) {
-        _currentScreen.value = screen
+        _uiState.update { it.copy(currentScreen = screen) }
     }
 
     fun navigateBack() {
-        _currentScreen.value = Screen.Main
+        _uiState.update { it.copy(currentScreen = Screen.Main) }
     }
 
     fun discoverWorkers() {
@@ -131,13 +102,14 @@ class MainViewModel(
             try {
                 val libraryPath = platform.getWorkerLibraryPath()
                 val json = GoBridge.discoverWorkers(libraryPath)
-                _workers.value = JsonConfig.json.decodeFromString<List<WorkerInfo>>(json)
-                if (_workers.value.isEmpty()) {
-                    _appStatus.value = AppStatus.ERROR
+                val workers = JsonConfig.json.decodeFromString<List<WorkerInfo>>(json)
+                _uiState.update { it.copy(workers = workers) }
+                if (workers.isEmpty()) {
+                    _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _appStatus.value = AppStatus.ERROR
+                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
             }
         }
     }
@@ -149,16 +121,18 @@ class MainViewModel(
     }
 
     fun startTest() {
-        if (_workers.value.isEmpty() || testJob?.isActive == true) return
+        if (_uiState.value.workers.isEmpty() || testJob?.isActive == true) return
 
         testJob = viewModelScope.launch(Dispatchers.IO) {
             val job = coroutineContext[Job]
-            val currentSettings = _settings.value
-            _appStatus.value = AppStatus.TESTING
-            _testProgress.update { it.copy(isRunning = true) }
+            val currentSettings = _uiState.value.settings
+            _uiState.update { it.copy(
+                appStatus = AppStatus.TESTING,
+                testProgress = it.testProgress.copy(isRunning = true)
+            ) }
 
             try {
-                val subs = _subscriptions.value.toMutableList()
+                val subs = _uiState.value.subscriptions.toMutableList()
                 val configs = mutableListOf<ProxyConfig>()
                 val seenUris = mutableSetOf<String>()
 
@@ -166,7 +140,7 @@ class MainViewModel(
                 subs.forEachIndexed { i, sub ->
                     subs[i] = sub.copy(duplicated = 0, parseErr = 0, validErr = 0, working = 0)
                 }
-                _subscriptions.value = subs
+                _uiState.update { it.copy(subscriptions = subs) }
 
                 // Iterate through all subscriptions to collect their proxy URIs
                 for (i in subs.indices) {
@@ -189,7 +163,7 @@ class MainViewModel(
                         configs.add(ProxyConfig(tag = tag, connURI = uri))
                     }
                 }
-                _subscriptions.value = subs
+                _uiState.update { it.copy(subscriptions = subs) }
 
                 val totalBatches = if (currentSettings.testByBatches && currentSettings.batchSize > 0) {
                     (configs.size + currentSettings.batchSize - 1) / currentSettings.batchSize
@@ -205,14 +179,16 @@ class MainViewModel(
                         BatchProgress(batchNum = b, roundNum = r)
                     }
                 }
-                _testProgress.update { it.copy(
-                    batchProgresses = initialProgresses,
-                    totalBatches = totalBatches,
-                    totalRounds = totalRounds,
-                    totalSeconds = totalSeconds,
-                    elapsedSeconds = 0,
-                    currentBatch = 0,
-                    currentRound = 0
+                _uiState.update { it.copy(
+                    testProgress = it.testProgress.copy(
+                        batchProgresses = initialProgresses,
+                        totalBatches = totalBatches,
+                        totalRounds = totalRounds,
+                        totalSeconds = totalSeconds,
+                        elapsedSeconds = 0,
+                        currentBatch = 0,
+                        currentRound = 0
+                    )
                 ) }
 
                 val subIdToIndex = subs.mapIndexed { i, sub -> sub.id to i }.toMap()
@@ -224,30 +200,34 @@ class MainViewModel(
                     callback = object : GoTestCallback {
                         override fun onParseFailed(tags: List<String>) {
                             if (job?.isActive != true) return
-                            val current = _subscriptions.value.toMutableList()
-                            // Update parse error counts for subscriptions based on reported failed tags
-                            tags.forEach { tag ->
-                                val subId = extractSubId(tag)
-                                val idx = subIdToIndex[subId]
-                                if (idx != null) {
-                                    current[idx] = current[idx].copy(parseErr = current[idx].parseErr + 1)
+                            _uiState.update { state ->
+                                val current = state.subscriptions.toMutableList()
+                                // Update parse error counts for subscriptions based on reported failed tags
+                                tags.forEach { tag ->
+                                    val subId = extractSubId(tag)
+                                    val idx = subIdToIndex[subId]
+                                    if (idx != null) {
+                                        current[idx] = current[idx].copy(parseErr = current[idx].parseErr + 1)
+                                    }
                                 }
+                                state.copy(subscriptions = current)
                             }
-                            _subscriptions.value = current
                         }
 
                         override fun onValidateFailed(tags: List<String>) {
                             if (job?.isActive != true) return
-                            val current = _subscriptions.value.toMutableList()
-                            // Update validation error counts for subscriptions based on reported failed tags
-                            tags.forEach { tag ->
-                                val subId = extractSubId(tag)
-                                val idx = subIdToIndex[subId]
-                                if (idx != null) {
-                                    current[idx] = current[idx].copy(validErr = current[idx].validErr + 1)
+                            _uiState.update { state ->
+                                val current = state.subscriptions.toMutableList()
+                                // Update validation error counts for subscriptions based on reported failed tags
+                                tags.forEach { tag ->
+                                    val subId = extractSubId(tag)
+                                    val idx = subIdToIndex[subId]
+                                    if (idx != null) {
+                                        current[idx] = current[idx].copy(validErr = current[idx].validErr + 1)
+                                    }
                                 }
+                                state.copy(subscriptions = current)
                             }
-                            _subscriptions.value = current
                         }
 
                         override fun onRoundStarted(batch: Long, round: Long, total: Long) {
@@ -256,7 +236,8 @@ class MainViewModel(
                             val roundTimeout = currentSettings.roundTimeout
                             val currentRoundAbsolute = (batch.toInt() - 1) * latencyRounds + round.toInt()
 
-                            _testProgress.update { current ->
+                            _uiState.update { state ->
+                                val current = state.testProgress
                                 val updatedProgresses = current.batchProgresses.toMutableList()
                                 val idx = updatedProgresses.indexOfFirst { it.batchNum == batch.toInt() && it.roundNum == round.toInt() }
                                 if (idx >= 0) {
@@ -281,13 +262,15 @@ class MainViewModel(
                                     )
                                 }
 
-                                current.copy(
-                                    currentBatch = batch.toInt(),
-                                    currentRound = round.toInt(),
-                                    elapsedSeconds = (currentRoundAbsolute - 1) * roundTimeout,
-                                    isRunning = true,
-                                    isRoundActive = true,
-                                    batchProgresses = updatedProgresses
+                                state.copy(
+                                    testProgress = current.copy(
+                                        currentBatch = batch.toInt(),
+                                        currentRound = round.toInt(),
+                                        elapsedSeconds = (currentRoundAbsolute - 1) * roundTimeout,
+                                        isRunning = true,
+                                        isRoundActive = true,
+                                        batchProgresses = updatedProgresses
+                                    )
                                 )
                             }
 
@@ -295,14 +278,15 @@ class MainViewModel(
                             timerJob = viewModelScope.launch {
                                 while (isActive) {
                                     delay(1000)
-                                    _testProgress.update { it.copy(elapsedSeconds = it.elapsedSeconds + 1) }
+                                    _uiState.update { it.copy(testProgress = it.testProgress.copy(elapsedSeconds = it.testProgress.elapsedSeconds + 1)) }
                                 }
                             }
                         }
 
                         override fun onProgress(tag: String, delay: Long, failed: Boolean) {
                             if (job?.isActive != true) return
-                            _testProgress.update { current ->
+                            _uiState.update { state ->
+                                val current = state.testProgress
                                 val updatedProgresses = current.batchProgresses.toMutableList()
                                 val batchIndex = updatedProgresses.indexOfFirst { 
                                     it.batchNum == current.currentBatch && it.roundNum == current.currentRound 
@@ -317,14 +301,14 @@ class MainViewModel(
                                     )
                                 }
 
-                                current.copy(batchProgresses = updatedProgresses)
+                                state.copy(testProgress = current.copy(batchProgresses = updatedProgresses))
                             }
                         }
 
                         override fun onRoundEnded(batch: Long, round: Long) {
                             if (job?.isActive != true) return
                             timerJob?.cancel()
-                            _testProgress.update { it.copy(isRoundActive = false) }
+                            _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }
                         }
                     },
                     connUris = configs
@@ -332,7 +316,7 @@ class MainViewModel(
 
                 if (job?.isActive != true) return@launch
 
-                val subsFinal = _subscriptions.value.toMutableList()
+                val subsFinal = _uiState.value.subscriptions.toMutableList()
                 val workingCounts = mutableMapOf<String, Int>()
 
                 // Aggregate working configuration counts for each subscription from the test results
@@ -349,17 +333,19 @@ class MainViewModel(
                     subsFinal[i] = subsFinal[i].copy(working = workingCounts[id] ?: 0)
                 }
 
-                _subscriptions.value = subsFinal
-                _workingConfigs.value = resultConfigs
-                _appStatus.value = AppStatus.COMPLETED
+                _uiState.update { it.copy(
+                    subscriptions = subsFinal,
+                    workingConfigs = resultConfigs,
+                    appStatus = AppStatus.COMPLETED
+                ) }
                 saveSubscriptions()
                 saveWorkingConfigs()
             } catch (e: Exception) {
-                _appStatus.value = AppStatus.ERROR
+                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
                 e.printStackTrace()
             } finally {
                 timerJob?.cancel()
-                _testProgress.update { it.copy(isRunning = false, isRoundActive = false) }
+                _uiState.update { it.copy(testProgress = it.testProgress.copy(isRunning = false, isRoundActive = false)) }
                 if (currentSettings.autoStartWebServer) {
                     startWebServer()
                 }
@@ -378,7 +364,7 @@ class MainViewModel(
         testJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
             GoBridge.stopTests()
-            _appStatus.value = AppStatus.IDLE
+            _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
         }
     }
 
@@ -386,12 +372,12 @@ class MainViewModel(
         if (downloadJob?.isActive == true) return
 
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
-            _appStatus.value = AppStatus.DOWNLOADING
-            val subs = _subscriptions.value.toMutableList()
-            _downloadProgress.value = DownloadProgress(
+            _uiState.update { it.copy(appStatus = AppStatus.DOWNLOADING) }
+            val subs = _uiState.value.subscriptions.toMutableList()
+            _uiState.update { it.copy(downloadProgress = DownloadProgress(
                 total = subs.size,
                 isRunning = true
-            )
+            )) }
 
             var succeeded = 0
             var failed = 0
@@ -399,7 +385,7 @@ class MainViewModel(
             for (i in subs.indices) {
                 val sub = subs[i]
                 try {
-                    val content = SubscriptionDownloader.download(sub.url, _settings.value.downloadTimeout)
+                    val content = SubscriptionDownloader.download(sub.url, _uiState.value.settings.downloadTimeout)
                     val lines = content.lines().filter { it.isNotBlank() }
                     saveSubscriptionUris(sub.id, lines)
                     subs[i] = sub.copy(
@@ -414,32 +400,31 @@ class MainViewModel(
                 } catch (e: Exception) {
                     failed++
                 }
-                _downloadProgress.value = _downloadProgress.value.copy(
+                _uiState.update { it.copy(downloadProgress = it.downloadProgress.copy(
                     succeeded = succeeded,
                     failed = failed
-                )
+                )) }
             }
 
-            _subscriptions.value = subs
-            _downloadProgress.value = _downloadProgress.value.copy(isRunning = false)
-            _appStatus.value = AppStatus.IDLE
+            _uiState.update { it.copy(subscriptions = subs, appStatus = AppStatus.IDLE) }
+            _uiState.update { it.copy(downloadProgress = it.downloadProgress.copy(isRunning = false)) }
             saveSubscriptions()
         }
     }
 
     fun copyWorkingConfigs() {
-        val uris = _workingConfigs.value.joinToString("\n") { it.connURI }
+        val uris = _uiState.value.workingConfigs.joinToString("\n") { it.connURI }
         platform.copyToClipboard(uris)
         platform.showToast("Copied to clipboard")
     }
 
     fun exportWorkingConfigs() {
-        val uris = _workingConfigs.value.joinToString("\n") { it.connURI }
+        val uris = _uiState.value.workingConfigs.joinToString("\n") { it.connURI }
         platform.exportToFile(uris, "working_configs.txt")
     }
 
     fun toggleWebServer() {
-        if (_webServerRunning.value) {
+        if (_uiState.value.webServerRunning) {
             stopWebServer()
         } else {
             startWebServer()
@@ -451,20 +436,21 @@ class MainViewModel(
             try {
                 stopWebServer()
 
-                val port = _settings.value.webServerPort
-                val localhostOnly = _settings.value.webServerLocalhost
+                val settings = _uiState.value.settings
+                val port = settings.webServerPort
+                val localhostOnly = settings.webServerLocalhost
                 val host = if (localhostOnly) "127.0.0.1" else "0.0.0.0"
 
                 server = embeddedServer(CIO, port = port, host = host) {
                     routing {
                         get("/") {
-                            val uris = _workingConfigs.value.joinToString("\n") { it.connURI }
+                            val uris = _uiState.value.workingConfigs.joinToString("\n") { it.connURI }
                             call.respondText(uris, contentType = io.ktor.http.ContentType.Text.Plain)
                         }
                     }
                 }.start(wait = false)
 
-                _webServerRunning.value = true
+                _uiState.update { it.copy(webServerRunning = true) }
                 platform.showToast("Web server started on port $port")
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -478,7 +464,7 @@ class MainViewModel(
             try {
                 server?.stop(1000, 2000)
                 server = null
-                _webServerRunning.value = false
+                _uiState.update { it.copy(webServerRunning = false) }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -486,22 +472,19 @@ class MainViewModel(
     }
 
     fun showAddSubscription() {
-        _editingSubscription.value = null
-        _showAddSubscription.value = true
+        _uiState.update { it.copy(editingSubscription = null, showAddSubscription = true) }
     }
 
     fun showEditSubscription(sub: Subscription) {
-        _editingSubscription.value = sub
-        _showAddSubscription.value = true
+        _uiState.update { it.copy(editingSubscription = sub, showAddSubscription = true) }
     }
 
     fun hideAddSubscription() {
-        _showAddSubscription.value = false
-        _editingSubscription.value = null
+        _uiState.update { it.copy(showAddSubscription = false, editingSubscription = null) }
     }
 
     fun saveSubscription(note: String, url: String) {
-        val existing = _editingSubscription.value
+        val existing = _uiState.value.editingSubscription
         val newId = generateUUID()
         val newSub = if (existing != null) {
             existing.copy(note = note, url = url)
@@ -513,26 +496,28 @@ class MainViewModel(
             )
         }
 
-        _subscriptions.value = if (existing != null) {
-            _subscriptions.value.map { if (it.id == existing.id) newSub else it }
-        } else {
-            _subscriptions.value + newSub
+        _uiState.update { state ->
+            state.copy(subscriptions = if (existing != null) {
+                state.subscriptions.map { if (it.id == existing.id) newSub else it }
+            } else {
+                state.subscriptions + newSub
+            })
         }
         viewModelScope.launch { saveSubscriptions() }
         hideAddSubscription()
     }
 
     fun showDeleteSubscription(sub: Subscription) {
-        _showDeleteConfirmation.value = sub
+        _uiState.update { it.copy(showDeleteConfirmation = sub) }
     }
 
     fun hideDeleteConfirmation() {
-        _showDeleteConfirmation.value = null
+        _uiState.update { it.copy(showDeleteConfirmation = null) }
     }
 
     fun confirmDeleteSubscription() {
-        _showDeleteConfirmation.value?.let { sub ->
-            _subscriptions.value = _subscriptions.value.filter { it.id != sub.id }
+        _uiState.value.showDeleteConfirmation?.let { sub ->
+            _uiState.update { state -> state.copy(subscriptions = state.subscriptions.filter { it.id != sub.id }) }
             viewModelScope.launch {
                 val store = settingsRepository.getStore()
                 store.putString(subUriKey(sub.id), "[]")
@@ -542,31 +527,31 @@ class MainViewModel(
         hideDeleteConfirmation()
     }
 
-    fun showThemeDialog() { _showThemeDialog.value = true }
-    fun hideThemeDialog() { _showThemeDialog.value = false }
+    fun showThemeDialog() { _uiState.update { it.copy(showThemeDialog = true) } }
+    fun hideThemeDialog() { _uiState.update { it.copy(showThemeDialog = false) } }
 
-    fun showWorkerDialog() { _showWorkerDialog.value = true }
-    fun hideWorkerDialog() { _showWorkerDialog.value = false }
+    fun showWorkerDialog() { _uiState.update { it.copy(showWorkerDialog = true) } }
+    fun hideWorkerDialog() { _uiState.update { it.copy(showWorkerDialog = false) } }
 
-    fun showDownloadTimeoutDialog() { _showDownloadTimeoutDialog.value = true }
-    fun hideDownloadTimeoutDialog() { _showDownloadTimeoutDialog.value = false }
+    fun showDownloadTimeoutDialog() { _uiState.update { it.copy(showDownloadTimeoutDialog = true) } }
+    fun hideDownloadTimeoutDialog() { _uiState.update { it.copy(showDownloadTimeoutDialog = false) } }
 
-    fun showLatencyRoundsDialog() { _showLatencyRoundsDialog.value = true }
-    fun hideLatencyRoundsDialog() { _showLatencyRoundsDialog.value = false }
+    fun showLatencyRoundsDialog() { _uiState.update { it.copy(showLatencyRoundsDialog = true) } }
+    fun hideLatencyRoundsDialog() { _uiState.update { it.copy(showLatencyRoundsDialog = false) } }
 
-    fun showRoundTimeoutDialog() { _showRoundTimeoutDialog.value = true }
-    fun hideRoundTimeoutDialog() { _showRoundTimeoutDialog.value = false }
+    fun showRoundTimeoutDialog() { _uiState.update { it.copy(showRoundTimeoutDialog = true) } }
+    fun hideRoundTimeoutDialog() { _uiState.update { it.copy(showRoundTimeoutDialog = false) } }
 
-    fun showBatchSizeDialog() { _showBatchSizeDialog.value = true }
-    fun hideBatchSizeDialog() { _showBatchSizeDialog.value = false }
+    fun showBatchSizeDialog() { _uiState.update { it.copy(showBatchSizeDialog = true) } }
+    fun hideBatchSizeDialog() { _uiState.update { it.copy(showBatchSizeDialog = false) } }
 
-    fun showPortDialog() { _showPortDialog.value = true }
-    fun hidePortDialog() { _showPortDialog.value = false }
+    fun showPortDialog() { _uiState.update { it.copy(showPortDialog = true) } }
+    fun hidePortDialog() { _uiState.update { it.copy(showPortDialog = false) } }
 
     fun savePort(port: Int): Boolean {
         if (port !in 1024..65535) return false
         viewModelScope.launch {
-            updateSettings(_settings.value.copy(webServerPort = port))
+            updateSettings(_uiState.value.settings.copy(webServerPort = port))
         }
         return true
     }
@@ -591,7 +576,7 @@ class MainViewModel(
 
     private suspend fun saveSubscriptions() {
         val store = settingsRepository.getStore()
-        val json = JsonConfig.json.encodeToString(_subscriptions.value)
+        val json = JsonConfig.json.encodeToString(_uiState.value.subscriptions)
         store.putString("subscriptions", json)
     }
 
@@ -608,7 +593,7 @@ class MainViewModel(
 
     private suspend fun saveWorkingConfigs() {
         val store = settingsRepository.getStore()
-        val json = JsonConfig.json.encodeToString(_workingConfigs.value)
+        val json = JsonConfig.json.encodeToString(_uiState.value.workingConfigs)
         store.putString("working_configs", json)
     }
 

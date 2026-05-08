@@ -22,11 +22,10 @@ fun App() {
         MainViewModel(platform, settingsRepository)
     }
 
-    val settings by viewModel.settings.collectAsState()
-    val currentScreen by viewModel.currentScreen.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
-    AppTheme(themeMode = settings.theme) {
-        when (currentScreen) {
+    AppTheme(themeMode = uiState.settings.theme) {
+        when (uiState.currentScreen) {
             Screen.Main -> MainScreen(viewModel)
             Screen.Subscriptions -> SubscriptionsScreen(viewModel)
             Screen.Settings -> SettingsScreen(viewModel)

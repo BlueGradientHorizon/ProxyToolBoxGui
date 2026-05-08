@@ -52,14 +52,15 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
-    val subs by viewModel.subscriptions.collectAsState()
-    val testProgress by viewModel.testProgress.collectAsState()
-    val downloadProgress by viewModel.downloadProgress.collectAsState()
-    val appStatus by viewModel.appStatus.collectAsState()
-    val workers by viewModel.workers.collectAsState()
-    val webServerRunning by viewModel.webServerRunning.collectAsState()
-    val settings by viewModel.settings.collectAsState()
-    val workingConfigs by viewModel.workingConfigs.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val subs = uiState.subscriptions
+    val testProgress = uiState.testProgress
+    val downloadProgress = uiState.downloadProgress
+    val appStatus = uiState.appStatus
+    val workers = uiState.workers
+    val webServerRunning = uiState.webServerRunning
+    val settings = uiState.settings
+    val workingConfigs = uiState.workingConfigs
 
     val totalFound = subs.sumOf { it.total }
     val totalDuplicate = subs.sumOf { it.duplicated }
@@ -73,10 +74,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 title = { Text(stringResource(Res.string.app_name)) },
                 actions = {
                     TextButton(onClick = { viewModel.updateSubscriptions() }) {
-                        val dp by viewModel.downloadProgress.collectAsState()
                         Text(
-                            if (dp.isRunning)
-                                stringResource(Res.string.btn_subs_update_in_progress, dp.total, dp.succeeded, dp.failed)
+                            if (downloadProgress.isRunning)
+                                stringResource(Res.string.btn_subs_update_in_progress, downloadProgress.total, downloadProgress.succeeded, downloadProgress.failed)
                             else
                                 stringResource(Res.string.btn_subs_update)
                         )
