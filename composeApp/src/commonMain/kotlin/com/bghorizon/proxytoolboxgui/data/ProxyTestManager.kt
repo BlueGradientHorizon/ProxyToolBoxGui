@@ -11,13 +11,20 @@ class ProxyTestManager(
         settings: AppSettings,
         subscriptions: List<Subscription>
     ): TestSetup = withContext(Dispatchers.IO) {
-        val subs = subscriptions.map { it.copy(duplicated = 0, parseErr = 0, validErr = 0, working = 0) }.toMutableList()
+        val subs = subscriptions.map {
+            it.copy(
+                duplicated = 0,
+                parseErr = 0,
+                validErr = 0/*, working = 0*/
+            )
+        }.toMutableList()
         val configs = mutableListOf<ProxyConfig>()
         val seenUris = mutableSetOf<String>()
 
         for (i in subs.indices) {
             val sub = subs[i]
-            val uris = subscriptionRepository.loadSubscriptionUris(sub.id).filter { it.isNotBlank() }
+            val uris =
+                subscriptionRepository.loadSubscriptionUris(sub.id).filter { it.isNotBlank() }
             val uniqueUris = if (settings.performDedup) {
                 ConfigUtils.naiveDeduplicate(uris, seenUris)
             } else {
@@ -76,7 +83,7 @@ class ProxyTestManager(
             connUris = configs
         )
     }
-    
+
     fun stopTests() {
         GoBridge.stopTests()
     }
