@@ -39,9 +39,7 @@ import kotlinx.datetime.toLocalDateTime
 fun SubscriptionsScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val subscriptions = uiState.subscriptions
-    val showAddDialog = uiState.showAddSubscription
-    val editingSub = uiState.editingSubscription
-    val showDeleteDialog = uiState.showDeleteConfirmation
+    val activeDialog = uiState.activeDialog
 
     Scaffold(
         topBar = {
@@ -91,20 +89,29 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
         }
     }
 
-    if (showAddDialog) {
-        AddSubscriptionDialog(
-            editingSubscription = editingSub,
-            onDismiss = { viewModel.hideAddSubscription() },
-            onSave = { note, url -> viewModel.saveSubscription(note, url) }
-        )
-    }
-
-    if (showDeleteDialog != null) {
-        DeleteConfirmationDialog(
-            subscription = showDeleteDialog,
-            onDismiss = { viewModel.hideDeleteConfirmation() },
-            onConfirm = { viewModel.confirmDeleteSubscription() }
-        )
+    when (activeDialog) {
+        is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.AddSubscription -> {
+            AddSubscriptionDialog(
+                editingSubscription = null,
+                onDismiss = { viewModel.hideDialog() },
+                onSave = { note, url -> viewModel.saveSubscription(note, url) }
+            )
+        }
+        is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.EditSubscription -> {
+            AddSubscriptionDialog(
+                editingSubscription = activeDialog.subscription,
+                onDismiss = { viewModel.hideDialog() },
+                onSave = { note, url -> viewModel.saveSubscription(note, url) }
+            )
+        }
+        is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.DeleteConfirmation -> {
+            DeleteConfirmationDialog(
+                subscription = activeDialog.subscription,
+                onDismiss = { viewModel.hideDialog() },
+                onConfirm = { viewModel.confirmDeleteSubscription() }
+            )
+        }
+        else -> {}
     }
 }
 

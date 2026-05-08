@@ -14,6 +14,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
+import com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
@@ -24,13 +25,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val settings = uiState.settings
     val workers = uiState.workers
-    val showThemeDialog = uiState.showThemeDialog
-    val showWorkerDialog = uiState.showWorkerDialog
-    val showDownloadTimeoutDialog = uiState.showDownloadTimeoutDialog
-    val showLatencyRoundsDialog = uiState.showLatencyRoundsDialog
-    val showRoundTimeoutDialog = uiState.showRoundTimeoutDialog
-    val showBatchSizeDialog = uiState.showBatchSizeDialog
-    val showPortDialog = uiState.showPortDialog
+    val activeDialog = uiState.activeDialog
 
     Scaffold(
         topBar = {
@@ -63,7 +58,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
                         ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
                     },
-                    onClick = { viewModel.showThemeDialog() }
+                    onClick = { viewModel.updateDialog(ActiveDialog.Theme) }
                 )
             }
 
@@ -73,7 +68,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     title = stringResource(Res.string.current_worker),
                     subtitle = workers.find { it.path == settings.selectedWorker }?.name
                         ?: stringResource(Res.string.no_workers_available),
-                    onClick = { viewModel.showWorkerDialog() }
+                    onClick = { viewModel.updateDialog(ActiveDialog.Worker) }
                 )
             }
 
@@ -82,7 +77,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SettingsClickableItem(
                     title = stringResource(Res.string.sub_download_timeout),
                     subtitle = stringResource(Res.string.hint_seconds_preview, settings.downloadTimeout),
-                    onClick = { viewModel.showDownloadTimeoutDialog() }
+                    onClick = { viewModel.updateDialog(ActiveDialog.DownloadTimeout) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.perform_deduplication),
@@ -98,12 +93,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SettingsClickableItem(
                     title = stringResource(Res.string.latency_test_rounds),
                     subtitle = stringResource(Res.string.hint_rounds_preview, settings.latencyRounds),
-                    onClick = { viewModel.showLatencyRoundsDialog() }
+                    onClick = { viewModel.updateDialog(ActiveDialog.LatencyRounds) }
                 )
                 SettingsClickableItem(
                     title = stringResource(Res.string.round_timeout),
                     subtitle = stringResource(Res.string.hint_seconds_preview, settings.roundTimeout),
-                    onClick = { viewModel.showRoundTimeoutDialog() }
+                    onClick = { viewModel.updateDialog(ActiveDialog.RoundTimeout) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.test_by_batches),
@@ -117,7 +112,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     //subtitle = stringResource(Res.string.hint_rounds_preview, settings.batchSize),
                     subtitle = settings.batchSize.toString(),
                     enabled = settings.testByBatches,
-                    onClick = { viewModel.showBatchSizeDialog() }
+                    onClick = { viewModel.updateDialog(ActiveDialog.BatchSize) }
                 )
             }
 
@@ -133,7 +128,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SettingsClickableItem(
                     title = stringResource(Res.string.web_server_port),
                     subtitle = settings.webServerPort.toString(),
-                    onClick = { viewModel.showPortDialog() }
+                    onClick = { viewModel.updateDialog(ActiveDialog.Port) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.web_server_localhost),
@@ -146,98 +141,95 @@ fun SettingsScreen(viewModel: MainViewModel) {
         }
     }
 
-    if (showThemeDialog) {
-        SelectionDialog(
-            title = stringResource(Res.string.app_theme),
-            items = ThemeMode.entries,
-            selectedItem = settings.theme,
-            onDismiss = { viewModel.hideThemeDialog() },
-            onSelect = { viewModel.updateTheme(it) },
-            itemLabel = { theme ->
-                when (theme) {
-                    ThemeMode.LIGHT -> stringResource(Res.string.app_theme_light)
-                    ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
-                    ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
+    when (activeDialog) {
+        ActiveDialog.Theme -> {
+            SelectionDialog(
+                title = stringResource(Res.string.app_theme),
+                items = ThemeMode.entries,
+                selectedItem = settings.theme,
+                onDismiss = { viewModel.hideDialog() },
+                onSelect = { viewModel.updateTheme(it) },
+                itemLabel = { theme ->
+                    when (theme) {
+                        ThemeMode.LIGHT -> stringResource(Res.string.app_theme_light)
+                        ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
+                        ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
+                    }
                 }
-            }
-        )
-    }
-
-    if (showWorkerDialog) {
-        SelectionDialog(
-            title = stringResource(Res.string.current_worker),
-            items = workers,
-            selectedItem = workers.find { it.path == settings.selectedWorker },
-            onDismiss = { viewModel.hideWorkerDialog() },
-            onSelect = { viewModel.selectWorker(it.path) },
-            emptyText = stringResource(Res.string.no_workers_available),
-            itemLabel = { it.name },
-            itemSecondaryLabel = { it.version }
-        )
-    }
-
-    if (showDownloadTimeoutDialog) {
-        NumberInputDialog(
-            title = stringResource(Res.string.sub_download_timeout),
-            initialValue = settings.downloadTimeout,
-            hint = stringResource(Res.string.hint_seconds, settings.downloadTimeout),
-            onDismiss = { viewModel.hideDownloadTimeoutDialog() },
-            onSave = { 
-                viewModel.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1)))
-                true
-            }
-        )
-    }
-
-    if (showLatencyRoundsDialog) {
-        NumberInputDialog(
-            title = stringResource(Res.string.latency_test_rounds),
-            initialValue = settings.latencyRounds,
-            hint = stringResource(Res.string.hint_rounds),
-            onDismiss = { viewModel.hideLatencyRoundsDialog() },
-            onSave = { 
-                viewModel.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1)))
-                true
-            }
-        )
-    }
-
-    if (showRoundTimeoutDialog) {
-        NumberInputDialog(
-            title = stringResource(Res.string.round_timeout),
-            initialValue = settings.roundTimeout,
-            hint = stringResource(Res.string.hint_seconds, settings.roundTimeout),
-            onDismiss = { viewModel.hideRoundTimeoutDialog() },
-            onSave = { 
-                viewModel.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1)))
-                true
-            }
-        )
-    }
-
-    if (showBatchSizeDialog) {
-        NumberInputDialog(
-            title = stringResource(Res.string.batch_size),
-            initialValue = settings.batchSize,
-            hint = stringResource(Res.string.hint_number),
-            onDismiss = { viewModel.hideBatchSizeDialog() },
-            onSave = { 
-                viewModel.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1)))
-                true
-            }
-        )
-    }
-
-    if (showPortDialog) {
-        NumberInputDialog(
-            title = stringResource(Res.string.web_server_port),
-            initialValue = settings.webServerPort,
-            hint = stringResource(Res.string.hint_number_specify, stringResource(Res.string.hint_allowed_ports)),
-            onDismiss = { viewModel.hidePortDialog() },
-            onSave = { viewModel.savePort(it) },
-            isValid = { it in 1024..65535 },
-            errorText = stringResource(Res.string.error_invalid_port)
-        )
+            )
+        }
+        ActiveDialog.Worker -> {
+            SelectionDialog(
+                title = stringResource(Res.string.current_worker),
+                items = workers,
+                selectedItem = workers.find { it.path == settings.selectedWorker },
+                onDismiss = { viewModel.hideDialog() },
+                onSelect = { viewModel.selectWorker(it.path) },
+                emptyText = stringResource(Res.string.no_workers_available),
+                itemLabel = { it.name },
+                itemSecondaryLabel = { it.version }
+            )
+        }
+        ActiveDialog.DownloadTimeout -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.sub_download_timeout),
+                initialValue = settings.downloadTimeout,
+                hint = stringResource(Res.string.hint_seconds, settings.downloadTimeout),
+                onDismiss = { viewModel.hideDialog() },
+                onSave = { 
+                    viewModel.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1)))
+                    true
+                }
+            )
+        }
+        ActiveDialog.LatencyRounds -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.latency_test_rounds),
+                initialValue = settings.latencyRounds,
+                hint = stringResource(Res.string.hint_rounds),
+                onDismiss = { viewModel.hideDialog() },
+                onSave = { 
+                    viewModel.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1)))
+                    true
+                }
+            )
+        }
+        ActiveDialog.RoundTimeout -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.round_timeout),
+                initialValue = settings.roundTimeout,
+                hint = stringResource(Res.string.hint_seconds, settings.roundTimeout),
+                onDismiss = { viewModel.hideDialog() },
+                onSave = { 
+                    viewModel.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1)))
+                    true
+                }
+            )
+        }
+        ActiveDialog.BatchSize -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.batch_size),
+                initialValue = settings.batchSize,
+                hint = stringResource(Res.string.hint_number),
+                onDismiss = { viewModel.hideDialog() },
+                onSave = { 
+                    viewModel.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1)))
+                    true
+                }
+            )
+        }
+        ActiveDialog.Port -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.web_server_port),
+                initialValue = settings.webServerPort,
+                hint = stringResource(Res.string.hint_number_specify, stringResource(Res.string.hint_allowed_ports)),
+                onDismiss = { viewModel.hideDialog() },
+                onSave = { viewModel.savePort(it) },
+                isValid = { it in 1024..65535 },
+                errorText = stringResource(Res.string.error_invalid_port)
+            )
+        }
+        else -> {}
     }
 }
 

@@ -21,4 +21,13 @@ object ConfigUtils {
         }
         return unique
     }
+
+    fun generateUUID(): String {
+        val hexChars = "0123456789abcdef"
+        val random = kotlin.random.Random.Default
+        fun randomHex(length: Int) = buildString {
+            repeat(length) { append(hexChars[random.nextInt(16)]) }
+        }
+        return "${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-${(8 + random.nextInt(4)).toString(16)}${randomHex(3)}-${randomHex(12)}"
+    }
 }
