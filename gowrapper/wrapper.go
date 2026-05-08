@@ -91,7 +91,6 @@ func DiscoverWorkers(libraryPath *C.char) *C.char {
 func RunLatencyTests(
 	workerPath *C.char,
 	connUrisJson *C.char,
-	performDedup C.int,
 	latencyRounds C.int,
 	roundTimeout C.int,
 	testByBatches C.int,
@@ -104,7 +103,6 @@ func RunLatencyTests(
 ) *C.char {
 	goWorkerPath := C.GoString(workerPath)
 	goConnUrisJson := C.GoString(connUrisJson)
-	goPerformDedup := performDedup != 0
 	goTestByBatches := testByBatches != 0
 
 	var inputConfigs []ProxyConfig
@@ -119,8 +117,7 @@ func RunLatencyTests(
 		}
 	}
 
-	// 1. Parse configs and deduplicate
-	seen := make(map[string]bool)
+	// 1. Parse configs
 	var parsedConfigs []parsers.ProxyConfig
 	parseFailedTags := []string{}
 
@@ -129,12 +126,6 @@ func RunLatencyTests(
 		if connURI == "" {
 			parseFailedTags = append(parseFailedTags, c.Tag)
 			continue
-		}
-		if goPerformDedup {
-			if seen[connURI] {
-				continue
-			}
-			seen[connURI] = true
 		}
 
 		p, err := parsers.ParseConfig(connURI)

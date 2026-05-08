@@ -20,7 +20,6 @@ interface GoLibrary {
     fun RunLatencyTests(
         workerPath: String,
         connUrisJson: String,
-        performDedup: Int,
         latencyRounds: Int,
         roundTimeout: Int,
         testByBatches: Int,
@@ -58,15 +57,13 @@ actual object GoBridge {
         workerPath: String,
         settings: AppSettings,
         callback: GoTestCallback,
-        connUris: List<ProxyConfig>,
-        performDedup: Boolean
+        connUris: List<ProxyConfig>
     ): List<ProxyConfig> {
         val connUrisJson = JsonConfig.json.encodeToString(connUris)
         
         val ptr = NativeLoader.lib.RunLatencyTests(
             workerPath,
             connUrisJson,
-            if (performDedup) 1 else 0,
             settings.latencyRounds,
             settings.roundTimeout,
             if (settings.testByBatches) 1 else 0,

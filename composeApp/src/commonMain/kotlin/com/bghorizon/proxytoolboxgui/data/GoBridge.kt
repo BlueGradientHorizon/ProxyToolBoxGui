@@ -6,8 +6,7 @@ expect object GoBridge {
         workerPath: String,
         settings: AppSettings,
         callback: GoTestCallback,
-        connUris: List<ProxyConfig>,
-        performDedup: Boolean
+        connUris: List<ProxyConfig>
     ): List<ProxyConfig>
 
     fun stopTests()

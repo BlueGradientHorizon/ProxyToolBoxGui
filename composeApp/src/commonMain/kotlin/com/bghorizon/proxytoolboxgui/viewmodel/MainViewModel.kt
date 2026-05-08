@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.*
 import com.bghorizon.proxytoolboxgui.platform.Platform
+import com.bghorizon.proxytoolboxgui.utils.ConfigUtils
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.response.*
@@ -170,19 +171,22 @@ class MainViewModel(
                 // Iterate through all subscriptions to collect their proxy URIs
                 for (i in subs.indices) {
                     val sub = subs[i]
-                    val uris = loadSubscriptionUris(sub.id)
-                    // Process each URI in the subscription and filter out duplicates
-                    for ((uriIndex, uri) in uris.withIndex()) {
-                        if (uri.isBlank()) continue
-                        if (seenUris.contains(uri)) {
-                            // If URI is already seen, increment duplication count for the subscription
-                            subs[i] = subs[i].copy(duplicated = subs[i].duplicated + 1)
-                        } else {
-                            seenUris.add(uri)
-                            // Create a unique tag for each proxy config to track its source subscription
-                            val tag = "sub-${sub.id}-${uriIndex}"
-                            configs.add(ProxyConfig(tag = tag, connURI = uri))
-                        }
+                    val uris = loadSubscriptionUris(sub.id).filter { it.isNotBlank() }
+                    
+                    val uniqueUris = if (currentSettings.performDedup) {
+                        ConfigUtils.naiveDeduplicate(uris, seenUris)
+                    } else {
+                        uris
+                    }
+
+                    if (currentSettings.performDedup) {
+                        subs[i] = subs[i].copy(duplicated = uris.size - uniqueUris.size)
+                    }
+
+                    // Create a unique tag for each proxy config to track its source subscription
+                    for ((uriIndex, uri) in uniqueUris.withIndex()) {
+                        val tag = "sub-${sub.id}-${uriIndex}"
+                        configs.add(ProxyConfig(tag = tag, connURI = uri))
                     }
                 }
                 _subscriptions.value = subs
@@ -323,8 +327,7 @@ class MainViewModel(
                             _testProgress.update { it.copy(isRoundActive = false) }
                         }
                     },
-                    connUris = configs,
-                    performDedup = currentSettings.performDedup
+                    connUris = configs
                 )
 
                 if (job?.isActive != true) return@launch
