@@ -164,7 +164,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 items = workers,
                 selectedItem = workers.find { it.path == settings.selectedWorker },
                 onDismiss = { viewModel.hideDialog() },
-                onSelect = { viewModel.selectWorker(it.path) },
+                onSelect = { viewModel.selectWorker(it) },
                 emptyText = stringResource(Res.string.no_workers_available),
                 itemLabel = { it.name },
                 itemSecondaryLabel = { it.version }

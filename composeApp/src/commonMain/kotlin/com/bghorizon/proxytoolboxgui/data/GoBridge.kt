@@ -18,4 +18,5 @@ interface GoTestCallback {
     fun onRoundStarted(batch: Long, round: Long, total: Long)
     fun onProgress(tag: String, delay: Long, failed: Boolean)
     fun onRoundEnded(batch: Long, round: Long)
+    fun onError(message: String)
 }

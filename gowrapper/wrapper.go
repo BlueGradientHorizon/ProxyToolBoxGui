@@ -9,12 +9,14 @@ typedef void (*cb_validate_failed_t)(const char* tagsJson);
 typedef void (*cb_round_started_t)(int batchNum, int roundNum, int total);
 typedef void (*cb_progress_t)(const char* tag, long long delay, int failed);
 typedef void (*cb_round_ended_t)(int batchNum, int roundNum);
+typedef void (*cb_error_t)(const char* message);
 
 static inline void invoke_parse_failed(cb_parse_failed_t cb, const char* tagsJson) { cb(tagsJson); }
 static inline void invoke_validate_failed(cb_validate_failed_t cb, const char* tagsJson) { cb(tagsJson); }
 static inline void invoke_round_started(cb_round_started_t cb, int batchNum, int roundNum, int total) { cb(batchNum, roundNum, total); }
 static inline void invoke_progress(cb_progress_t cb, const char* tag, long long delay, int failed) { cb(tag, delay, failed); }
 static inline void invoke_round_ended(cb_round_ended_t cb, int batchNum, int roundNum) { cb(batchNum, roundNum); }
+static inline void invoke_error(cb_error_t cb, const char* message) { cb(message); }
 */
 import "C"
 import (
@@ -100,6 +102,7 @@ func RunLatencyTests(
 	cbRoundStarted C.cb_round_started_t,
 	cbProgress C.cb_progress_t,
 	cbRoundEnded C.cb_round_ended_t,
+	cbError C.cb_error_t,
 ) *C.char {
 	goWorkerPath := C.GoString(workerPath)
 	goConnUrisJson := C.GoString(connUrisJson)
@@ -107,13 +110,19 @@ func RunLatencyTests(
 
 	var inputConfigs []ProxyConfig
 	if err := json.Unmarshal([]byte(goConnUrisJson), &inputConfigs); err != nil {
-		return C.CString(fmt.Sprintf("[]"))
+		msg := C.CString(fmt.Sprintf("Unmarshal input error: %v", err))
+		C.invoke_error(cbError, msg)
+		C.free(unsafe.Pointer(msg))
+		return C.CString("[]")
 	}
 
 	// Ensure tags are present
 	for _, c := range inputConfigs {
 		if strings.TrimSpace(c.Tag) == "" {
-			return C.CString("[]") // TODO: should return "empty tag found" error
+			msg := C.CString("Empty tag found in config")
+			C.invoke_error(cbError, msg)
+			C.free(unsafe.Pointer(msg))
+			return C.CString("[]")
 		}
 	}
 
@@ -149,7 +158,10 @@ func RunLatencyTests(
 	}
 
 	if len(parsedConfigs) == 0 {
-		return C.CString("[]") // TODO: should return "no valid configs" error
+		msg := C.CString("No valid configs after parsing")
+		C.invoke_error(cbError, msg)
+		C.free(unsafe.Pointer(msg))
+		return C.CString("[]")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -169,6 +181,9 @@ func RunLatencyTests(
 		WorkerPath: goWorkerPath,
 	})
 	if err != nil {
+		msg := C.CString(fmt.Sprintf("Failed to create test runner: %v", err))
+		C.invoke_error(cbError, msg)
+		C.free(unsafe.Pointer(msg))
 		return C.CString("[]")
 	}
 
@@ -184,7 +199,10 @@ func RunLatencyTests(
 	testMu.Unlock()
 
 	if err != nil {
-		return C.CString("[]") // TODO: should return err
+		msg := C.CString(fmt.Sprintf("Validation error: %v", err))
+		C.invoke_error(cbError, msg)
+		C.free(unsafe.Pointer(msg))
+		return C.CString("[]")
 	}
 
 	validateFailedTags := []string{}
@@ -210,7 +228,10 @@ func RunLatencyTests(
 	}
 
 	if len(validConfigs) == 0 {
-		return C.CString("[]") // TODO: should return "no valid configs" error
+		msg := C.CString("No valid configs after validation")
+		C.invoke_error(cbError, msg)
+		C.free(unsafe.Pointer(msg))
+		return C.CString("[]")
 	}
 
 	// 3. Batched Latency Tests

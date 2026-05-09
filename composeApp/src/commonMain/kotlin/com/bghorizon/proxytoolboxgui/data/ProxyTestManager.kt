@@ -15,7 +15,7 @@ class ProxyTestManager(
             it.copy(
                 duplicated = 0,
                 parseErr = 0,
-                validErr = 0/*, working = 0*/
+                validErr = 0
             )
         }.toMutableList()
         val configs = mutableListOf<ProxyConfig>()
@@ -79,6 +79,11 @@ class ProxyTestManager(
                 override fun onRoundEnded(batch: Long, round: Long) {
                     onEvent(TestEvent.RoundEnded(batch.toInt(), round.toInt()))
                 }
+
+                override fun onError(message: String) {
+                    println("ProxyTestManager Error: $message")
+                    onEvent(TestEvent.Error(message))
+                }
             },
             connUris = configs
         )
@@ -88,11 +93,13 @@ class ProxyTestManager(
         GoBridge.stopTests()
     }
 
-    fun extractSubId(tag: String): String? {
+    fun extractIds(tag: String): Pair<String, Int>? {
         if (!tag.startsWith("sub-")) return null
-        val content = tag.removePrefix("sub-")
-        val lastDash = content.lastIndexOf('-')
-        return if (lastDash > 0) content.substring(0, lastDash) else null
+        val parts = tag.removePrefix("sub-").split('-')
+        if (parts.size < 2) return null
+        val subId = parts.subList(0, parts.size - 1).joinToString("-")
+        val configId = parts.last().toIntOrNull() ?: return null
+        return subId to configId
     }
 }
 
@@ -110,4 +117,5 @@ sealed class TestEvent {
     data class RoundStarted(val batch: Int, val round: Int, val total: Int) : TestEvent()
     data class Progress(val tag: String, val delay: Long, val failed: Boolean) : TestEvent()
     data class RoundEnded(val batch: Int, val round: Int) : TestEvent()
+    data class Error(val message: String) : TestEvent()
 }

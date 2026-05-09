@@ -9,6 +9,7 @@ data class AppSettingsEntity(
     @PrimaryKey val id: Int = 0,
     val theme: Int,
     val selectedWorker: String,
+    val selectedWorkerName: String = "",
     val downloadTimeout: Int,
     val performDedup: Boolean,
     val latencyRounds: Int,
@@ -25,17 +26,13 @@ data class SubscriptionEntity(
     @PrimaryKey val id: String,
     val note: String,
     val url: String,
-    val total: Int,
-    val working: Int,
     val updatedAt: Long,
-    val duplicated: Int,
-    val parseErr: Int,
-    val validErr: Int
+    val duplicated: Int
 )
 
 @Entity(
-    tableName = "subscription_uris",
-    primaryKeys = ["subId", "uri"],
+    tableName = "subscriptions_data",
+    primaryKeys = ["subId", "configId"],
     foreignKeys = [ForeignKey(
         entity = SubscriptionEntity::class,
         parentColumns = ["id"],
@@ -43,14 +40,12 @@ data class SubscriptionEntity(
         onDelete = ForeignKey.CASCADE
     )]
 )
-data class SubscriptionUriEntity(
+data class SubscriptionDataEntity(
     val subId: String,
-    val uri: String
-)
-
-@Entity(tableName = "working_configs")
-data class WorkingConfigEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val tag: String,
-    val connURI: String
+    val configId: Int,
+    val connURI: String,
+    val parseErr: Boolean = false,
+    val validErr: Boolean = false,
+    val fixedConnURI: String? = null,
+    val working: Boolean = false
 )

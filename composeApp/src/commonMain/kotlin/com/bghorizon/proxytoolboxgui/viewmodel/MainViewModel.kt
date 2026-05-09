@@ -23,6 +23,10 @@ class MainViewModel(
     private var timerJob: Job? = null
     private var downloadJob: Job? = null
 
+    // Accumulators for test results during execution
+    private val currentTestParseErrors = mutableSetOf<String>()
+    private val currentTestValidErrors = mutableSetOf<String>()
+
     init {
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
@@ -32,36 +36,21 @@ class MainViewModel(
         viewModelScope.launch {
             try {
                 settingsRepository.loadSettings()
-                val loadedSubs = subscriptionRepository.loadSubscriptions()
-                val configs = subscriptionRepository.loadWorkingConfigs()
-                
-                _uiState.update { it.copy(subscriptions = loadedSubs, workingConfigs = configs) }
-                
-                if (configs.isNotEmpty()) {
-                    _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
-                    
-                    // If working configs exist but subscriptions have 0 working count, re-sync them
-                    if (loadedSubs.any { it.working > 0 }.not()) {
-                        val workingCounts = mutableMapOf<String, Int>()
-                        configs.forEach { cfg ->
-                            testManager.extractSubId(cfg.tag)?.let { id ->
-                                workingCounts[id] = (workingCounts[id] ?: 0) + 1
-                            }
-                        }
-                        if (workingCounts.isNotEmpty()) {
-                            _uiState.update { state ->
-                                state.copy(subscriptions = state.subscriptions.map { 
-                                    it.copy(working = workingCounts[it.id] ?: 0)
-                                })
-                            }
-                        }
-                    }
-                }
+                refreshSubscriptionsAndConfigs()
                 discoverWorkers()
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
             }
+        }
+    }
+
+    private suspend fun refreshSubscriptionsAndConfigs() {
+        val loadedSubs = subscriptionRepository.loadSubscriptions()
+        val configs = subscriptionRepository.loadWorkingConfigs()
+        _uiState.update { it.copy(subscriptions = loadedSubs, workingConfigs = configs) }
+        if (configs.isNotEmpty()) {
+            _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
         }
     }
 
@@ -80,6 +69,20 @@ class MainViewModel(
                 val json = GoBridge.discoverWorkers(libraryPath)
                 val workers = JsonConfig.json.decodeFromString<List<WorkerInfo>>(json)
                 _uiState.update { it.copy(workers = workers) }
+
+                val currentSettings = _uiState.value.settings
+                val savedName = currentSettings.selectedWorkerName
+                val savedPath = currentSettings.selectedWorker
+
+                // Find matching worker by path first, then by name
+                val matchedWorker = workers.find { it.path == savedPath }
+                    ?: workers.find { it.name == savedName }
+                    ?: if (workers.isNotEmpty()) workers[0] else null
+
+                if (matchedWorker != null && (matchedWorker.path != savedPath || savedName.isBlank())) {
+                    selectWorker(matchedWorker)
+                }
+
                 if (workers.isEmpty()) {
                     _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
                 }
@@ -90,9 +93,9 @@ class MainViewModel(
         }
     }
 
-    fun selectWorker(path: String) {
+    fun selectWorker(worker: WorkerInfo) {
         viewModelScope.launch {
-            settingsRepository.updateSelectedWorker(path)
+            settingsRepository.updateSelectedWorker(worker.name, worker.path)
         }
     }
 
@@ -102,68 +105,104 @@ class MainViewModel(
         testJob = viewModelScope.launch(Dispatchers.IO) {
             val job = coroutineContext[Job]
             val currentSettings = _uiState.value.settings
-            _uiState.update { it.copy(
-                appStatus = AppStatus.TESTING,
-                testProgress = it.testProgress.copy(isRunning = true)
-            ) }
+
+            if (currentSettings.selectedWorker.isBlank()) {
+                withContext(Dispatchers.Main) {
+                    platform.showToast("Please select a worker in settings")
+                }
+                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
+                return@launch
+            }
+
+            currentTestParseErrors.clear()
+            currentTestValidErrors.clear()
+
+            _uiState.update {
+                it.copy(
+                    appStatus = AppStatus.TESTING,
+                    testProgress = it.testProgress.copy(isRunning = true)
+                )
+            }
 
             try {
                 val setup = testManager.prepareTest(currentSettings, _uiState.value.subscriptions)
-                _uiState.update { it.copy(
-                    subscriptions = setup.updatedSubscriptions,
-                    testProgress = it.testProgress.copy(
-                        totalBatches = setup.totalBatches,
-                        totalRounds = setup.totalRounds,
-                        totalSeconds = setup.totalSeconds,
-                        elapsedSeconds = 0,
-                        currentBatch = 0,
-                        currentRound = 0,
-                        batchProgresses = (1..setup.totalBatches).flatMap { b ->
-                            (1..setup.totalRounds).map { r -> BatchProgress(batchNum = b, roundNum = r) }
-                        }
-                    )
-                ) }
+                if (setup.configs.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        platform.showToast("No configs found to test")
+                    }
+                    _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
+                    return@launch
+                }
 
-                val subIdToIndex = setup.updatedSubscriptions.mapIndexed { i, sub -> sub.id to i }.toMap()
+                _uiState.update {
+                    it.copy(
+                        subscriptions = setup.updatedSubscriptions,
+                        testProgress = it.testProgress.copy(
+                            totalBatches = setup.totalBatches,
+                            totalRounds = setup.totalRounds,
+                            totalSeconds = setup.totalSeconds,
+                            elapsedSeconds = 0,
+                            currentBatch = 0,
+                            currentRound = 0,
+                            batchProgresses = (1..setup.totalBatches).flatMap { b ->
+                                (1..setup.totalRounds).map { r ->
+                                    BatchProgress(
+                                        batchNum = b,
+                                        roundNum = r
+                                    )
+                                }
+                            }
+                        )
+                    )
+                }
 
                 val resultConfigs = testManager.runLatencyTests(
                     settings = currentSettings,
                     configs = setup.configs,
                     onEvent = { event ->
                         if (job?.isActive != true) return@runLatencyTests
-                        handleTestEvent(event, subIdToIndex, setup.configs, currentSettings)
+                        handleTestEvent(event, setup.configs, currentSettings)
                     }
                 )
 
                 if (job?.isActive != true) return@launch
 
-                val subsFinal = _uiState.value.subscriptions.toMutableList()
-                val workingCounts = mutableMapOf<String, Int>()
+                // Successfully ended - now reset and save results
+                subscriptionRepository.resetTestData()
 
-                resultConfigs.forEach { cfg ->
-                    testManager.extractSubId(cfg.tag)?.let { subId ->
-                        workingCounts[subId] = (workingCounts[subId] ?: 0) + 1
+                // Save errors
+                currentTestParseErrors.forEach { tag ->
+                    testManager.extractIds(tag)?.let { (subId, configId) ->
+                        subscriptionRepository.markParseErr(subId, configId)
+                    }
+                }
+                currentTestValidErrors.forEach { tag ->
+                    testManager.extractIds(tag)?.let { (subId, configId) ->
+                        subscriptionRepository.markValidErr(subId, configId)
                     }
                 }
 
-                subsFinal.indices.forEach { i ->
-                    val id = subsFinal[i].id
-                    subsFinal[i] = subsFinal[i].copy(working = workingCounts[id] ?: 0)
+                // Save working configs
+                resultConfigs.forEach { cfg ->
+                    testManager.extractIds(cfg.tag)?.let { (subId, configId) ->
+                        subscriptionRepository.updateTestResult(subId, configId, true, cfg.connURI)
+                    }
                 }
 
-                _uiState.update { it.copy(
-                    subscriptions = subsFinal,
-                    workingConfigs = resultConfigs,
-                    appStatus = AppStatus.COMPLETED
-                ) }
-                subscriptionRepository.saveSubscriptions(_uiState.value.subscriptions)
-                subscriptionRepository.saveWorkingConfigs(_uiState.value.workingConfigs)
+                refreshSubscriptionsAndConfigs()
             } catch (e: Exception) {
                 _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
                 e.printStackTrace()
             } finally {
                 timerJob?.cancel()
-                _uiState.update { it.copy(testProgress = it.testProgress.copy(isRunning = false, isRoundActive = false)) }
+                _uiState.update {
+                    it.copy(
+                        testProgress = it.testProgress.copy(
+                            isRunning = false,
+                            isRoundActive = false
+                        )
+                    )
+                }
                 if (currentSettings.autoStartWebServer) {
                     startWebServer()
                 }
@@ -173,43 +212,51 @@ class MainViewModel(
 
     private fun handleTestEvent(
         event: TestEvent,
-        subIdToIndex: Map<String, Int>,
         configs: List<ProxyConfig>,
         settings: AppSettings
     ) {
         when (event) {
             is TestEvent.ParseFailed -> {
+                currentTestParseErrors.addAll(event.tags)
                 _uiState.update { state ->
                     val current = state.subscriptions.toMutableList()
                     event.tags.forEach { tag ->
-                        testManager.extractSubId(tag)?.let { subId ->
-                            subIdToIndex[subId]?.let { idx ->
-                                current[idx] = current[idx].copy(parseErr = current[idx].parseErr + 1)
+                        testManager.extractIds(tag)?.let { (subId, _) ->
+                            val idx = current.indexOfFirst { it.id == subId }
+                            if (idx >= 0) {
+                                current[idx] =
+                                    current[idx].copy(parseErr = current[idx].parseErr + 1)
                             }
                         }
                     }
                     state.copy(subscriptions = current)
                 }
             }
+
             is TestEvent.ValidateFailed -> {
+                currentTestValidErrors.addAll(event.tags)
                 _uiState.update { state ->
                     val current = state.subscriptions.toMutableList()
                     event.tags.forEach { tag ->
-                        testManager.extractSubId(tag)?.let { subId ->
-                            subIdToIndex[subId]?.let { idx ->
-                                current[idx] = current[idx].copy(validErr = current[idx].validErr + 1)
+                        testManager.extractIds(tag)?.let { (subId, _) ->
+                            val idx = current.indexOfFirst { it.id == subId }
+                            if (idx >= 0) {
+                                current[idx] =
+                                    current[idx].copy(validErr = current[idx].validErr + 1)
                             }
                         }
                     }
                     state.copy(subscriptions = current)
                 }
             }
+
             is TestEvent.RoundStarted -> {
                 val currentRoundAbsolute = (event.batch - 1) * settings.latencyRounds + event.round
                 _uiState.update { state ->
                     val current = state.testProgress
                     val updatedProgresses = current.batchProgresses.toMutableList()
-                    val idx = updatedProgresses.indexOfFirst { it.batchNum == event.batch && it.roundNum == event.round }
+                    val idx =
+                        updatedProgresses.indexOfFirst { it.batchNum == event.batch && it.roundNum == event.round }
                     if (idx >= 0) {
                         val totalForThisRound = if (event.round == 1) {
                             if (!settings.testByBatches) {
@@ -221,11 +268,14 @@ class MainViewModel(
                                 if (rem == 0 && configs.size > 0) settings.batchSize else rem
                             }
                         } else {
-                            updatedProgresses.find { 
-                                it.batchNum == event.batch && it.roundNum == event.round - 1 
+                            updatedProgresses.find {
+                                it.batchNum == event.batch && it.roundNum == event.round - 1
                             }?.succeeded ?: 0
                         }
-                        updatedProgresses[idx] = updatedProgresses[idx].copy(total = totalForThisRound, running = totalForThisRound)
+                        updatedProgresses[idx] = updatedProgresses[idx].copy(
+                            total = totalForThisRound,
+                            running = totalForThisRound
+                        )
                     }
 
                     state.copy(
@@ -248,12 +298,13 @@ class MainViewModel(
                     }
                 }
             }
+
             is TestEvent.Progress -> {
                 _uiState.update { state ->
                     val current = state.testProgress
                     val updatedProgresses = current.batchProgresses.toMutableList()
-                    val batchIndex = updatedProgresses.indexOfFirst { 
-                        it.batchNum == current.currentBatch && it.roundNum == current.currentRound 
+                    val batchIndex = updatedProgresses.indexOfFirst {
+                        it.batchNum == current.currentBatch && it.roundNum == current.currentRound
                     }
 
                     if (batchIndex >= 0) {
@@ -268,18 +319,26 @@ class MainViewModel(
                     state.copy(testProgress = current.copy(batchProgresses = updatedProgresses))
                 }
             }
+
             is TestEvent.RoundEnded -> {
                 timerJob?.cancel()
                 _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }
             }
+
+            is TestEvent.Error -> {
+                viewModelScope.launch {
+                    platform.showToast("Test Error: ${event.message}")
+                }
+                stopTest(AppStatus.ERROR)
+            }
         }
     }
 
-    fun stopTest() {
+    fun stopTest(newAppStatus: AppStatus = AppStatus.IDLE) {
         testJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
             testManager.stopTests()
-            _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
+            _uiState.update { it.copy(appStatus = newAppStatus) }
         }
     }
 
@@ -288,42 +347,52 @@ class MainViewModel(
 
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(appStatus = AppStatus.DOWNLOADING) }
-            val subs = _uiState.value.subscriptions.toMutableList()
-            _uiState.update { it.copy(downloadProgress = DownloadProgress(
-                total = subs.size,
-                isRunning = true
-            )) }
+            val subs = _uiState.value.subscriptions
+            _uiState.update {
+                it.copy(
+                    downloadProgress = DownloadProgress(
+                        total = subs.size,
+                        isRunning = true
+                    )
+                )
+            }
 
             var succeeded = 0
             var failed = 0
 
-            for (i in subs.indices) {
-                val sub = subs[i]
+            for (sub in subs) {
                 try {
-                    val content = SubscriptionDownloader.download(sub.url, _uiState.value.settings.downloadTimeout)
-                    val lines = content.lines().filter { it.isNotBlank() }
-                    subscriptionRepository.saveSubscriptionUris(sub.id, lines)
-                    subs[i] = sub.copy(
-                        total = lines.size,
-                        duplicated = 0,
-                        parseErr = 0,
-                        validErr = 0,
-                        working = 0,
-                        updatedAt = System.currentTimeMillis()
+                    val content = SubscriptionDownloader.download(
+                        sub.url,
+                        _uiState.value.settings.downloadTimeout
                     )
+                    val lines = content.lines().filter { it.isNotBlank() }
+
+                    // 1. Save metadata
+                    val updatedSub = sub.copy(updatedAt = System.currentTimeMillis())
+                    subscriptionRepository.saveSubscription(updatedSub)
+
+                    // 2. Save child data (URIs)
+                    subscriptionRepository.saveSubscriptionData(sub.id, lines)
+
                     succeeded++
                 } catch (e: Exception) {
+                    e.printStackTrace()
                     failed++
                 }
-                _uiState.update { it.copy(downloadProgress = it.downloadProgress.copy(
-                    succeeded = succeeded,
-                    failed = failed
-                )) }
+                _uiState.update {
+                    it.copy(
+                        downloadProgress = it.downloadProgress.copy(
+                            succeeded = succeeded,
+                            failed = failed
+                        )
+                    )
+                }
             }
 
-            _uiState.update { it.copy(subscriptions = subs, appStatus = AppStatus.IDLE) }
+            refreshSubscriptionsAndConfigs()
+            _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
             _uiState.update { it.copy(downloadProgress = it.downloadProgress.copy(isRunning = false)) }
-            subscriptionRepository.saveSubscriptions(_uiState.value.subscriptions)
         }
     }
 
@@ -395,26 +464,22 @@ class MainViewModel(
 
     fun saveSubscription(note: String, url: String) {
         val activeDialog = _uiState.value.activeDialog
-        val existing = if (activeDialog is ActiveDialog.EditSubscription) activeDialog.subscription else null
-        val newId = ConfigUtils.generateUUID()
+        val existing =
+            if (activeDialog is ActiveDialog.EditSubscription) activeDialog.subscription else null
         val newSub = if (existing != null) {
             existing.copy(note = note, url = url)
         } else {
             Subscription(
-                id = newId,
+                id = ConfigUtils.generateUUID(),
                 note = note,
                 url = url
             )
         }
 
-        _uiState.update { state ->
-            state.copy(subscriptions = if (existing != null) {
-                state.subscriptions.map { if (it.id == existing.id) newSub else it }
-            } else {
-                state.subscriptions + newSub
-            })
+        viewModelScope.launch {
+            subscriptionRepository.saveSubscription(newSub)
+            refreshSubscriptionsAndConfigs()
         }
-        viewModelScope.launch { subscriptionRepository.saveSubscriptions(_uiState.value.subscriptions) }
         hideDialog()
     }
 
@@ -426,10 +491,9 @@ class MainViewModel(
         val activeDialog = _uiState.value.activeDialog
         if (activeDialog is ActiveDialog.DeleteConfirmation) {
             val sub = activeDialog.subscription
-            _uiState.update { state -> state.copy(subscriptions = state.subscriptions.filter { it.id != sub.id }) }
             viewModelScope.launch {
-                subscriptionRepository.deleteSubscriptionUris(sub.id)
-                subscriptionRepository.saveSubscriptions(_uiState.value.subscriptions)
+                subscriptionRepository.deleteSubscription(sub.id)
+                refreshSubscriptionsAndConfigs()
             }
         }
         hideDialog()

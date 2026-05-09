@@ -32,14 +32,15 @@ class SettingsRepository(private val dao: SettingsDao) {
         saveSettings(_settings.value.copy(theme = theme))
     }
 
-    suspend fun updateSelectedWorker(worker: String) {
-        saveSettings(_settings.value.copy(selectedWorker = worker))
+    suspend fun updateSelectedWorker(name: String, path: String) {
+        saveSettings(_settings.value.copy(selectedWorkerName = name, selectedWorker = path))
     }
 }
 
 private fun AppSettings.toEntity() = AppSettingsEntity(
     theme = theme.ordinal,
     selectedWorker = selectedWorker,
+    selectedWorkerName = selectedWorkerName,
     downloadTimeout = downloadTimeout,
     performDedup = performDedup,
     latencyRounds = latencyRounds,
@@ -54,6 +55,7 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
 private fun AppSettingsEntity.toModel() = AppSettings(
     theme = ThemeMode.entries.getOrElse(theme) { ThemeMode.SYSTEM },
     selectedWorker = selectedWorker,
+    selectedWorkerName = selectedWorkerName,
     downloadTimeout = downloadTimeout,
     performDedup = performDedup,
     latencyRounds = latencyRounds,

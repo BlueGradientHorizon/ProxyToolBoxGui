@@ -67,6 +67,7 @@ data class ProxyConfig(
 data class AppSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val selectedWorker: String = "",
+    val selectedWorkerName: String = "",
     val downloadTimeout: Int = 10,
     val performDedup: Boolean = true,
     val latencyRounds: Int = 3,

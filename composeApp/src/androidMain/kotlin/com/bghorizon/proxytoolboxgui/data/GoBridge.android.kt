@@ -14,6 +14,7 @@ interface CbValidateFailed { @Delegate fun invoke(tagsJson: Pointer?) }
 interface CbRoundStarted { @Delegate fun invoke(batchNum: Int, roundNum: Int, total: Int) }
 interface CbProgress { @Delegate fun invoke(tag: Pointer?, delay: Long, failed: Int) }
 interface CbRoundEnded { @Delegate fun invoke(batchNum: Int, roundNum: Int) }
+interface CbError { @Delegate fun invoke(message: Pointer?) }
 
 interface GoLibrary {
     fun DiscoverWorkers(libraryPath: String): Pointer
@@ -28,7 +29,8 @@ interface GoLibrary {
         cbValidateFailed: CbValidateFailed,
         cbRoundStarted: CbRoundStarted,
         cbProgress: CbProgress,
-        cbRoundEnded: CbRoundEnded
+        cbRoundEnded: CbRoundEnded,
+        cbError: CbError
     ): Pointer
     fun StopTests()
     fun FreeString(ptr: Pointer)
@@ -105,6 +107,14 @@ actual object GoBridge {
                 override fun invoke(batchNum: Int, roundNum: Int) {
                     CoroutineScope(Dispatchers.Main).launch {
                         callback.onRoundEnded(batchNum.toLong(), roundNum.toLong())
+                    }
+                }
+            },
+            object : CbError {
+                override fun invoke(message: Pointer?) {
+                    val msg = message?.getString(0) ?: ""
+                    CoroutineScope(Dispatchers.Main).launch {
+                        callback.onError(msg)
                     }
                 }
             }
