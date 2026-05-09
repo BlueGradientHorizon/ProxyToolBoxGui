@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.data
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
@@ -86,6 +87,7 @@ enum class AppStatus {
 }
 
 object JsonConfig {
+    @OptIn(ExperimentalSerializationApi::class)
     val json = Json {
         ignoreUnknownKeys = true
         isLenient = true

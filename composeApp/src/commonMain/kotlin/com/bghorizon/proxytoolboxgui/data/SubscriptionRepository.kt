@@ -1,54 +1,64 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import kotlinx.serialization.encodeToString
+import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDao
+import com.bghorizon.proxytoolboxgui.data.db.SubscriptionEntity
+import com.bghorizon.proxytoolboxgui.data.db.SubscriptionUriEntity
+import com.bghorizon.proxytoolboxgui.data.db.WorkingConfigEntity
 
-class SubscriptionRepository(private val store: SettingsStore) {
-
-    private fun subUriKey(subId: String) = "sub_uris_$subId"
+class SubscriptionRepository(private val dao: SubscriptionDao) {
 
     suspend fun loadSubscriptions(): List<Subscription> {
-        val json = store.getString("subscriptions", "[]")
-        return try {
-            JsonConfig.json.decodeFromString(json)
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return dao.getAllSubscriptions().map { it.toModel() }
     }
 
     suspend fun saveSubscriptions(subscriptions: List<Subscription>) {
-        val json = JsonConfig.json.encodeToString(subscriptions)
-        store.putString("subscriptions", json)
+        dao.deleteAllSubscriptions()
+        dao.insertSubscriptions(subscriptions.map { it.toEntity() })
     }
 
     suspend fun loadWorkingConfigs(): List<ProxyConfig> {
-        return try {
-            val json = store.getString("working_configs", "[]")
-            JsonConfig.json.decodeFromString(json)
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return dao.getWorkingConfigs().map { ProxyConfig(it.tag, it.connURI) }
     }
 
     suspend fun saveWorkingConfigs(configs: List<ProxyConfig>) {
-        val json = JsonConfig.json.encodeToString(configs)
-        store.putString("working_configs", json)
+        dao.deleteWorkingConfigs()
+        dao.saveWorkingConfigs(configs.map { WorkingConfigEntity(tag = it.tag, connURI = it.connURI) })
     }
 
     suspend fun loadSubscriptionUris(subId: String): List<String> {
-        val json = store.getString(subUriKey(subId), "[]")
-        return try {
-            JsonConfig.json.decodeFromString(json)
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return dao.getUrisForSubscription(subId).map { it.uri }
     }
 
     suspend fun saveSubscriptionUris(subId: String, uris: List<String>) {
-        val json = JsonConfig.json.encodeToString(uris)
-        store.putString(subUriKey(subId), json)
+        dao.deleteUrisForSubscription(subId)
+        dao.insertUris(uris.map { SubscriptionUriEntity(subId, it) })
     }
 
     suspend fun deleteSubscriptionUris(subId: String) {
-        store.putString(subUriKey(subId), "[]")
+        dao.deleteUrisForSubscription(subId)
     }
 }
+
+private fun Subscription.toEntity() = SubscriptionEntity(
+    id = id,
+    note = note,
+    url = url,
+    total = total,
+    working = working,
+    updatedAt = updatedAt,
+    duplicated = duplicated,
+    parseErr = parseErr,
+    validErr = validErr
+)
+
+private fun SubscriptionEntity.toModel() = Subscription(
+    id = id,
+    note = note,
+    url = url,
+    total = total,
+    working = working,
+    updatedAt = updatedAt,
+    duplicated = duplicated,
+    parseErr = parseErr,
+    validErr = validErr
+)

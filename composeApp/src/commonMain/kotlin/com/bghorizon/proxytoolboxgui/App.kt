@@ -2,8 +2,9 @@ package com.bghorizon.proxytoolboxgui
 
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
+import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDatabase
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
-import com.bghorizon.proxytoolboxgui.data.SettingsStore
 import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
 import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
@@ -16,13 +17,16 @@ import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import com.bghorizon.proxytoolboxgui.viewmodel.Screen
 
 @Composable
-fun App() {
+fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val platform = remember { getPlatform() }
-    val settingsStore = remember { createSettingsStore(platform) }
-    val settingsRepository = remember { SettingsRepository(settingsStore) }
-    val subscriptionRepository = remember { SubscriptionRepository(settingsStore) }
+    val settingsRepository = remember { SettingsRepository(appDb.settingsDao()) }
+    val subscriptionRepository = remember { SubscriptionRepository(subDb.subscriptionDao()) }
     val testManager = remember { ProxyTestManager(subscriptionRepository) }
     val webServer = remember { ProxyWebServer() }
+
+    LaunchedEffect(Unit) {
+        settingsRepository.loadSettings()
+    }
 
     val viewModel: MainViewModel = viewModel {
         MainViewModel(platform, settingsRepository, subscriptionRepository, testManager, webServer)
@@ -39,4 +43,3 @@ fun App() {
     }
 }
 
-expect fun createSettingsStore(platform: com.bghorizon.proxytoolboxgui.platform.Platform): SettingsStore
