@@ -5,7 +5,6 @@ import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDataEntity
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 
 class SubscriptionRepository(private val dao: SubscriptionDao) {
 
@@ -26,15 +25,6 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
                 duplicated = entity.duplicated,
                 parseErr = subData.count { it.parseErr },
                 validErr = subData.count { it.validErr }
-            )
-        }
-    }
-
-    val workingConfigs: Flow<List<ProxyConfig>> = dao.getAllConfigsFlow().map { configs ->
-        configs.filter { it.working }.map { data ->
-            ProxyConfig(
-                tag = "sub-${data.subId}-${data.configId}",
-                connURI = data.fixedConnURI ?: data.connURI
             )
         }
     }

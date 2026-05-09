@@ -54,7 +54,6 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val subs by viewModel.subscriptions.collectAsState()
-    val workingConfigs by viewModel.workingConfigs.collectAsState()
     
     val testProgress = uiState.testProgress
     val downloadProgress = uiState.downloadProgress

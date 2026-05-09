@@ -22,9 +22,6 @@ class MainViewModel(
     val subscriptions: StateFlow<List<Subscription>> = subscriptionRepository.subscriptions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val workingConfigs: StateFlow<List<ProxyConfig>> = subscriptionRepository.workingConfigs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     private var testJob: Job? = null
     private var timerJob: Job? = null
     private var downloadJob: Job? = null
@@ -39,7 +36,7 @@ class MainViewModel(
             try {
                 settingsRepository.loadSettings()
                 // Set completed status if we have configs already
-                if (workingConfigs.first().isNotEmpty()) {
+                if (subscriptionRepository.getWorkingConfigs().isNotEmpty()) {
                     _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
                 }
                 discoverWorkers()
@@ -380,15 +377,27 @@ class MainViewModel(
         }
     }
 
+    private suspend fun getWorkingConfigsString(): String {
+        return subscriptionRepository.getWorkingConfigs().joinToString("\n") { it.connURI }
+    }
+
     fun copyWorkingConfigs() {
-        val uris = workingConfigs.value.joinToString("\n") { it.connURI }
-        platform.copyToClipboard(uris)
-        platform.showToast("Copied to clipboard")
+        viewModelScope.launch(Dispatchers.IO) {
+            val uris = getWorkingConfigsString()
+            withContext(Dispatchers.Main) {
+                platform.copyToClipboard(uris)
+                platform.showToast("Copied to clipboard")
+            }
+        }
     }
 
     fun exportWorkingConfigs() {
-        val uris = workingConfigs.value.joinToString("\n") { it.connURI }
-        platform.exportToFile(uris, "working_configs.txt")
+        viewModelScope.launch(Dispatchers.IO) {
+            val uris = getWorkingConfigsString()
+            withContext(Dispatchers.Main) {
+                platform.exportToFile(uris, "working_configs.txt")
+            }
+        }
     }
 
     fun toggleWebServer() {
@@ -410,7 +419,7 @@ class MainViewModel(
                     port = port,
                     host = host,
                     getConfigUris = {
-                        workingConfigs.value.joinToString("\n") { it.connURI }
+                        getWorkingConfigsString()
                     }
                 )
 

@@ -12,7 +12,7 @@ class ProxyWebServer {
     fun start(
         port: Int,
         host: String,
-        getConfigUris: () -> String
+        getConfigUris: suspend () -> String
     ) {
         stop()
         server = embeddedServer(CIO, port = port, host = host) {
