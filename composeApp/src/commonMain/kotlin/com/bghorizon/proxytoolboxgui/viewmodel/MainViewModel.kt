@@ -240,23 +240,9 @@ class MainViewModel(
                     val idx =
                         updatedProgresses.indexOfFirst { it.batchNum == event.batch && it.roundNum == event.round }
                     if (idx >= 0) {
-                        val totalForThisRound = if (event.round == 1) {
-                            if (!settings.testByBatches) {
-                                configs.size
-                            } else if (event.batch < current.totalBatches) {
-                                settings.batchSize
-                            } else {
-                                val rem = configs.size % settings.batchSize
-                                if (rem == 0 && configs.size > 0) settings.batchSize else rem
-                            }
-                        } else {
-                            updatedProgresses.find {
-                                it.batchNum == event.batch && it.roundNum == event.round - 1
-                            }?.succeeded ?: 0
-                        }
                         updatedProgresses[idx] = updatedProgresses[idx].copy(
-                            total = totalForThisRound,
-                            running = totalForThisRound
+                            total = event.total,
+                            running = event.total
                         )
                     }
 
