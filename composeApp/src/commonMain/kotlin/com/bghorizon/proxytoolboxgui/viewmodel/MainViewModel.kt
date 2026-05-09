@@ -162,8 +162,7 @@ class MainViewModel(
 
                 if (job?.isActive != true) return@launch
 
-                // Successful end - overwrite working configs and save final results
-//                subscriptionRepository.resetWorkingData()
+                subscriptionRepository.resetWorkingData()
 
                 // Save working configs
                 resultConfigs.forEach { cfg ->
