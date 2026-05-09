@@ -134,6 +134,10 @@ class MainViewModel(
                     return@launch
                 }
 
+                // Pre-calculate index map for O(1) lookups during high-frequency events
+                val subIdToIndex =
+                    setup.updatedSubscriptions.mapIndexed { i, sub -> sub.id to i }.toMap()
+
                 _uiState.update {
                     it.copy(
                         subscriptions = setup.updatedSubscriptions,
@@ -161,7 +165,7 @@ class MainViewModel(
                     configs = setup.configs,
                     onEvent = { event ->
                         if (job?.isActive != true) return@runLatencyTests
-                        handleTestEvent(event, setup.configs, currentSettings)
+                        handleTestEvent(event, subIdToIndex, setup.configs, currentSettings)
                     }
                 )
 
@@ -217,6 +221,7 @@ class MainViewModel(
 
     private fun handleTestEvent(
         event: TestEvent,
+        subIdToIndex: Map<String, Int>,
         configs: List<ProxyConfig>,
         settings: AppSettings
     ) {
@@ -227,8 +232,7 @@ class MainViewModel(
                     val current = state.subscriptions.toMutableList()
                     event.tags.forEach { tag ->
                         testManager.extractIds(tag)?.let { (subId, _) ->
-                            val idx = current.indexOfFirst { it.id == subId }
-                            if (idx >= 0) {
+                            subIdToIndex[subId]?.let { idx ->
                                 current[idx] =
                                     current[idx].copy(parseErr = current[idx].parseErr + 1)
                             }
@@ -244,8 +248,7 @@ class MainViewModel(
                     val current = state.subscriptions.toMutableList()
                     event.tags.forEach { tag ->
                         testManager.extractIds(tag)?.let { (subId, _) ->
-                            val idx = current.indexOfFirst { it.id == subId }
-                            if (idx >= 0) {
+                            subIdToIndex[subId]?.let { idx ->
                                 current[idx] =
                                     current[idx].copy(validErr = current[idx].validErr + 1)
                             }
