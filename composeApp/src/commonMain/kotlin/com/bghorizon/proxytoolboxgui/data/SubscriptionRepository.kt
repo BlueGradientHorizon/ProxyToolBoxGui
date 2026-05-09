@@ -3,8 +3,41 @@ package com.bghorizon.proxytoolboxgui.data
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDao
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDataEntity
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionEntity
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 
 class SubscriptionRepository(private val dao: SubscriptionDao) {
+
+    val subscriptions: Flow<List<Subscription>> = combine(
+        dao.getAllSubsFlow(),
+        dao.getAllConfigsFlow()
+    ) { entities, allConfigs ->
+        val dataBySubId = allConfigs.groupBy { it.subId }
+        entities.map { entity ->
+            val subData = dataBySubId[entity.id] ?: emptyList()
+            Subscription(
+                id = entity.id,
+                note = entity.note,
+                url = entity.url,
+                total = subData.size,
+                working = subData.count { it.working },
+                updatedAt = entity.updatedAt,
+                duplicated = entity.duplicated,
+                parseErr = subData.count { it.parseErr },
+                validErr = subData.count { it.validErr }
+            )
+        }
+    }
+
+    val workingConfigs: Flow<List<ProxyConfig>> = dao.getAllConfigsFlow().map { configs ->
+        configs.filter { it.working }.map { data ->
+            ProxyConfig(
+                tag = "sub-${data.subId}-${data.configId}",
+                connURI = data.fixedConnURI ?: data.connURI
+            )
+        }
+    }
 
     suspend fun getAllSubs(): List<Subscription> {
         val entities = dao.getAllSubs()
@@ -75,6 +108,22 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
 
     suspend fun resetAllTestData() {
         dao.resetAllTestData()
+    }
+
+    suspend fun resetErrorData() {
+        dao.resetErrorData()
+    }
+
+    suspend fun resetParseErrorData() {
+        dao.resetParseErrorData()
+    }
+
+    suspend fun resetValidErrorData() {
+        dao.resetValidErrorData()
+    }
+
+    suspend fun resetWorkingData() {
+        dao.resetWorkingData()
     }
 }
 

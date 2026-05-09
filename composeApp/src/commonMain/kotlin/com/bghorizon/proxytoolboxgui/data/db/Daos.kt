@@ -19,6 +19,9 @@ interface SettingsDao {
 @Dao
 interface SubscriptionDao {
     @Query("SELECT * FROM subscriptions")
+    fun getAllSubsFlow(): kotlinx.coroutines.flow.Flow<List<SubscriptionEntity>>
+
+    @Query("SELECT * FROM subscriptions")
     suspend fun getAllSubs(): List<SubscriptionEntity>
 
     @Upsert
@@ -35,6 +38,9 @@ interface SubscriptionDao {
 
     @Query("SELECT * FROM subscriptions_data WHERE subId = :subId")
     suspend fun getConfigs(subId: String): List<SubscriptionDataEntity>
+
+    @Query("SELECT * FROM subscriptions_data")
+    fun getAllConfigsFlow(): kotlinx.coroutines.flow.Flow<List<SubscriptionDataEntity>>
 
     @Query("SELECT * FROM subscriptions_data")
     suspend fun getAllConfigs(): List<SubscriptionDataEntity>
@@ -64,6 +70,18 @@ interface SubscriptionDao {
         working: Boolean,
         fixedUri: String?
     )
+
+    @Query("UPDATE subscriptions_data SET parseErr = 0")
+    suspend fun resetParseErrorData()
+
+    @Query("UPDATE subscriptions_data SET validErr = 0")
+    suspend fun resetValidErrorData()
+
+    @Query("UPDATE subscriptions_data SET parseErr = 0, validErr = 0")
+    suspend fun resetErrorData()
+
+    @Query("UPDATE subscriptions_data SET working = 0, fixedConnURI = NULL")
+    suspend fun resetWorkingData()
 
     @Query("UPDATE subscriptions_data SET working = 0, parseErr = 0, validErr = 0, fixedConnURI = NULL")
     suspend fun resetAllTestData()

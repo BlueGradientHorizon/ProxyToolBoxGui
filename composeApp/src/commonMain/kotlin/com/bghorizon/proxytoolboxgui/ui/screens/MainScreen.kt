@@ -53,14 +53,15 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
-    val subs = uiState.subscriptions
+    val subs by viewModel.subscriptions.collectAsState()
+    val workingConfigs by viewModel.workingConfigs.collectAsState()
+    
     val testProgress = uiState.testProgress
     val downloadProgress = uiState.downloadProgress
     val appStatus = uiState.appStatus
     val workers = uiState.workers
     val webServerRunning = uiState.webServerRunning
     val settings = uiState.settings
-    val workingConfigs = uiState.workingConfigs
 
     val totalFound = subs.sumOf { it.total }
     val totalDuplicate = subs.sumOf { it.duplicated }

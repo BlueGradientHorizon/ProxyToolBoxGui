@@ -38,7 +38,7 @@ import kotlinx.datetime.toLocalDateTime
 @Composable
 fun SubscriptionsScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
-    val subscriptions = uiState.subscriptions
+    val subscriptions by viewModel.subscriptions.collectAsState()
     val activeDialog = uiState.activeDialog
 
     Scaffold(

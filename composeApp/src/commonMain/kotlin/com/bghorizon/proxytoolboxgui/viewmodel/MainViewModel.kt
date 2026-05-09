@@ -19,13 +19,15 @@ class MainViewModel(
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
+    val subscriptions: StateFlow<List<Subscription>> = subscriptionRepository.subscriptions
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val workingConfigs: StateFlow<List<ProxyConfig>> = subscriptionRepository.workingConfigs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private var testJob: Job? = null
     private var timerJob: Job? = null
     private var downloadJob: Job? = null
-
-    // Accumulators for test results during execution
-    private val currentTestParseErrors = mutableSetOf<String>()
-    private val currentTestValidErrors = mutableSetOf<String>()
 
     init {
         viewModelScope.launch {
@@ -36,21 +38,15 @@ class MainViewModel(
         viewModelScope.launch {
             try {
                 settingsRepository.loadSettings()
-                refreshSubscriptionsAndConfigs()
+                // Set completed status if we have configs already
+                if (workingConfigs.first().isNotEmpty()) {
+                    _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
+                }
                 discoverWorkers()
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
             }
-        }
-    }
-
-    private suspend fun refreshSubscriptionsAndConfigs() {
-        val loadedSubs = subscriptionRepository.getAllSubs()
-        val configs = subscriptionRepository.getWorkingConfigs()
-        _uiState.update { it.copy(subscriptions = loadedSubs, workingConfigs = configs) }
-        if (configs.isNotEmpty()) {
-            _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
         }
     }
 
@@ -114,9 +110,6 @@ class MainViewModel(
                 return@launch
             }
 
-            currentTestParseErrors.clear()
-            currentTestValidErrors.clear()
-
             _uiState.update {
                 it.copy(
                     appStatus = AppStatus.TESTING,
@@ -125,7 +118,13 @@ class MainViewModel(
             }
 
             try {
-                val setup = testManager.prepareTest(currentSettings, _uiState.value.subscriptions)
+                val setup = testManager.prepareTest(currentSettings, subscriptions.value)
+
+                // Persist the calculated 'duplicated' counts and reset baseline errors in DB
+                setup.updatedSubscriptions.forEach { sub ->
+                    subscriptionRepository.saveSub(sub)
+                }
+
                 if (setup.configs.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         platform.showToast("No configs found to test")
@@ -134,13 +133,8 @@ class MainViewModel(
                     return@launch
                 }
 
-                // Pre-calculate index map for O(1) lookups during high-frequency events
-                val subIdToIndex =
-                    setup.updatedSubscriptions.mapIndexed { i, sub -> sub.id to i }.toMap()
-
                 _uiState.update {
                     it.copy(
-                        subscriptions = setup.updatedSubscriptions,
                         testProgress = it.testProgress.copy(
                             totalBatches = setup.totalBatches,
                             totalRounds = setup.totalRounds,
@@ -165,26 +159,14 @@ class MainViewModel(
                     configs = setup.configs,
                     onEvent = { event ->
                         if (job?.isActive != true) return@runLatencyTests
-                        handleTestEvent(event, subIdToIndex, setup.configs, currentSettings)
+                        handleTestEvent(event, setup.configs, currentSettings)
                     }
                 )
 
                 if (job?.isActive != true) return@launch
 
-                // Successfully ended - now reset and save results
-                subscriptionRepository.resetAllTestData()
-
-                // Save errors
-                currentTestParseErrors.forEach { tag ->
-                    testManager.extractIds(tag)?.let { (subId, configId) ->
-                        subscriptionRepository.markConfigParseErr(subId, configId)
-                    }
-                }
-                currentTestValidErrors.forEach { tag ->
-                    testManager.extractIds(tag)?.let { (subId, configId) ->
-                        subscriptionRepository.markConfigValidErr(subId, configId)
-                    }
-                }
+                // Successful end - overwrite working configs and save final results
+//                subscriptionRepository.resetWorkingData()
 
                 // Save working configs
                 resultConfigs.forEach { cfg ->
@@ -198,22 +180,28 @@ class MainViewModel(
                     }
                 }
 
-                refreshSubscriptionsAndConfigs()
+                if (resultConfigs.isNotEmpty()) {
+                    _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
+                } else {
+                    _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
                 e.printStackTrace()
             } finally {
-                timerJob?.cancel()
-                _uiState.update {
-                    it.copy(
-                        testProgress = it.testProgress.copy(
-                            isRunning = false,
-                            isRoundActive = false
+                withContext(NonCancellable) {
+                    timerJob?.cancel()
+                    _uiState.update {
+                        it.copy(
+                            testProgress = it.testProgress.copy(
+                                isRunning = false,
+                                isRoundActive = false
+                            )
                         )
-                    )
-                }
-                if (currentSettings.autoStartWebServer) {
-                    startWebServer()
+                    }
+                    if (currentSettings.autoStartWebServer) {
+                        startWebServer()
+                    }
                 }
             }
         }
@@ -221,40 +209,29 @@ class MainViewModel(
 
     private fun handleTestEvent(
         event: TestEvent,
-        subIdToIndex: Map<String, Int>,
         configs: List<ProxyConfig>,
         settings: AppSettings
     ) {
         when (event) {
             is TestEvent.ParseFailed -> {
-                currentTestParseErrors.addAll(event.tags)
-                _uiState.update { state ->
-                    val current = state.subscriptions.toMutableList()
+                viewModelScope.launch(Dispatchers.IO) {
+                    subscriptionRepository.resetParseErrorData()
                     event.tags.forEach { tag ->
-                        testManager.extractIds(tag)?.let { (subId, _) ->
-                            subIdToIndex[subId]?.let { idx ->
-                                current[idx] =
-                                    current[idx].copy(parseErr = current[idx].parseErr + 1)
-                            }
+                        testManager.extractIds(tag)?.let { (subId, configId) ->
+                            subscriptionRepository.markConfigParseErr(subId, configId)
                         }
                     }
-                    state.copy(subscriptions = current)
                 }
             }
 
             is TestEvent.ValidateFailed -> {
-                currentTestValidErrors.addAll(event.tags)
-                _uiState.update { state ->
-                    val current = state.subscriptions.toMutableList()
+                viewModelScope.launch(Dispatchers.IO) {
+                    subscriptionRepository.resetValidErrorData()
                     event.tags.forEach { tag ->
-                        testManager.extractIds(tag)?.let { (subId, _) ->
-                            subIdToIndex[subId]?.let { idx ->
-                                current[idx] =
-                                    current[idx].copy(validErr = current[idx].validErr + 1)
-                            }
+                        testManager.extractIds(tag)?.let { (subId, configId) ->
+                            subscriptionRepository.markConfigValidErr(subId, configId)
                         }
                     }
-                    state.copy(subscriptions = current)
                 }
             }
 
@@ -355,7 +332,7 @@ class MainViewModel(
 
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(appStatus = AppStatus.DOWNLOADING) }
-            val subs = _uiState.value.subscriptions
+            val subs = subscriptions.value
             _uiState.update {
                 it.copy(
                     downloadProgress = DownloadProgress(
@@ -398,20 +375,19 @@ class MainViewModel(
                 }
             }
 
-            refreshSubscriptionsAndConfigs()
             _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
             _uiState.update { it.copy(downloadProgress = it.downloadProgress.copy(isRunning = false)) }
         }
     }
 
     fun copyWorkingConfigs() {
-        val uris = _uiState.value.workingConfigs.joinToString("\n") { it.connURI }
+        val uris = workingConfigs.value.joinToString("\n") { it.connURI }
         platform.copyToClipboard(uris)
         platform.showToast("Copied to clipboard")
     }
 
     fun exportWorkingConfigs() {
-        val uris = _uiState.value.workingConfigs.joinToString("\n") { it.connURI }
+        val uris = workingConfigs.value.joinToString("\n") { it.connURI }
         platform.exportToFile(uris, "working_configs.txt")
     }
 
@@ -434,7 +410,7 @@ class MainViewModel(
                     port = port,
                     host = host,
                     getConfigUris = {
-                        _uiState.value.workingConfigs.joinToString("\n") { it.connURI }
+                        workingConfigs.value.joinToString("\n") { it.connURI }
                     }
                 )
 
@@ -486,7 +462,6 @@ class MainViewModel(
 
         viewModelScope.launch {
             subscriptionRepository.saveSub(newSub)
-            refreshSubscriptionsAndConfigs()
         }
         hideDialog()
     }
@@ -501,7 +476,6 @@ class MainViewModel(
             val sub = activeDialog.subscription
             viewModelScope.launch {
                 subscriptionRepository.deleteSub(sub.id)
-                refreshSubscriptionsAndConfigs()
             }
         }
         hideDialog()

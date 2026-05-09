@@ -6,11 +6,9 @@ data class MainUiState(
     val currentScreen: Screen = Screen.Main,
     val testProgress: TestProgress = TestProgress(),
     val downloadProgress: DownloadProgress = DownloadProgress(),
-    val subscriptions: List<Subscription> = emptyList(),
     val workers: List<WorkerInfo> = emptyList(),
     val appStatus: AppStatus = AppStatus.IDLE,
     val webServerRunning: Boolean = false,
-    val workingConfigs: List<ProxyConfig> = emptyList(),
     val settings: AppSettings = AppSettings(),
     val activeDialog: ActiveDialog = ActiveDialog.None
 )
