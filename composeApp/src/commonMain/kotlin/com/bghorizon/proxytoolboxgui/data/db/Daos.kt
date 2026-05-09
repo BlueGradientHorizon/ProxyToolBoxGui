@@ -6,7 +6,6 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SettingsDao {
@@ -20,7 +19,7 @@ interface SettingsDao {
 @Dao
 interface SubscriptionDao {
     @Query("SELECT * FROM subscriptions")
-    suspend fun getAllSubscriptions(): List<SubscriptionEntity>
+    suspend fun getAllSubs(): List<SubscriptionEntity>
 
     @Upsert
     suspend fun upsertSubscriptions(subscriptions: List<SubscriptionEntity>)
@@ -35,31 +34,36 @@ interface SubscriptionDao {
     suspend fun deleteSubscription(id: String)
 
     @Query("SELECT * FROM subscriptions_data WHERE subId = :subId")
-    suspend fun getDataForSubscription(subId: String): List<SubscriptionDataEntity>
+    suspend fun getConfigs(subId: String): List<SubscriptionDataEntity>
 
     @Query("SELECT * FROM subscriptions_data")
-    suspend fun getAllData(): List<SubscriptionDataEntity>
+    suspend fun getAllConfigs(): List<SubscriptionDataEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertData(data: List<SubscriptionDataEntity>)
+    suspend fun insertConfigs(configs: List<SubscriptionDataEntity>)
 
     @Transaction
-    suspend fun deleteAndInsertData(subId: String, data: List<SubscriptionDataEntity>) {
-        deleteDataForSubscription(subId)
-        insertData(data)
+    suspend fun setConfigsUris(subId: String, configs: List<SubscriptionDataEntity>) {
+        deleteConfigsBySubId(subId)
+        insertConfigs(configs)
     }
 
     @Query("DELETE FROM subscriptions_data WHERE subId = :subId")
-    suspend fun deleteDataForSubscription(subId: String)
+    suspend fun deleteConfigsBySubId(subId: String)
 
     @Query("UPDATE subscriptions_data SET parseErr = 1 WHERE subId = :subId AND configId = :configId")
-    suspend fun markParseErr(subId: String, configId: Int)
+    suspend fun markConfigParseErr(subId: String, configId: Int)
 
     @Query("UPDATE subscriptions_data SET validErr = 1 WHERE subId = :subId AND configId = :configId")
-    suspend fun markValidErr(subId: String, configId: Int)
+    suspend fun markConfigValidErr(subId: String, configId: Int)
 
     @Query("UPDATE subscriptions_data SET working = :working, fixedConnURI = :fixedUri WHERE subId = :subId AND configId = :configId")
-    suspend fun updateTestResult(subId: String, configId: Int, working: Boolean, fixedUri: String?)
+    suspend fun updateConfigTestResult(
+        subId: String,
+        configId: Int,
+        working: Boolean,
+        fixedUri: String?
+    )
 
     @Query("UPDATE subscriptions_data SET working = 0, parseErr = 0, validErr = 0, fixedConnURI = NULL")
     suspend fun resetAllTestData()

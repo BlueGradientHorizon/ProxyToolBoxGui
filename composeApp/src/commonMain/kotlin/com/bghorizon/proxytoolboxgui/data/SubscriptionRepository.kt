@@ -6,12 +6,12 @@ import com.bghorizon.proxytoolboxgui.data.db.SubscriptionEntity
 
 class SubscriptionRepository(private val dao: SubscriptionDao) {
 
-    suspend fun loadSubscriptions(): List<Subscription> {
-        val entities = dao.getAllSubscriptions()
-        val allData = dao.getAllData()
-        
-        val dataBySubId = allData.groupBy { it.subId }
-        
+    suspend fun getAllSubs(): List<Subscription> {
+        val entities = dao.getAllSubs()
+        val allConfigs = dao.getAllConfigs()
+
+        val dataBySubId = allConfigs.groupBy { it.subId }
+
         return entities.map { entity ->
             val subData = dataBySubId[entity.id] ?: emptyList()
             Subscription(
@@ -28,20 +28,16 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         }
     }
 
-    suspend fun saveSubscriptions(subscriptions: List<Subscription>) {
-        dao.upsertSubscriptions(subscriptions.map { it.toEntity() })
-    }
-
-    suspend fun saveSubscription(subscription: Subscription) {
+    suspend fun saveSub(subscription: Subscription) {
         dao.upsertSubscription(subscription.toEntity())
     }
 
-    suspend fun deleteSubscription(id: String) {
+    suspend fun deleteSub(id: String) {
         dao.deleteSubscription(id)
     }
 
-    suspend fun loadWorkingConfigs(): List<ProxyConfig> {
-        return dao.getAllData().filter { it.working }.map { data ->
+    suspend fun getWorkingConfigs(): List<ProxyConfig> {
+        return dao.getAllConfigs().filter { it.working }.map { data ->
             ProxyConfig(
                 tag = "sub-${data.subId}-${data.configId}",
                 connURI = data.fixedConnURI ?: data.connURI
@@ -49,34 +45,35 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         }
     }
 
-    suspend fun loadSubscriptionUris(subId: String): List<String> {
-        return dao.getDataForSubscription(subId).map { it.connURI }
+    suspend fun getConfigsUris(subId: String): List<String> {
+        return dao.getConfigs(subId).map { it.connURI }
     }
 
-    suspend fun saveSubscriptionData(subId: String, uris: List<String>) {
+    suspend fun setConfigsUris(subId: String, uris: List<String>) {
         val entities = uris.mapIndexed { index, uri ->
             SubscriptionDataEntity(subId = subId, configId = index, connURI = uri)
         }
-        dao.deleteAndInsertData(subId, entities)
+        dao.setConfigsUris(subId, entities)
     }
 
-    suspend fun deleteSubscriptionData(subId: String) {
-        dao.deleteDataForSubscription(subId)
-    }
-    
-    suspend fun markParseErr(subId: String, configId: Int) {
-        dao.markParseErr(subId, configId)
+    suspend fun markConfigParseErr(subId: String, configId: Int) {
+        dao.markConfigParseErr(subId, configId)
     }
 
-    suspend fun markValidErr(subId: String, configId: Int) {
-        dao.markValidErr(subId, configId)
+    suspend fun markConfigValidErr(subId: String, configId: Int) {
+        dao.markConfigValidErr(subId, configId)
     }
 
-    suspend fun updateTestResult(subId: String, configId: Int, working: Boolean, fixedUri: String?) {
-        dao.updateTestResult(subId, configId, working, fixedUri)
+    suspend fun updateConfigTestResult(
+        subId: String,
+        configId: Int,
+        working: Boolean,
+        fixedUri: String?
+    ) {
+        dao.updateConfigTestResult(subId, configId, working, fixedUri)
     }
 
-    suspend fun resetTestData() {
+    suspend fun resetAllTestData() {
         dao.resetAllTestData()
     }
 }

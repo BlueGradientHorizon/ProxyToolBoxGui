@@ -24,7 +24,7 @@ class ProxyTestManager(
         for (i in subs.indices) {
             val sub = subs[i]
             val uris =
-                subscriptionRepository.loadSubscriptionUris(sub.id).filter { it.isNotBlank() }
+                subscriptionRepository.getConfigsUris(sub.id).filter { it.isNotBlank() }
             val uniqueUris = if (settings.performDedup) {
                 ConfigUtils.naiveDeduplicate(uris, seenUris)
             } else {

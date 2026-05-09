@@ -46,8 +46,8 @@ class MainViewModel(
     }
 
     private suspend fun refreshSubscriptionsAndConfigs() {
-        val loadedSubs = subscriptionRepository.loadSubscriptions()
-        val configs = subscriptionRepository.loadWorkingConfigs()
+        val loadedSubs = subscriptionRepository.getAllSubs()
+        val configs = subscriptionRepository.getWorkingConfigs()
         _uiState.update { it.copy(subscriptions = loadedSubs, workingConfigs = configs) }
         if (configs.isNotEmpty()) {
             _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
@@ -168,24 +168,29 @@ class MainViewModel(
                 if (job?.isActive != true) return@launch
 
                 // Successfully ended - now reset and save results
-                subscriptionRepository.resetTestData()
+                subscriptionRepository.resetAllTestData()
 
                 // Save errors
                 currentTestParseErrors.forEach { tag ->
                     testManager.extractIds(tag)?.let { (subId, configId) ->
-                        subscriptionRepository.markParseErr(subId, configId)
+                        subscriptionRepository.markConfigParseErr(subId, configId)
                     }
                 }
                 currentTestValidErrors.forEach { tag ->
                     testManager.extractIds(tag)?.let { (subId, configId) ->
-                        subscriptionRepository.markValidErr(subId, configId)
+                        subscriptionRepository.markConfigValidErr(subId, configId)
                     }
                 }
 
                 // Save working configs
                 resultConfigs.forEach { cfg ->
                     testManager.extractIds(cfg.tag)?.let { (subId, configId) ->
-                        subscriptionRepository.updateTestResult(subId, configId, true, cfg.connURI)
+                        subscriptionRepository.updateConfigTestResult(
+                            subId,
+                            configId,
+                            true,
+                            cfg.connURI
+                        )
                     }
                 }
 
@@ -370,10 +375,10 @@ class MainViewModel(
 
                     // 1. Save metadata
                     val updatedSub = sub.copy(updatedAt = System.currentTimeMillis())
-                    subscriptionRepository.saveSubscription(updatedSub)
+                    subscriptionRepository.saveSub(updatedSub)
 
                     // 2. Save child data (URIs)
-                    subscriptionRepository.saveSubscriptionData(sub.id, lines)
+                    subscriptionRepository.setConfigsUris(sub.id, lines)
 
                     succeeded++
                 } catch (e: Exception) {
@@ -477,7 +482,7 @@ class MainViewModel(
         }
 
         viewModelScope.launch {
-            subscriptionRepository.saveSubscription(newSub)
+            subscriptionRepository.saveSub(newSub)
             refreshSubscriptionsAndConfigs()
         }
         hideDialog()
@@ -492,7 +497,7 @@ class MainViewModel(
         if (activeDialog is ActiveDialog.DeleteConfirmation) {
             val sub = activeDialog.subscription
             viewModelScope.launch {
-                subscriptionRepository.deleteSubscription(sub.id)
+                subscriptionRepository.deleteSub(sub.id)
                 refreshSubscriptionsAndConfigs()
             }
         }
