@@ -4,11 +4,32 @@ OUT_DIR := bin
 ANDROID_OUT_DIR := $(OUT_DIR)/android
 
 ifeq ($(OS),Windows_NT)
-    MSYS2_BIN := $(subst \,/,$(shell where.exe msys2.exe 2>NUL))
-    ifneq ($(MSYS2_BIN),)
-        MSYS2_DIR := $(dir $(firstword $(MSYS2_BIN)))mingw64/bin
+    # 1) Allow explicit override from CI/environment
+    ifneq ($(MINGW_BIN_DIR),)
+        MSYS2_DIR := $(MINGW_BIN_DIR)
     else
-        MSYS2_DIR := C:/msys64/mingw64/bin
+        # 2) Try to find the compiler directly in PATH
+        GCC_PATH := $(subst \,/,$(shell where.exe x86_64-w64-mingw32-gcc.exe 2>NUL))
+        ifneq ($(GCC_PATH),)
+            MSYS2_DIR := $(dir $(firstword $(GCC_PATH)))
+        else
+            # 3) Derive from msys2.exe if available
+            MSYS2_BIN := $(subst \,/,$(shell where.exe msys2.exe 2>NUL))
+            ifneq ($(MSYS2_BIN),)
+                MSYS2_DIR := $(dir $(firstword $(MSYS2_BIN)))mingw64/bin
+            else
+                # 4) Check common installation locations
+                ifneq ($(wildcard C:/msys64/mingw64/bin/x86_64-w64-mingw32-gcc.exe),)
+                    MSYS2_DIR := C:/msys64/mingw64/bin
+                else ifneq ($(wildcard D:/msys64/mingw64/bin/x86_64-w64-mingw32-gcc.exe),)
+                    MSYS2_DIR := D:/msys64/mingw64/bin
+                else ifneq ($(wildcard C:/mingw64/bin/x86_64-w64-mingw32-gcc.exe),)
+                    MSYS2_DIR := C:/mingw64/bin
+                else
+                    $(error MinGW x86_64-w64-mingw32-gcc.exe not found. Install mingw-w64-x86_64-gcc, add it to PATH, or set MINGW_BIN_DIR.)
+                endif
+            endif
+        endif
     endif
 endif
 
