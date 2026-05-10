@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.data
 
+import android.util.Log
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.coroutines.CoroutineScope
@@ -56,8 +57,22 @@ private class JniCallbackWrapper(val delegate: GoTestCallback) {
 }
 
 actual object GoBridge {
+    private const val TAG = "GoBridge"
+
     init {
-        System.loadLibrary("wrapper")
+        Log.d(TAG, "Loading wrapper library...")
+        try {
+            val libDir =
+                com.bghorizon.proxytoolboxgui.ProxyToolBoxApplication.appContext.applicationInfo.nativeLibraryDir
+            val libName = System.mapLibraryName("wrapper")
+            val absolutePath = java.io.File(libDir, libName).absolutePath
+            Log.d(TAG, "Absolute path to library: $absolutePath")
+
+            System.loadLibrary("wrapper")
+            Log.d(TAG, "wrapper library loaded successfully from $absolutePath")
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to load wrapper library", e)
+        }
     }
 
     @JvmStatic
@@ -79,7 +94,21 @@ actual object GoBridge {
     private external fun nativeStopTests()
 
     actual fun discoverWorkers(libraryPath: String): String {
-        return nativeDiscoverWorkers(libraryPath)
+        Log.d(TAG, "discoverWorkers: libraryPath=$libraryPath")
+        try {
+            val dir = java.io.File(libraryPath)
+            if (dir.exists() && dir.isDirectory) {
+                val files = dir.listFiles()
+                Log.d(TAG, "Files in libraryPath: ${files?.joinToString { it.name } ?: "null"}")
+            } else {
+                Log.w(TAG, "libraryPath does not exist or is not a directory")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error listing files in libraryPath", e)
+        }
+        val result = nativeDiscoverWorkers(libraryPath)
+        Log.d(TAG, "discoverWorkers: result length=${result.length}")
+        return result
     }
 
     actual fun runLatencyTests(
