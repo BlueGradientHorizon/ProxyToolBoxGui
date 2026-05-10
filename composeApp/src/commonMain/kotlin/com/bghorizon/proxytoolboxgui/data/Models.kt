@@ -77,7 +77,8 @@ data class AppSettings(
     val autoStartWebServer: Boolean = true,
     val webServerPort: Int = 35240,
     val webServerLocalhost: Boolean = true,
-    val testUrl: String = "https://www.google.com/generate_204"
+    val testUrl: String = "https://www.google.com/generate_204",
+    val parallelSubscriptionDownloads: Int = 5
 )
 
 enum class ThemeMode {

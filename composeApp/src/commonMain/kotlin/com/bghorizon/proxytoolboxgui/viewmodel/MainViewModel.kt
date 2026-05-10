@@ -322,6 +322,7 @@ class MainViewModel(
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(appStatus = AppStatus.DOWNLOADING) }
             val subs = subscriptions.value
+            val settings = _uiState.value.settings
             _uiState.update {
                 it.copy(
                     downloadProgress = DownloadProgress(
@@ -331,15 +332,12 @@ class MainViewModel(
                 )
             }
 
-            var succeeded = 0
-            var failed = 0
-
-            for (sub in subs) {
-                try {
-                    val content = SubscriptionDownloader.download(
-                        sub.url,
-                        _uiState.value.settings.downloadTimeout
-                    )
+            SubscriptionDownloader.downloadParallel(
+                urls = subs,
+                getUrl = { it.url },
+                timeoutSeconds = settings.downloadTimeout,
+                maxParallel = settings.parallelSubscriptionDownloads,
+                onDownloadComplete = { sub, content ->
                     val lines = content.lines().filter { it.isNotBlank() }
 
                     // 1. Save metadata
@@ -349,20 +347,25 @@ class MainViewModel(
                     // 2. Save child data (URIs)
                     subscriptionRepository.setConfigsUris(sub.id, lines)
 
-                    succeeded++
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    failed++
-                }
-                _uiState.update {
-                    it.copy(
-                        downloadProgress = it.downloadProgress.copy(
-                            succeeded = succeeded,
-                            failed = failed
+                    _uiState.update {
+                        it.copy(
+                            downloadProgress = it.downloadProgress.copy(
+                                succeeded = it.downloadProgress.succeeded + 1
+                            )
                         )
-                    )
+                    }
+                },
+                onDownloadError = { _, e ->
+                    e.printStackTrace()
+                    _uiState.update {
+                        it.copy(
+                            downloadProgress = it.downloadProgress.copy(
+                                failed = it.downloadProgress.failed + 1
+                            )
+                        )
+                    }
                 }
-            }
+            )
 
             _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
             _uiState.update { it.copy(downloadProgress = it.downloadProgress.copy(isRunning = false)) }

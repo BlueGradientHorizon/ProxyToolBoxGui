@@ -26,6 +26,7 @@ sealed class ActiveDialog {
     object BatchSize : ActiveDialog()
     object Port : ActiveDialog()
     object TestUrl : ActiveDialog()
+    object ParallelDownloads : ActiveDialog()
 }
 
 enum class Screen {

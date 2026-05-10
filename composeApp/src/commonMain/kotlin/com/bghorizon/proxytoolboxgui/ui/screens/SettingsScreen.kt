@@ -79,6 +79,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     subtitle = stringResource(Res.string.hint_seconds_preview, settings.downloadTimeout),
                     onClick = { viewModel.updateDialog(ActiveDialog.DownloadTimeout) }
                 )
+                SettingsClickableItem(
+                    title = stringResource(Res.string.parallel_sub_downloads),
+                    subtitle = settings.parallelSubscriptionDownloads.toString(),
+                    onClick = { viewModel.updateDialog(ActiveDialog.ParallelDownloads) }
+                )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.perform_deduplication),
                     checked = settings.performDedup,
@@ -244,6 +249,18 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         viewModel.updateSettings(settings.copy(testUrl = it))
                         true
                     } else false
+                }
+            )
+        }
+        ActiveDialog.ParallelDownloads -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.parallel_sub_downloads),
+                initialValue = settings.parallelSubscriptionDownloads,
+                hint = stringResource(Res.string.hint_number),
+                onDismiss = { viewModel.hideDialog() },
+                onSave = {
+                    viewModel.updateSettings(settings.copy(parallelSubscriptionDownloads = it.coerceAtLeast(1)))
+                    true
                 }
             )
         }

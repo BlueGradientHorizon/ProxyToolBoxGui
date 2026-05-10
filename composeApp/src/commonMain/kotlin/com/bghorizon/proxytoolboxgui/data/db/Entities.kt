@@ -9,7 +9,7 @@ data class AppSettingsEntity(
     @PrimaryKey val id: Int = 0,
     val theme: Int,
     val selectedWorker: String,
-    val selectedWorkerName: String = "",
+    val selectedWorkerName: String,
     val downloadTimeout: Int,
     val performDedup: Boolean,
     val latencyRounds: Int,
@@ -19,7 +19,8 @@ data class AppSettingsEntity(
     val autoStartWebServer: Boolean,
     val webServerPort: Int,
     val webServerLocalhost: Boolean,
-    val testUrl: String
+    val testUrl: String,
+    val parallelSubscriptionDownloads: Int
 )
 
 @Entity(tableName = "subscriptions")

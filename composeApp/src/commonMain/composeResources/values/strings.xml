@@ -66,6 +66,7 @@
     <string name="current_worker">Current Worker Program</string>
     <string name="no_workers_available">No workers available</string>
     <string name="sub_download_timeout">Subscription download timeout</string>
+    <string name="parallel_sub_downloads">Parallel subscription downloads</string>
     <string name="perform_deduplication">Perform deduplication</string>
     <string name="latency_test_rounds">Latency test rounds</string>
     <string name="round_timeout">Round timeout</string>

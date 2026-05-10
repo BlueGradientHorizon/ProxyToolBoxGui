@@ -50,7 +50,8 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
     autoStartWebServer = autoStartWebServer,
     webServerPort = webServerPort,
     webServerLocalhost = webServerLocalhost,
-    testUrl = testUrl
+    testUrl = testUrl,
+    parallelSubscriptionDownloads = parallelSubscriptionDownloads
 )
 
 private fun AppSettingsEntity.toModel() = AppSettings(
@@ -66,5 +67,6 @@ private fun AppSettingsEntity.toModel() = AppSettings(
     autoStartWebServer = autoStartWebServer,
     webServerPort = webServerPort,
     webServerLocalhost = webServerLocalhost,
-    testUrl = testUrl
+    testUrl = testUrl,
+    parallelSubscriptionDownloads = parallelSubscriptionDownloads
 )
