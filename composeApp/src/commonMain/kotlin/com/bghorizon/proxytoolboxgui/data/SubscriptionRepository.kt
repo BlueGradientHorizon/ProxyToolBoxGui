@@ -30,28 +30,6 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         }
     }
 
-    suspend fun getAllSubs(): List<Subscription> {
-        val entities = dao.getAllSubs()
-        val allConfigs = dao.getAllConfigs()
-
-        val dataBySubId = allConfigs.groupBy { it.subId }
-
-        return entities.map { entity ->
-            val subData = dataBySubId[entity.id] ?: emptyList()
-            Subscription(
-                id = entity.id,
-                note = entity.note,
-                url = entity.url,
-                total = subData.size,
-                working = subData.count { it.working },
-                updatedAt = entity.updatedAt,
-                duplicated = entity.duplicated,
-                parseErr = subData.count { it.parseErr },
-                validErr = subData.count { it.validErr }
-            )
-        }
-    }
-
     suspend fun saveSub(subscription: Subscription) {
         dao.upsertSubscription(subscription.toEntity())
     }
@@ -80,41 +58,16 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.setConfigsUris(subId, entities)
     }
 
-    suspend fun markConfigParseErr(subId: String, configId: Int) {
-        dao.markConfigParseErr(subId, configId)
-    }
-
     suspend fun markConfigsParseErrBatch(ids: List<Pair<String, Int>>) {
         dao.markConfigsParseErrBatch(ids)
-    }
-
-    suspend fun markConfigValidErr(subId: String, configId: Int) {
-        dao.markConfigValidErr(subId, configId)
     }
 
     suspend fun markConfigsValidErrBatch(ids: List<Pair<String, Int>>) {
         dao.markConfigsValidErrBatch(ids)
     }
 
-    suspend fun updateConfigTestResult(
-        subId: String,
-        configId: Int,
-        working: Boolean,
-        fixedUri: String?
-    ) {
-        dao.updateConfigTestResult(subId, configId, working, fixedUri)
-    }
-
     suspend fun updateConfigTestResultsBatch(results: List<ConfigTestResultUpdate>) {
         dao.updateConfigTestResultsBatch(results)
-    }
-
-    suspend fun resetAllTestData() {
-        dao.resetAllTestData()
-    }
-
-    suspend fun resetErrorData() {
-        dao.resetErrorData()
     }
 
     suspend fun resetParseErrorData() {
