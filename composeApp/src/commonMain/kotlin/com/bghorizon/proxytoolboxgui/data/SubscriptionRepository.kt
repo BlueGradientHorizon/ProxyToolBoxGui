@@ -3,6 +3,7 @@ package com.bghorizon.proxytoolboxgui.data
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDao
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDataEntity
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionEntity
+import com.bghorizon.proxytoolboxgui.data.db.ConfigTestResultUpdate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -83,8 +84,16 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.markConfigParseErr(subId, configId)
     }
 
+    suspend fun markConfigsParseErrBatch(ids: List<Pair<String, Int>>) {
+        dao.markConfigsParseErrBatch(ids)
+    }
+
     suspend fun markConfigValidErr(subId: String, configId: Int) {
         dao.markConfigValidErr(subId, configId)
+    }
+
+    suspend fun markConfigsValidErrBatch(ids: List<Pair<String, Int>>) {
+        dao.markConfigsValidErrBatch(ids)
     }
 
     suspend fun updateConfigTestResult(
@@ -94,6 +103,10 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         fixedUri: String?
     ) {
         dao.updateConfigTestResult(subId, configId, working, fixedUri)
+    }
+
+    suspend fun updateConfigTestResultsBatch(results: List<ConfigTestResultUpdate>) {
+        dao.updateConfigTestResultsBatch(results)
     }
 
     suspend fun resetAllTestData() {

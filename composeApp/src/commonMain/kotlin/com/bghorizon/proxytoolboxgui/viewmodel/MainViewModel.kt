@@ -3,6 +3,7 @@ package com.bghorizon.proxytoolboxgui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.*
+import com.bghorizon.proxytoolboxgui.data.db.ConfigTestResultUpdate
 import com.bghorizon.proxytoolboxgui.platform.Platform
 import com.bghorizon.proxytoolboxgui.utils.ConfigUtils
 import kotlinx.coroutines.*
@@ -165,16 +166,17 @@ class MainViewModel(
                 subscriptionRepository.resetWorkingData()
 
                 // Save working configs
-                resultConfigs.forEach { cfg ->
+                val updates = resultConfigs.mapNotNull { cfg ->
                     testManager.extractIds(cfg.tag)?.let { (subId, configId) ->
-                        subscriptionRepository.updateConfigTestResult(
-                            subId,
-                            configId,
-                            true,
-                            cfg.connURI
+                        ConfigTestResultUpdate(
+                            subId = subId,
+                            configId = configId,
+                            working = true,
+                            fixedUri = cfg.connURI
                         )
                     }
                 }
+                subscriptionRepository.updateConfigTestResultsBatch(updates)
 
                 if (resultConfigs.isNotEmpty()) {
                     _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
@@ -213,11 +215,10 @@ class MainViewModel(
                 //event.errors.forEach { (tag, error) -> println("$tag $error") }
                 viewModelScope.launch(Dispatchers.IO) {
                     subscriptionRepository.resetParseErrorData()
-                    event.errors.keys.forEach { tag ->
-                        testManager.extractIds(tag)?.let { (subId, configId) ->
-                            subscriptionRepository.markConfigParseErr(subId, configId)
-                        }
+                    val batch = event.errors.keys.mapNotNull { tag ->
+                        testManager.extractIds(tag)
                     }
+                    subscriptionRepository.markConfigsParseErrBatch(batch)
                 }
             }
 
@@ -225,11 +226,10 @@ class MainViewModel(
                 //event.errors.forEach { (tag, error) -> println("$tag $error") }
                 viewModelScope.launch(Dispatchers.IO) {
                     subscriptionRepository.resetValidErrorData()
-                    event.errors.keys.forEach { tag ->
-                        testManager.extractIds(tag)?.let { (subId, configId) ->
-                            subscriptionRepository.markConfigValidErr(subId, configId)
-                        }
+                    val batch = event.errors.keys.mapNotNull { tag ->
+                        testManager.extractIds(tag)
                     }
+                    subscriptionRepository.markConfigsValidErrBatch(batch)
                 }
             }
 

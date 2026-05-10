@@ -60,8 +60,18 @@ interface SubscriptionDao {
     @Query("UPDATE subscriptions_data SET parseErr = 1 WHERE subId = :subId AND configId = :configId")
     suspend fun markConfigParseErr(subId: String, configId: Int)
 
+    @Transaction
+    suspend fun markConfigsParseErrBatch(ids: List<Pair<String, Int>>) {
+        ids.forEach { markConfigParseErr(it.first, it.second) }
+    }
+
     @Query("UPDATE subscriptions_data SET validErr = 1 WHERE subId = :subId AND configId = :configId")
     suspend fun markConfigValidErr(subId: String, configId: Int)
+
+    @Transaction
+    suspend fun markConfigsValidErrBatch(ids: List<Pair<String, Int>>) {
+        ids.forEach { markConfigValidErr(it.first, it.second) }
+    }
 
     @Query("UPDATE subscriptions_data SET working = :working, fixedConnURI = :fixedUri WHERE subId = :subId AND configId = :configId")
     suspend fun updateConfigTestResult(
@@ -70,6 +80,11 @@ interface SubscriptionDao {
         working: Boolean,
         fixedUri: String?
     )
+
+    @Transaction
+    suspend fun updateConfigTestResultsBatch(results: List<ConfigTestResultUpdate>) {
+        results.forEach { updateConfigTestResult(it.subId, it.configId, it.working, it.fixedUri) }
+    }
 
     @Query("UPDATE subscriptions_data SET parseErr = 0")
     suspend fun resetParseErrorData()
@@ -86,3 +101,10 @@ interface SubscriptionDao {
     @Query("UPDATE subscriptions_data SET working = 0, parseErr = 0, validErr = 0, fixedConnURI = NULL")
     suspend fun resetAllTestData()
 }
+
+data class ConfigTestResultUpdate(
+    val subId: String,
+    val configId: Int,
+    val working: Boolean,
+    val fixedUri: String?
+)
