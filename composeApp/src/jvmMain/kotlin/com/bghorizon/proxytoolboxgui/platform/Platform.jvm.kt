@@ -19,23 +19,24 @@ class JVMPlatform : Platform {
         return NativeLoader.tempDir
     }
 
-    override fun copyToClipboard(text: String) {
+    override fun copyToClipboard(text: String, label: String) {
         val clipboard = Toolkit.getDefaultToolkit().systemClipboard
         clipboard.setContents(StringSelection(text), null)
     }
 
-    override fun exportToFile(text: String, filename: String): Boolean {
+    override fun exportToFile(text: String, filename: String): String? {
         val chooser = JFileChooser()
         chooser.selectedFile = File(filename)
         if (chooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
-            chooser.selectedFile.writeText(text)
-            return true
+            val file = chooser.selectedFile
+            file.writeText(text)
+            return file.absolutePath
         }
-        return false
+        return null
     }
 
-    override fun showToast(message: String) {
-        println("Toast: $message")
+    override fun showToast(message: String, duration: Int) {
+        println("Toast: $message (duration: $duration)")
     }
 }
 

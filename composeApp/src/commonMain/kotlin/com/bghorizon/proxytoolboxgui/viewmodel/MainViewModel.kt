@@ -8,6 +8,8 @@ import com.bghorizon.proxytoolboxgui.platform.Platform
 import com.bghorizon.proxytoolboxgui.utils.ConfigUtils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import org.jetbrains.compose.resources.getString
+import proxytoolboxgui.composeapp.generated.resources.*
 
 class MainViewModel(
     private val platform: Platform,
@@ -101,8 +103,9 @@ class MainViewModel(
             val currentSettings = _uiState.value.settings
 
             if (currentSettings.selectedWorker.isBlank()) {
+                val msg = getString(Res.string.msg_select_worker)
                 withContext(Dispatchers.Main) {
-                    platform.showToast("Please select a worker in settings")
+                    platform.showToast(msg)
                 }
                 _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
                 return@launch
@@ -124,8 +127,9 @@ class MainViewModel(
                 }
 
                 if (setup.configs.isEmpty()) {
+                    val msg = getString(Res.string.msg_no_configs_to_test)
                     withContext(Dispatchers.Main) {
-                        platform.showToast("No configs found to test")
+                        platform.showToast(msg)
                     }
                     _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
                     return@launch
@@ -296,7 +300,8 @@ class MainViewModel(
 
             is TestEvent.Error -> {
                 viewModelScope.launch {
-                    platform.showToast("Test Error: ${event.message}")
+                    val msg = getString(Res.string.msg_test_error, event.message)
+                    platform.showToast(msg)
                 }
                 stopTest(AppStatus.ERROR)
             }
@@ -371,9 +376,11 @@ class MainViewModel(
     fun copyWorkingConfigs() {
         viewModelScope.launch(Dispatchers.IO) {
             val uris = getWorkingConfigsString()
+            val msg = getString(Res.string.msg_copied_to_clipboard)
+            val label = getString(Res.string.label_proxy_configs)
             withContext(Dispatchers.Main) {
-                platform.copyToClipboard(uris)
-                platform.showToast("Copied to clipboard")
+                platform.copyToClipboard(uris, label)
+                platform.showToast(msg)
             }
         }
     }
@@ -381,8 +388,14 @@ class MainViewModel(
     fun exportWorkingConfigs() {
         viewModelScope.launch(Dispatchers.IO) {
             val uris = getWorkingConfigsString()
+            val path = platform.exportToFile(uris, "working_configs.txt")
+            val msg = if (path != null) {
+                getString(Res.string.msg_exported_to, path)
+            } else {
+                getString(Res.string.msg_export_failed)
+            }
             withContext(Dispatchers.Main) {
-                platform.exportToFile(uris, "working_configs.txt")
+                platform.showToast(msg)
             }
         }
     }
@@ -411,10 +424,12 @@ class MainViewModel(
                 )
 
                 _uiState.update { it.copy(webServerRunning = true) }
-                platform.showToast("Web server started on port $port")
+                val msg = getString(Res.string.web_server_started, port)
+                platform.showToast(msg)
             } catch (e: Exception) {
                 e.printStackTrace()
-                platform.showToast("Failed to start web server: ${e.message}")
+                val msg = getString(Res.string.web_server_failed, e.message ?: "")
+                platform.showToast(msg)
             }
         }
     }

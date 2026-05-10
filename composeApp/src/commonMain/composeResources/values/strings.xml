@@ -86,6 +86,16 @@
     <!-- Web Server -->
     <string name="web_server_started">Web server started on port %1$d</string>
     <string name="web_server_stopped">Web server stopped</string>
+    <string name="web_server_failed">Failed to start web server: %1$s</string>
+
+    <!-- Messages / Toasts -->
+    <string name="msg_exported_to">Exported to %1$s</string>
+    <string name="msg_export_failed">Export failed</string>
+    <string name="msg_copied_to_clipboard">Copied to clipboard</string>
+    <string name="msg_no_configs_to_test">No configs found to test</string>
+    <string name="msg_select_worker">Please select a worker in settings</string>
+    <string name="msg_test_error">Test Error: %1$s</string>
+    <string name="label_proxy_configs">Proxy configs</string>
 
     <!-- Errors -->
     <string name="error_no_worker">No worker program selected</string>
