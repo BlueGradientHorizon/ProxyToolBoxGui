@@ -25,8 +25,8 @@ type ProxyConfig struct {
 }
 
 type TestCallbacks struct {
-	OnParseFailed    func(tags []string)
-	OnValidateFailed func(tags []string)
+	OnParseFailed    func(errors map[string]string)
+	OnValidateFailed func(errors map[string]string)
 	OnRoundStarted   func(batch int, round int, total int)
 	OnProgress       func(tag string, delay int64, failed bool)
 	OnRoundEnded     func(batch int, round int)
@@ -97,18 +97,22 @@ func RunLatencyTests(
 
 	// 1. Parse configs
 	var parsedConfigs []parsers.ProxyConfig
-	parseFailedTags := []string{}
+	parseErrors := make(map[string]string)
 
 	for _, c := range inputConfigs {
 		connURI := strings.TrimSpace(c.ConnURI)
 		if connURI == "" {
-			parseFailedTags = append(parseFailedTags, c.Tag)
+			parseErrors[c.Tag] = "empty connection URI"
 			continue
 		}
 
 		p, err := parsers.ParseConfig(connURI)
-		if err != nil || p.Config == nil {
-			parseFailedTags = append(parseFailedTags, c.Tag)
+		if err != nil {
+			parseErrors[c.Tag] = err.Error()
+			continue
+		}
+		if p.Config == nil {
+			parseErrors[c.Tag] = "parsed config is nil"
 			continue
 		}
 
@@ -118,7 +122,7 @@ func RunLatencyTests(
 	}
 
 	if callbacks.OnParseFailed != nil {
-		callbacks.OnParseFailed(parseFailedTags)
+		callbacks.OnParseFailed(parseErrors)
 	}
 
 	if len(parsedConfigs) == 0 {
@@ -169,15 +173,15 @@ func RunLatencyTests(
 		return []ProxyConfig{}
 	}
 
-	validateFailedTags := []string{}
+	validateErrors := make(map[string]string)
 	errMap := make(map[string]bool)
 	for _, ve := range validationErrors {
-		validateFailedTags = append(validateFailedTags, ve.Tag)
+		validateErrors[ve.Tag] = ve.Error
 		errMap[ve.Tag] = true
 	}
 
 	if callbacks.OnValidateFailed != nil {
-		callbacks.OnValidateFailed(validateFailedTags)
+		callbacks.OnValidateFailed(validateErrors)
 	}
 
 	validConfigs := make([]parsers.ProxyConfig, 0)

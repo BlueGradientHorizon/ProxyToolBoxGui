@@ -210,9 +210,10 @@ class MainViewModel(
     ) {
         when (event) {
             is TestEvent.ParseFailed -> {
+                //event.errors.forEach { (tag, error) -> println("$tag $error") }
                 viewModelScope.launch(Dispatchers.IO) {
                     subscriptionRepository.resetParseErrorData()
-                    event.tags.forEach { tag ->
+                    event.errors.keys.forEach { tag ->
                         testManager.extractIds(tag)?.let { (subId, configId) ->
                             subscriptionRepository.markConfigParseErr(subId, configId)
                         }
@@ -221,9 +222,10 @@ class MainViewModel(
             }
 
             is TestEvent.ValidateFailed -> {
+                //event.errors.forEach { (tag, error) -> println("$tag $error") }
                 viewModelScope.launch(Dispatchers.IO) {
                     subscriptionRepository.resetValidErrorData()
-                    event.tags.forEach { tag ->
+                    event.errors.keys.forEach { tag ->
                         testManager.extractIds(tag)?.let { (subId, configId) ->
                             subscriptionRepository.markConfigValidErr(subId, configId)
                         }

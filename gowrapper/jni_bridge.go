@@ -165,17 +165,17 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	}()
 
 	callbacks := TestCallbacks{
-		OnParseFailed: func(tags []string) {
-			b, _ := json.Marshal(tags)
-			jTagsJson := StringToJString(env, string(b))
-			C.callOnParseFailed(env, callback, midParseFailed, jTagsJson)
-			C.DeleteLocalRef(env, C.jobject(jTagsJson))
+		OnParseFailed: func(errors map[string]string) {
+			b, _ := json.Marshal(errors)
+			jErrorsJson := StringToJString(env, string(b))
+			C.callOnParseFailed(env, callback, midParseFailed, jErrorsJson)
+			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
 		},
-		OnValidateFailed: func(tags []string) {
-			b, _ := json.Marshal(tags)
-			jTagsJson := StringToJString(env, string(b))
-			C.callOnValidateFailed(env, callback, midValidateFailed, jTagsJson)
-			C.DeleteLocalRef(env, C.jobject(jTagsJson))
+		OnValidateFailed: func(errors map[string]string) {
+			b, _ := json.Marshal(errors)
+			jErrorsJson := StringToJString(env, string(b))
+			C.callOnValidateFailed(env, callback, midValidateFailed, jErrorsJson)
+			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
 		},
 		OnRoundStarted: func(batch int, round int, total int) {
 			C.callOnRoundStarted(env, callback, midRoundStarted, C.jlong(batch), C.jlong(round), C.jlong(total))

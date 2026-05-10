@@ -58,16 +58,16 @@ object NativeLoader {
 
 private class JniCallbackWrapper(val delegate: GoTestCallback) {
     fun onParseFailedJson(json: String) {
-        val tags = parseTagsJson(json)
+        val errors = parseErrorsJson(json)
         CoroutineScope(Dispatchers.Main).launch {
-            delegate.onParseFailed(tags)
+            delegate.onParseFailed(errors)
         }
     }
 
     fun onValidateFailedJson(json: String) {
-        val tags = parseTagsJson(json)
+        val errors = parseErrorsJson(json)
         CoroutineScope(Dispatchers.Main).launch {
-            delegate.onValidateFailed(tags)
+            delegate.onValidateFailed(errors)
         }
     }
 
@@ -95,12 +95,12 @@ private class JniCallbackWrapper(val delegate: GoTestCallback) {
         }
     }
 
-    private fun parseTagsJson(json: String): List<String> {
-        if (json.isBlank()) return emptyList()
+    private fun parseErrorsJson(json: String): Map<String, String> {
+        if (json.isBlank()) return emptyMap()
         return try {
-            JsonConfig.json.decodeFromString<List<String>>(json)
+            JsonConfig.json.decodeFromString<Map<String, String>>(json)
         } catch (e: Exception) {
-            emptyList()
+            emptyMap()
         }
     }
 }

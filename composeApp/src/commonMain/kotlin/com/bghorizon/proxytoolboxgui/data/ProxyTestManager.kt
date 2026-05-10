@@ -61,12 +61,12 @@ class ProxyTestManager(
             testUrl = settings.testUrl,
             settings = settings,
             callback = object : GoTestCallback {
-                override fun onParseFailed(tags: List<String>) {
-                    onEvent(TestEvent.ParseFailed(tags))
+                override fun onParseFailed(errors: Map<String, String>) {
+                    onEvent(TestEvent.ParseFailed(errors))
                 }
 
-                override fun onValidateFailed(tags: List<String>) {
-                    onEvent(TestEvent.ValidateFailed(tags))
+                override fun onValidateFailed(errors: Map<String, String>) {
+                    onEvent(TestEvent.ValidateFailed(errors))
                 }
 
                 override fun onRoundStarted(batch: Long, round: Long, total: Long) {
@@ -112,8 +112,8 @@ data class TestSetup(
 )
 
 sealed class TestEvent {
-    data class ParseFailed(val tags: List<String>) : TestEvent()
-    data class ValidateFailed(val tags: List<String>) : TestEvent()
+    data class ParseFailed(val errors: Map<String, String>) : TestEvent()
+    data class ValidateFailed(val errors: Map<String, String>) : TestEvent()
     data class RoundStarted(val batch: Int, val round: Int, val total: Int) : TestEvent()
     data class Progress(val tag: String, val delay: Long, val failed: Boolean) : TestEvent()
     data class RoundEnded(val batch: Int, val round: Int) : TestEvent()

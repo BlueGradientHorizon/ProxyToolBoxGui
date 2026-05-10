@@ -14,8 +14,8 @@ expect object GoBridge {
 }
 
 interface GoTestCallback {
-    fun onParseFailed(tags: List<String>)
-    fun onValidateFailed(tags: List<String>)
+    fun onParseFailed(errors: Map<String, String>)
+    fun onValidateFailed(errors: Map<String, String>)
     fun onRoundStarted(batch: Long, round: Long, total: Long)
     fun onProgress(tag: String, delay: Long, failed: Boolean)
     fun onRoundEnded(batch: Long, round: Long)
