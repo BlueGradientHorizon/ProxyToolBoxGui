@@ -1,50 +1,19 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import jnr.ffi.LibraryLoader
-import jnr.ffi.Pointer
-import jnr.ffi.Runtime
-import jnr.ffi.annotations.Delegate
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.file.Files
 
-interface CbParseFailed { @Delegate fun invoke(tagsJson: Pointer?) }
-interface CbValidateFailed { @Delegate fun invoke(tagsJson: Pointer?) }
-interface CbRoundStarted { @Delegate fun invoke(batchNum: Int, roundNum: Int, total: Int) }
-interface CbProgress { @Delegate fun invoke(tag: Pointer?, delay: Long, failed: Int) }
-interface CbRoundEnded { @Delegate fun invoke(batchNum: Int, roundNum: Int) }
-interface CbError { @Delegate fun invoke(message: Pointer?) }
-
-interface GoLibrary {
-    fun DiscoverWorkers(libraryPath: String): Pointer
-    fun RunLatencyTests(
-        workerPath: String,
-        connUrisJson: String,
-        latencyRounds: Int,
-        roundTimeout: Int,
-        testByBatches: Int,
-        batchSize: Int,
-        cbParseFailed: CbParseFailed,
-        cbValidateFailed: CbValidateFailed,
-        cbRoundStarted: CbRoundStarted,
-        cbProgress: CbProgress,
-        cbRoundEnded: CbRoundEnded,
-        cbError: CbError
-    ): Pointer
-    fun StopTests()
-    fun FreeString(ptr: Pointer)
-}
-
 object NativeLoader {
-    lateinit var lib: GoLibrary
-    lateinit var runtime: Runtime
+    private var isLoaded = false
     lateinit var tempDir: String
 
     fun init() {
-        if (this::lib.isInitialized) return
+        if (isLoaded) return
         val tempFileDir = Files.createTempDirectory("proxytoolbox_native").toFile()
         tempFileDir.deleteOnExit()
         tempDir = tempFileDir.absolutePath
@@ -52,11 +21,13 @@ object NativeLoader {
         val osName = System.getProperty("os.name").lowercase()
         val isWin = osName.contains("win")
         val isMac = osName.contains("mac")
-        val extLib = when { isWin -> ".dll"; isMac -> ".dylib"; else -> ".so" }
+        val extLib = when {
+            isWin -> ".dll"; isMac -> ".dylib"; else -> ".so"
+        }
         val libWrapper = "libwrapper$extLib"
-        
+
         val filesToExtract = mutableListOf(libWrapper)
-        
+
         // Extract all files from resources to tempDir
         val resourcesDir = File("src/jvmMain/resources")
         if (resourcesDir.exists()) {
@@ -69,7 +40,6 @@ object NativeLoader {
 
         for (fileName in filesToExtract.distinct()) {
             val stream = Thread.currentThread().contextClassLoader.getResourceAsStream(fileName)
-            
             if (stream != null) {
                 val dest = File(tempFileDir, fileName)
                 stream.use { input ->
@@ -81,98 +51,48 @@ object NativeLoader {
             }
         }
 
-        val loader = LibraryLoader.create(GoLibrary::class.java)
-        loader.search(tempDir)
-        lib = loader.load(libWrapper)
-        runtime = Runtime.getRuntime(lib)
+        System.load(File(tempFileDir, libWrapper).absolutePath)
+        isLoaded = true
     }
 }
 
-actual object GoBridge {
-    actual fun discoverWorkers(libraryPath: String): String {
-        val ptr = NativeLoader.lib.DiscoverWorkers(libraryPath)
-        val result = ptr.getString(0) ?: "[]"
-        NativeLoader.lib.FreeString(ptr)
-        return result
-    }
-
-    actual fun runLatencyTests(
-        workerPath: String,
-        settings: AppSettings,
-        callback: GoTestCallback,
-        connUris: List<ProxyConfig>
-    ): List<ProxyConfig> {
-        val connUrisJson = JsonConfig.json.encodeToString(connUris)
-        
-        val ptr = NativeLoader.lib.RunLatencyTests(
-            workerPath,
-            connUrisJson,
-            settings.latencyRounds,
-            settings.roundTimeout,
-            if (settings.testByBatches) 1 else 0,
-            settings.batchSize,
-            object : CbParseFailed {
-                override fun invoke(tagsJson: Pointer?) {
-                    val json = tagsJson?.getString(0) ?: ""
-                    val tags = parseTagsJson(json)
-                    CoroutineScope(Dispatchers.Main).launch {
-                        callback.onParseFailed(tags)
-                    }
-                }
-            },
-            object : CbValidateFailed {
-                override fun invoke(tagsJson: Pointer?) {
-                    val json = tagsJson?.getString(0) ?: ""
-                    val tags = parseTagsJson(json)
-                    CoroutineScope(Dispatchers.Main).launch {
-                        callback.onValidateFailed(tags)
-                    }
-                }
-            },
-            object : CbRoundStarted {
-                override fun invoke(batchNum: Int, roundNum: Int, total: Int) {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        callback.onRoundStarted(batchNum.toLong(), roundNum.toLong(), total.toLong())
-                    }
-                }
-            },
-            object : CbProgress {
-                override fun invoke(tag: Pointer?, delay: Long, failed: Int) {
-                    val tagStr = tag?.getString(0) ?: ""
-                    CoroutineScope(Dispatchers.Main).launch {
-                        callback.onProgress(tagStr, delay, failed != 0)
-                    }
-                }
-            },
-            object : CbRoundEnded {
-                override fun invoke(batchNum: Int, roundNum: Int) {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        callback.onRoundEnded(batchNum.toLong(), roundNum.toLong())
-                    }
-                }
-            },
-            object : CbError {
-                override fun invoke(message: Pointer?) {
-                    val msg = message?.getString(0) ?: ""
-                    CoroutineScope(Dispatchers.Main).launch {
-                        callback.onError(msg)
-                    }
-                }
-            }
-        )
-
-        val resultJson = ptr.getString(0) ?: "[]"
-        NativeLoader.lib.FreeString(ptr)
-        
-        return try {
-            JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
-        } catch (e: Exception) {
-            emptyList()
+private class JniCallbackWrapper(val delegate: GoTestCallback) {
+    fun onParseFailedJson(json: String) {
+        val tags = parseTagsJson(json)
+        CoroutineScope(Dispatchers.Main).launch {
+            delegate.onParseFailed(tags)
         }
     }
 
-    actual fun stopTests() {
-        NativeLoader.lib.StopTests()
+    fun onValidateFailedJson(json: String) {
+        val tags = parseTagsJson(json)
+        CoroutineScope(Dispatchers.Main).launch {
+            delegate.onValidateFailed(tags)
+        }
+    }
+
+    fun onRoundStarted(batch: Long, round: Long, total: Long) {
+        CoroutineScope(Dispatchers.Main).launch {
+            delegate.onRoundStarted(batch, round, total)
+        }
+    }
+
+    fun onProgress(tag: String, delay: Long, failed: Boolean) {
+        CoroutineScope(Dispatchers.Main).launch {
+            delegate.onProgress(tag, delay, failed)
+        }
+    }
+
+    fun onRoundEnded(batch: Long, round: Long) {
+        CoroutineScope(Dispatchers.Main).launch {
+            delegate.onRoundEnded(batch, round)
+        }
+    }
+
+    fun onError(message: String) {
+        CoroutineScope(Dispatchers.Main).launch {
+            delegate.onError(message)
+        }
     }
 
     private fun parseTagsJson(json: String): List<String> {
@@ -182,5 +102,62 @@ actual object GoBridge {
         } catch (e: Exception) {
             emptyList()
         }
+    }
+}
+
+actual object GoBridge {
+    init {
+        NativeLoader.init()
+    }
+
+    @JvmStatic
+    private external fun nativeDiscoverWorkers(libraryPath: String): String
+
+    @JvmStatic
+    private external fun nativeRunLatencyTests(
+        workerPath: String,
+        connUrisJson: String,
+        latencyRounds: Int,
+        roundTimeout: Int,
+        testByBatches: Boolean,
+        batchSize: Int,
+        callback: JniCallbackWrapper
+    ): String
+
+    @JvmStatic
+    private external fun nativeStopTests()
+
+    actual fun discoverWorkers(libraryPath: String): String {
+        return nativeDiscoverWorkers(libraryPath)
+    }
+
+    actual fun runLatencyTests(
+        workerPath: String,
+        settings: AppSettings,
+        callback: GoTestCallback,
+        connUris: List<ProxyConfig>
+    ): List<ProxyConfig> {
+        val connUrisJson = JsonConfig.json.encodeToString(connUris)
+        val wrapper = JniCallbackWrapper(callback)
+
+        val resultJson = nativeRunLatencyTests(
+            workerPath,
+            connUrisJson,
+            settings.latencyRounds,
+            settings.roundTimeout,
+            settings.testByBatches,
+            settings.batchSize,
+            wrapper
+        )
+
+        return try {
+            JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    actual fun stopTests() {
+        nativeStopTests()
     }
 }

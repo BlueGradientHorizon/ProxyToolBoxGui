@@ -1,22 +1,61 @@
 package main
 
 /*
+#include <jni.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-typedef void (*cb_parse_failed_t)(const char* tagsJson);
-typedef void (*cb_validate_failed_t)(const char* tagsJson);
-typedef void (*cb_round_started_t)(int batchNum, int roundNum, int total);
-typedef void (*cb_progress_t)(const char* tag, long long delay, int failed);
-typedef void (*cb_round_ended_t)(int batchNum, int roundNum);
-typedef void (*cb_error_t)(const char* message);
+static jstring NewString(JNIEnv *env, const jchar *chars, jsize len) {
+    return (*env)->NewString(env, chars, len);
+}
 
-static inline void invoke_parse_failed(cb_parse_failed_t cb, const char* tagsJson) { cb(tagsJson); }
-static inline void invoke_validate_failed(cb_validate_failed_t cb, const char* tagsJson) { cb(tagsJson); }
-static inline void invoke_round_started(cb_round_started_t cb, int batchNum, int roundNum, int total) { cb(batchNum, roundNum, total); }
-static inline void invoke_progress(cb_progress_t cb, const char* tag, long long delay, int failed) { cb(tag, delay, failed); }
-static inline void invoke_round_ended(cb_round_ended_t cb, int batchNum, int roundNum) { cb(batchNum, roundNum); }
-static inline void invoke_error(cb_error_t cb, const char* message) { cb(message); }
+static jsize GetStringLength(JNIEnv *env, jstring str) {
+    return (*env)->GetStringLength(env, str);
+}
+
+static const jchar* GetStringChars(JNIEnv *env, jstring str) {
+    return (*env)->GetStringChars(env, str, NULL);
+}
+
+static void ReleaseStringChars(JNIEnv *env, jstring str, const jchar *chars) {
+    (*env)->ReleaseStringChars(env, str, chars);
+}
+
+static jclass GetObjectClass(JNIEnv *env, jobject obj) {
+    return (*env)->GetObjectClass(env, obj);
+}
+
+static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+    return (*env)->GetMethodID(env, clazz, name, sig);
+}
+
+static void callOnParseFailed(JNIEnv *env, jobject cb, jmethodID mid, jstring json) {
+    (*env)->CallVoidMethod(env, cb, mid, json);
+}
+
+static void callOnValidateFailed(JNIEnv *env, jobject cb, jmethodID mid, jstring json) {
+    (*env)->CallVoidMethod(env, cb, mid, json);
+}
+
+static void callOnRoundStarted(JNIEnv *env, jobject cb, jmethodID mid, jlong batch, jlong round, jlong total) {
+    (*env)->CallVoidMethod(env, cb, mid, batch, round, total);
+}
+
+static void callOnProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, jlong delay, jboolean failed) {
+    (*env)->CallVoidMethod(env, cb, mid, tag, delay, failed);
+}
+
+static void callOnRoundEnded(JNIEnv *env, jobject cb, jmethodID mid, jlong batch, jlong round) {
+    (*env)->CallVoidMethod(env, cb, mid, batch, round);
+}
+
+static void callOnError(JNIEnv *env, jobject cb, jmethodID mid, jstring msg) {
+    (*env)->CallVoidMethod(env, cb, mid, msg);
+}
+
+static void DeleteLocalRef(JNIEnv *env, jobject obj) {
+    (*env)->DeleteLocalRef(env, obj);
+}
 */
 import "C"
 import (
@@ -26,6 +65,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 	"unsafe"
 
 	"github.com/bluegradienthorizon/proxytoolbox/parsers"
@@ -39,17 +79,38 @@ var (
 	testRunner *runner.TestRunner
 )
 
-// StopTests cancels any running latency tests and closes the active worker process.
-//export StopTests
-func StopTests() {
-	testMu.Lock()
-	defer testMu.Unlock()
-	if testCancel != nil {
-		testCancel()
+func JStringToString(env *C.JNIEnv, s C.jstring) string {
+	if s == 0 {
+		return ""
 	}
-	if testRunner != nil {
-		testRunner.Close()
+	n := C.GetStringLength(env, s)
+	if n == 0 {
+		return ""
 	}
+	chars := C.GetStringChars(env, s)
+	defer C.ReleaseStringChars(env, s, chars)
+	u16s := make([]uint16, int(n))
+	ptr := unsafe.Pointer(chars)
+	size := unsafe.Sizeof(C.jchar(0))
+	for i := 0; i < int(n); i++ {
+		u16s[i] = *(*uint16)(unsafe.Pointer(uintptr(ptr) + uintptr(i)*size))
+	}
+	runes := utf16.Decode(u16s)
+	return string(runes)
+}
+
+func StringToJString(env *C.JNIEnv, s string) C.jstring {
+	r := []rune(s)
+	u16 := utf16.Encode(r)
+	if len(u16) == 0 {
+		var empty C.jchar
+		return C.NewString(env, &empty, 0)
+	}
+	carr := make([]C.jchar, len(u16))
+	for i, v := range u16 {
+		carr[i] = C.jchar(v)
+	}
+	return C.NewString(env, &carr[0], C.jsize(len(u16)))
 }
 
 type WorkerInfo struct {
@@ -65,9 +126,10 @@ type ProxyConfig struct {
 
 // DiscoverWorkers finds all valid worker programs in libraryPath.
 // Returns JSON[]WorkerInfo.
-//export DiscoverWorkers
-func DiscoverWorkers(libraryPath *C.char) *C.char {
-	goLibraryPath := C.GoString(libraryPath)
+//
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeDiscoverWorkers
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, libraryPath C.jstring) C.jstring {
+	goLibraryPath := JStringToString(env, libraryPath)
 	reg := registry.NewRegistry()
 	reg.Discover(goLibraryPath)
 
@@ -84,45 +146,93 @@ func DiscoverWorkers(libraryPath *C.char) *C.char {
 	}
 
 	b, _ := json.Marshal(workers)
-	return C.CString(string(b))
+	return StringToJString(env, string(b))
+}
+
+// StopTests cancels any running latency tests and closes the active worker process.
+//
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeStopTests
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeStopTests(env *C.JNIEnv, clazz C.jclass) {
+	testMu.Lock()
+	defer testMu.Unlock()
+	if testCancel != nil {
+		testCancel()
+	}
+	if testRunner != nil {
+		testRunner.Close()
+	}
 }
 
 // RunLatencyTests parses, validates, and performs batched latency tests.
 // Returns (json[]ProxyConfig workingConfigs, error).
-//export RunLatencyTests
-func RunLatencyTests(
-	workerPath *C.char,
-	connUrisJson *C.char,
-	latencyRounds C.int,
-	roundTimeout C.int,
-	testByBatches C.int,
-	batchSize C.int,
-	cbParseFailed C.cb_parse_failed_t,
-	cbValidateFailed C.cb_validate_failed_t,
-	cbRoundStarted C.cb_round_started_t,
-	cbProgress C.cb_progress_t,
-	cbRoundEnded C.cb_round_ended_t,
-	cbError C.cb_error_t,
-) *C.char {
-	goWorkerPath := C.GoString(workerPath)
-	goConnUrisJson := C.GoString(connUrisJson)
+//
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
+	env *C.JNIEnv,
+	clazz C.jclass,
+	workerPath C.jstring,
+	connUrisJson C.jstring,
+	latencyRounds C.jint,
+	roundTimeout C.jint,
+	testByBatches C.jboolean,
+	batchSize C.jint,
+	callback C.jobject,
+) C.jstring {
+	goWorkerPath := JStringToString(env, workerPath)
+	goConnUrisJson := JStringToString(env, connUrisJson)
 	goTestByBatches := testByBatches != 0
+
+	cbClass := C.GetObjectClass(env, callback)
+	defer C.DeleteLocalRef(env, C.jobject(cbClass))
+
+	cOnParseFailedJson := C.CString("onParseFailedJson")
+	cOnValidateFailedJson := C.CString("onValidateFailedJson")
+	cOnRoundStarted := C.CString("onRoundStarted")
+	cOnProgress := C.CString("onProgress")
+	cOnRoundEnded := C.CString("onRoundEnded")
+	cOnError := C.CString("onError")
+
+	cSigVString := C.CString("(Ljava/lang/String;)V")
+	cSigVJJJ := C.CString("(JJJ)V")
+	cSigVSJZ := C.CString("(Ljava/lang/String;JZ)V")
+	cSigVJJ := C.CString("(JJ)V")
+
+	midParseFailed := C.GetMethodID(env, cbClass, cOnParseFailedJson, cSigVString)
+	midValidateFailed := C.GetMethodID(env, cbClass, cOnValidateFailedJson, cSigVString)
+	midRoundStarted := C.GetMethodID(env, cbClass, cOnRoundStarted, cSigVJJJ)
+	midProgress := C.GetMethodID(env, cbClass, cOnProgress, cSigVSJZ)
+	midRoundEnded := C.GetMethodID(env, cbClass, cOnRoundEnded, cSigVJJ)
+	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
+
+	defer func() {
+		C.free(unsafe.Pointer(cOnParseFailedJson))
+		C.free(unsafe.Pointer(cOnValidateFailedJson))
+		C.free(unsafe.Pointer(cOnRoundStarted))
+		C.free(unsafe.Pointer(cOnProgress))
+		C.free(unsafe.Pointer(cOnRoundEnded))
+		C.free(unsafe.Pointer(cOnError))
+		C.free(unsafe.Pointer(cSigVString))
+		C.free(unsafe.Pointer(cSigVJJJ))
+		C.free(unsafe.Pointer(cSigVSJZ))
+		C.free(unsafe.Pointer(cSigVJJ))
+	}()
+
+	invokeError := func(msg string) {
+		jMsg := StringToJString(env, msg)
+		C.callOnError(env, callback, midError, jMsg)
+		C.DeleteLocalRef(env, C.jobject(jMsg))
+	}
 
 	var inputConfigs []ProxyConfig
 	if err := json.Unmarshal([]byte(goConnUrisJson), &inputConfigs); err != nil {
-		msg := C.CString(fmt.Sprintf("Unmarshal input error: %v", err))
-		C.invoke_error(cbError, msg)
-		C.free(unsafe.Pointer(msg))
-		return C.CString("[]")
+		invokeError(fmt.Sprintf("Unmarshal input error: %v", err))
+		return StringToJString(env, "[]")
 	}
 
-	// Ensure tags are present
 	for _, c := range inputConfigs {
 		if strings.TrimSpace(c.Tag) == "" {
-			msg := C.CString("Empty tag found in config")
-			C.invoke_error(cbError, msg)
-			C.free(unsafe.Pointer(msg))
-			return C.CString("[]")
+			invokeError("Empty tag found in config")
+			return StringToJString(env, "[]")
 		}
 	}
 
@@ -152,16 +262,14 @@ func RunLatencyTests(
 	// Emit parse error callback
 	{
 		b, _ := json.Marshal(parseFailedTags)
-		cTagsJson := C.CString(string(b))
-		C.invoke_parse_failed(cbParseFailed, cTagsJson)
-		C.free(unsafe.Pointer(cTagsJson))
+		jTagsJson := StringToJString(env, string(b))
+		C.callOnParseFailed(env, callback, midParseFailed, jTagsJson)
+		C.DeleteLocalRef(env, C.jobject(jTagsJson))
 	}
 
 	if len(parsedConfigs) == 0 {
-		msg := C.CString("No valid configs after parsing")
-		C.invoke_error(cbError, msg)
-		C.free(unsafe.Pointer(msg))
-		return C.CString("[]")
+		invokeError("No valid configs after parsing")
+		return StringToJString(env, "[]")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -181,10 +289,8 @@ func RunLatencyTests(
 		WorkerPath: goWorkerPath,
 	})
 	if err != nil {
-		msg := C.CString(fmt.Sprintf("Failed to create test runner: %v", err))
-		C.invoke_error(cbError, msg)
-		C.free(unsafe.Pointer(msg))
-		return C.CString("[]")
+		invokeError(fmt.Sprintf("Failed to create test runner: %v", err))
+		return StringToJString(env, "[]")
 	}
 
 	testMu.Lock()
@@ -199,10 +305,8 @@ func RunLatencyTests(
 	testMu.Unlock()
 
 	if err != nil {
-		msg := C.CString(fmt.Sprintf("Validation error: %v", err))
-		C.invoke_error(cbError, msg)
-		C.free(unsafe.Pointer(msg))
-		return C.CString("[]")
+		invokeError(fmt.Sprintf("Validation error: %v", err))
+		return StringToJString(env, "[]")
 	}
 
 	validateFailedTags := []string{}
@@ -215,9 +319,9 @@ func RunLatencyTests(
 	// Emit validate error callback
 	{
 		b, _ := json.Marshal(validateFailedTags)
-		cTagsJson := C.CString(string(b))
-		C.invoke_validate_failed(cbValidateFailed, cTagsJson)
-		C.free(unsafe.Pointer(cTagsJson))
+		jTagsJson := StringToJString(env, string(b))
+		C.callOnValidateFailed(env, callback, midValidateFailed, jTagsJson)
+		C.DeleteLocalRef(env, C.jobject(jTagsJson))
 	}
 
 	validConfigs := make([]parsers.ProxyConfig, 0)
@@ -228,10 +332,8 @@ func RunLatencyTests(
 	}
 
 	if len(validConfigs) == 0 {
-		msg := C.CString("No valid configs after validation")
-		C.invoke_error(cbError, msg)
-		C.free(unsafe.Pointer(msg))
-		return C.CString("[]")
+		invokeError("No valid configs after validation")
+		return StringToJString(env, "[]")
 	}
 
 	// 3. Batched Latency Tests
@@ -301,19 +403,19 @@ func RunLatencyTests(
 				Timeout:      time.Duration(int(roundTimeout)) * time.Second,
 				Rounds:       int(latencyRounds),
 				RoundStartedCallback: func(round int, outboundsLen int) {
-					C.invoke_round_started(cbRoundStarted, C.int(batchNum), C.int(round+1), C.int(outboundsLen))
+					C.callOnRoundStarted(env, callback, midRoundStarted, C.jlong(batchNum), C.jlong(round+1), C.jlong(outboundsLen))
 				},
 				ProgressCallback: func(result runner.LatencyTestResult) {
-					cTag := C.CString(result.Tag)
-					cFailed := 0
+					jTag := StringToJString(env, result.Tag)
+					var cFailed C.jboolean = 0
 					if result.Error != nil {
 						cFailed = 1
 					}
-					C.invoke_progress(cbProgress, cTag, C.longlong(result.Delay), C.int(cFailed))
-					C.free(unsafe.Pointer(cTag))
+					C.callOnProgress(env, callback, midProgress, jTag, C.jlong(result.Delay), cFailed)
+					C.DeleteLocalRef(env, C.jobject(jTag))
 				},
 				RoundEndedCallback: func(round int) {
-					C.invoke_round_ended(cbRoundEnded, C.int(batchNum), C.int(round+1))
+					C.callOnRoundEnded(env, callback, midRoundEnded, C.jlong(batchNum), C.jlong(round+1))
 				},
 			},
 			TestURL: "https://www.google.com/generate_204",
@@ -353,12 +455,7 @@ func RunLatencyTests(
 	}
 
 	b, _ := json.Marshal(workingConfigs)
-	return C.CString(string(b))
-}
-
-//export FreeString
-func FreeString(ptr *C.char) {
-	C.free(unsafe.Pointer(ptr))
+	return StringToJString(env, string(b))
 }
 
 func main() {}

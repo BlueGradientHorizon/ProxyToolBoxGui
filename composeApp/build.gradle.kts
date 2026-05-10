@@ -29,7 +29,6 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
-            implementation("com.github.jnr:jnr-ffi:2.2.19")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -60,7 +59,6 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlinx.datetime)
-            implementation("com.github.jnr:jnr-ffi:2.2.19")
         }
     }
 }
@@ -82,7 +80,6 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // jnr-ffi relies on standard jniLibs behavior
         }
     }
     buildTypes {
