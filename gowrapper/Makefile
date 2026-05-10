@@ -44,7 +44,7 @@ android:
 	$(call build_arch,386,,i686-linux-android,x86) \
 	cd .
 
-# $(call build_arch,GOARCH,GOARM,CC_PREFIX,OUT_SUBDIR)
+# $(call ANDROID_GO_BUILD,GOARCH,GOARM,CC_PREFIX,OUT_PATH,C_INCLUDE_PATH,GO_BUILD_MODE,SOURCE_PATH)
 define build_arch
 	$(call ANDROID_GO_BUILD,$(1),$(2),$(3),$(ANDROID_OUT_DIR)/$(4)/libwrapper.so,$(NDK_SYSROOT_INCLUDE),-buildmode=c-shared,.) &&
 endef
