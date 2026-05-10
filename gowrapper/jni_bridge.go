@@ -116,6 +116,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	workerPath C.jstring,
+	testUrl C.jstring,
 	connUrisJson C.jstring,
 	latencyRounds C.jint,
 	roundTimeout C.jint,
@@ -124,6 +125,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	callback C.jobject,
 ) C.jstring {
 	goWorkerPath := JStringToString(env, workerPath)
+	goTestUrl := JStringToString(env, testUrl)
 	goConnUrisJson := JStringToString(env, connUrisJson)
 	goTestByBatches := testByBatches != 0
 
@@ -199,6 +201,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 
 	workingConfigs := RunLatencyTests(
 		goWorkerPath,
+		goTestUrl,
 		goConnUrisJson,
 		int(latencyRounds),
 		int(roundTimeout),

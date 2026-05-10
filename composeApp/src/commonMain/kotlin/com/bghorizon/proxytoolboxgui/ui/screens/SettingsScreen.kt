@@ -114,6 +114,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     enabled = settings.testByBatches,
                     onClick = { viewModel.updateDialog(ActiveDialog.BatchSize) }
                 )
+                SettingsClickableItem(
+                    title = stringResource(Res.string.latency_test_url),
+                    subtitle = settings.testUrl,
+                    onClick = { viewModel.updateDialog(ActiveDialog.TestUrl) }
+                )
             }
 
             item {
@@ -227,6 +232,19 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 onSave = { viewModel.savePort(it) },
                 isValid = { it in 1024..65535 },
                 errorText = stringResource(Res.string.error_invalid_port)
+            )
+        }
+        ActiveDialog.TestUrl -> {
+            TextInputDialog(
+                title = stringResource(Res.string.latency_test_url),
+                initialValue = settings.testUrl,
+                onDismiss = { viewModel.hideDialog() },
+                onSave = {
+                    if (it.isNotBlank()) {
+                        viewModel.updateSettings(settings.copy(testUrl = it))
+                        true
+                    } else false
+                }
             )
         }
         else -> {}
@@ -430,6 +448,32 @@ private fun NumberInputDialog(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done
             ),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun TextInputDialog(
+    title: String,
+    initialValue: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Boolean
+) {
+    var text by remember { mutableStateOf(initialValue) }
+
+    SettingsDialog(
+        title = title,
+        onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.dialog_btn_save),
+        onConfirm = { onSave(text) },
+        confirmEnabled = text.isNotBlank()
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            label = { Text(title) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )

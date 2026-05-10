@@ -76,7 +76,8 @@ data class AppSettings(
     val batchSize: Int = 5000,
     val autoStartWebServer: Boolean = true,
     val webServerPort: Int = 35240,
-    val webServerLocalhost: Boolean = true
+    val webServerLocalhost: Boolean = true,
+    val testUrl: String = "https://www.google.com/generate_204"
 )
 
 enum class ThemeMode {

@@ -4,6 +4,7 @@ expect object GoBridge {
     fun discoverWorkers(libraryPath: String): String
     fun runLatencyTests(
         workerPath: String,
+        testUrl: String,
         settings: AppSettings,
         callback: GoTestCallback,
         connUris: List<ProxyConfig>

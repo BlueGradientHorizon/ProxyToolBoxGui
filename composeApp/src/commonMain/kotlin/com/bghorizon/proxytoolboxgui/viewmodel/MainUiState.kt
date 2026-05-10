@@ -25,6 +25,7 @@ sealed class ActiveDialog {
     object RoundTimeout : ActiveDialog()
     object BatchSize : ActiveDialog()
     object Port : ActiveDialog()
+    object TestUrl : ActiveDialog()
 }
 
 enum class Screen {

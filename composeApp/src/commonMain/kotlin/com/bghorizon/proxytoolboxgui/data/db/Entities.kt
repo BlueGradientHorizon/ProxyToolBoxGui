@@ -18,7 +18,8 @@ data class AppSettingsEntity(
     val batchSize: Int,
     val autoStartWebServer: Boolean,
     val webServerPort: Int,
-    val webServerLocalhost: Boolean
+    val webServerLocalhost: Boolean,
+    val testUrl: String
 )
 
 @Entity(tableName = "subscriptions")

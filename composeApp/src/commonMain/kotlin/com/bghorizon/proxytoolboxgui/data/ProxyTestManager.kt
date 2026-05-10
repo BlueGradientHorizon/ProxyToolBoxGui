@@ -58,6 +58,7 @@ class ProxyTestManager(
     ): List<ProxyConfig> = withContext(Dispatchers.IO) {
         GoBridge.runLatencyTests(
             workerPath = settings.selectedWorker,
+            testUrl = settings.testUrl,
             settings = settings,
             callback = object : GoTestCallback {
                 override fun onParseFailed(tags: List<String>) {
@@ -81,7 +82,6 @@ class ProxyTestManager(
                 }
 
                 override fun onError(message: String) {
-                    println("ProxyTestManager Error: $message")
                     onEvent(TestEvent.Error(message))
                 }
             },

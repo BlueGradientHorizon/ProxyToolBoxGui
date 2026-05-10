@@ -116,6 +116,7 @@ actual object GoBridge {
     @JvmStatic
     private external fun nativeRunLatencyTests(
         workerPath: String,
+        testUrl: String,
         connUrisJson: String,
         latencyRounds: Int,
         roundTimeout: Int,
@@ -133,6 +134,7 @@ actual object GoBridge {
 
     actual fun runLatencyTests(
         workerPath: String,
+        testUrl: String,
         settings: AppSettings,
         callback: GoTestCallback,
         connUris: List<ProxyConfig>
@@ -142,6 +144,7 @@ actual object GoBridge {
 
         val resultJson = nativeRunLatencyTests(
             workerPath,
+            testUrl,
             connUrisJson,
             settings.latencyRounds,
             settings.roundTimeout,

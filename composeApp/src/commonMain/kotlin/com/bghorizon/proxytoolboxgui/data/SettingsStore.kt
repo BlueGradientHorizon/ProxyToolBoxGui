@@ -49,7 +49,8 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
     batchSize = batchSize,
     autoStartWebServer = autoStartWebServer,
     webServerPort = webServerPort,
-    webServerLocalhost = webServerLocalhost
+    webServerLocalhost = webServerLocalhost,
+    testUrl = testUrl
 )
 
 private fun AppSettingsEntity.toModel() = AppSettings(
@@ -64,5 +65,6 @@ private fun AppSettingsEntity.toModel() = AppSettings(
     batchSize = batchSize,
     autoStartWebServer = autoStartWebServer,
     webServerPort = webServerPort,
-    webServerLocalhost = webServerLocalhost
+    webServerLocalhost = webServerLocalhost,
+    testUrl = testUrl
 )

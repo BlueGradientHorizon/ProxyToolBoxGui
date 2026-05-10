@@ -70,6 +70,7 @@ func StopTests() {
 
 func RunLatencyTests(
 	workerPath string,
+	testUrl string,
 	connUrisJson string,
 	latencyRounds int,
 	roundTimeout int,
@@ -275,7 +276,7 @@ func RunLatencyTests(
 					}
 				},
 			},
-			TestURL: "https://www.google.com/generate_204",
+			TestURL: testUrl,
 		}
 
 		testResults, err := batchRunner.RunLatencyTests(ctx, batchTags, ltSettings)
