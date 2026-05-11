@@ -45,14 +45,6 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateBack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.back)
-                        )
-                    }
-                },
                 actions = {
                     IconButton(onClick = { viewModel.updateSubscriptions() }) {
                         Icon(

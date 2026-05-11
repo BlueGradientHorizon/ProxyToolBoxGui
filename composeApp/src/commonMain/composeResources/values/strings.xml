@@ -7,6 +7,7 @@
     <string name="dialog_btn_delete">Delete</string>
 
     <!-- Main Screen -->
+    <string name="home">Home</string>
     <string name="lbl_profiles_found">Profiles found total: %1$d</string>
     <string name="lbl_profiles_duplicated">Profiles duplicated total: %1$d</string>
     <string name="lbl_parsing_errors">Parsing errors total: %1$d</string>

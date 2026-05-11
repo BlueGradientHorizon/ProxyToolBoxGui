@@ -18,7 +18,6 @@ sealed class ActiveDialog {
     object AddSubscription : ActiveDialog()
     data class EditSubscription(val subscription: Subscription) : ActiveDialog()
     data class DeleteConfirmation(val subscription: Subscription) : ActiveDialog()
-    object Theme : ActiveDialog()
     object Worker : ActiveDialog()
     object DownloadTimeout : ActiveDialog()
     object LatencyRounds : ActiveDialog()

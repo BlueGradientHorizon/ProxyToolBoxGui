@@ -22,6 +22,7 @@ import com.bghorizon.proxytoolboxgui.viewmodel.Screen
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.app_name
+import proxytoolboxgui.composeapp.generated.resources.home
 import proxytoolboxgui.composeapp.generated.resources.batch_title
 import proxytoolboxgui.composeapp.generated.resources.column_failed
 import proxytoolboxgui.composeapp.generated.resources.column_round
@@ -54,7 +55,7 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val subs by viewModel.subscriptions.collectAsState()
-    
+
     val testProgress = uiState.testProgress
     val downloadProgress = uiState.downloadProgress
     val appStatus = uiState.appStatus
@@ -76,21 +77,14 @@ fun MainScreen(viewModel: MainViewModel) {
                     TextButton(onClick = { viewModel.updateSubscriptions() }) {
                         Text(
                             if (downloadProgress.isRunning)
-                                stringResource(Res.string.btn_subs_update_in_progress, downloadProgress.total, downloadProgress.succeeded, downloadProgress.failed)
+                                stringResource(
+                                    Res.string.btn_subs_update_in_progress,
+                                    downloadProgress.total,
+                                    downloadProgress.succeeded,
+                                    downloadProgress.failed
+                                )
                             else
                                 stringResource(Res.string.btn_subs_update)
-                        )
-                    }
-                    IconButton(onClick = { viewModel.navigateTo(Screen.Subscriptions) }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = stringResource(Res.string.subscriptions)
-                        )
-                    }
-                    IconButton(onClick = { viewModel.navigateTo(Screen.Settings) }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = stringResource(Res.string.title_settings)
                         )
                     }
                 }
@@ -114,7 +108,8 @@ fun MainScreen(viewModel: MainViewModel) {
 
             if (testProgress.batchProgresses.isNotEmpty()) {
                 val groupedBatches = remember(testProgress.batchProgresses) {
-                    testProgress.batchProgresses.groupBy { it.batchNum }.toList().sortedBy { it.first }
+                    testProgress.batchProgresses.groupBy { it.batchNum }.toList()
+                        .sortedBy { it.first }
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -331,14 +326,22 @@ private fun TestProgressBar(progress: TestProgress) {
             remaining--
         }
     }
-    val fraction = if (progress.totalSeconds > 0) 1f - (remaining.toFloat() / progress.totalSeconds.toFloat()) else 0f
+    val fraction =
+        if (progress.totalSeconds > 0) 1f - (remaining.toFloat() / progress.totalSeconds.toFloat()) else 0f
     Column(modifier = Modifier.fillMaxWidth()) {
         LinearProgressIndicator(
             progress = { fraction.coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = stringResource(Res.string.test_progress_status, remaining, progress.currentBatch, progress.totalBatches, progress.currentRound, progress.totalRounds),
+            text = stringResource(
+                Res.string.test_progress_status,
+                remaining,
+                progress.currentBatch,
+                progress.totalBatches,
+                progress.currentRound,
+                progress.totalRounds
+            ),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
