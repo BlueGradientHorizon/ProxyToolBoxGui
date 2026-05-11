@@ -49,7 +49,10 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
 
     val uiState by viewModel.uiState.collectAsState()
 
-    AppTheme(themeMode = uiState.settings.theme) {
+    AppTheme(
+        themeMode = uiState.settings.theme,
+        dynamicColor = uiState.settings.dynamicColor
+    ) {
         Surface {
             BoxWithConstraints {
                 val isCompact = maxWidth < 600.dp

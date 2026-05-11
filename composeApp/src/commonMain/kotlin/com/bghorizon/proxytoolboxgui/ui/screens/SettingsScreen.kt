@@ -67,6 +67,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             }
                         }
                     }
+                    SettingsSwitchItem(
+                        title = stringResource(Res.string.use_monet),
+                        checked = settings.dynamicColor,
+                        onCheckedChange = {
+                            viewModel.updateSettings(settings.copy(dynamicColor = it))
+                        },
+                        enabled = uiState.isDynamicColorSupported
+                    )
                 }
             }
 
@@ -366,15 +374,18 @@ private fun SettingsItem(
 private fun SettingsSwitchItem(
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
 ) {
     SettingsItem(
         title = title,
         onClick = { onCheckedChange(!checked) },
+        enabled = enabled,
         trailingContent = {
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
             )
         }
     )

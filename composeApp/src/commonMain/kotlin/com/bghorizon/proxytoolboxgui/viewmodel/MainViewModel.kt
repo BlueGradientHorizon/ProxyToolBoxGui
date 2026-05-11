@@ -19,7 +19,9 @@ class MainViewModel(
     private val webServer: ProxyWebServer
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(MainUiState())
+    private val _uiState = MutableStateFlow(
+        MainUiState(isDynamicColorSupported = platform.isDynamicColorSupported)
+    )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     val subscriptions: StateFlow<List<Subscription>> = subscriptionRepository.subscriptions

@@ -63,6 +63,7 @@
     <string name="app_theme_light">Light</string>
     <string name="app_theme_dark">Dark</string>
     <string name="app_theme_system">System</string>
+    <string name="use_monet">Use Monet (Android 12+)</string>
 
     <string name="current_worker">Current Worker Program</string>
     <string name="no_workers_available">No workers available</string>

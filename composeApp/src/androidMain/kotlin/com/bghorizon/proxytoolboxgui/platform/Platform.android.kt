@@ -13,6 +13,7 @@ import java.io.File
 
 class AndroidPlatform(private val context: Context) : Platform {
     override val name: String = "Android ${Build.VERSION.SDK_INT}"
+    override val isDynamicColorSupported: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     override fun getAppDataDir(): String {
         return context.filesDir.absolutePath

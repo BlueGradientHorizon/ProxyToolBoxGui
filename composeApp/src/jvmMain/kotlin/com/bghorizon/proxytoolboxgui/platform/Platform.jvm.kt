@@ -8,6 +8,7 @@ import javax.swing.JFileChooser
 
 class JVMPlatform : Platform {
     override val name: String = "JVM ${System.getProperty("java.version")}"
+    override val isDynamicColorSupported: Boolean = false
 
     override fun getAppDataDir(): String {
         val dir = File(System.getProperty("user.home"), ".proxytoolboxgui")

@@ -10,6 +10,7 @@ data class MainUiState(
     val appStatus: AppStatus = AppStatus.IDLE,
     val webServerRunning: Boolean = false,
     val settings: AppSettings = AppSettings(),
+    val isDynamicColorSupported: Boolean = false,
     val activeDialog: ActiveDialog = ActiveDialog.None
 )
 

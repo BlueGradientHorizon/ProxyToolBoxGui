@@ -66,6 +66,7 @@ data class ProxyConfig(
 @Serializable
 data class AppSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    val dynamicColor: Boolean = true,
     val selectedWorker: String = "",
     val selectedWorkerName: String = "",
     val downloadTimeout: Int = 10,

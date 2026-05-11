@@ -39,6 +39,7 @@ class SettingsRepository(private val dao: SettingsDao) {
 
 private fun AppSettings.toEntity() = AppSettingsEntity(
     theme = theme.ordinal,
+    dynamicColor = dynamicColor,
     selectedWorker = selectedWorker,
     selectedWorkerName = selectedWorkerName,
     downloadTimeout = downloadTimeout,
@@ -56,6 +57,7 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
 
 private fun AppSettingsEntity.toModel() = AppSettings(
     theme = ThemeMode.entries.getOrElse(theme) { ThemeMode.SYSTEM },
+    dynamicColor = dynamicColor,
     selectedWorker = selectedWorker,
     selectedWorkerName = selectedWorkerName,
     downloadTimeout = downloadTimeout,

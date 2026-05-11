@@ -2,6 +2,7 @@ package com.bghorizon.proxytoolboxgui.platform
 
 interface Platform {
     val name: String
+    val isDynamicColorSupported: Boolean
     fun getAppDataDir(): String
     fun getWorkerLibraryPath(): String
     fun copyToClipboard(text: String, label: String)
