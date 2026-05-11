@@ -7,15 +7,19 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.runtime.remember
+
 @Composable
 actual fun platformColorScheme(
     darkTheme: Boolean,
     dynamicColor: Boolean
 ): ColorScheme? {
-    return if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val context = LocalContext.current
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-        null
+    val context = LocalContext.current
+    return remember(context, darkTheme, dynamicColor) {
+        if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        } else {
+            null
+        }
     }
 }
