@@ -9,6 +9,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -42,7 +44,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     ) {
         item {
             SettingsSection(title = stringResource(Res.string.category_appearance)) {
-                SettingsItem(title = stringResource(Res.string.app_theme)) {
+                SettingsItem(title = stringResource(Res.string.app_theme), customHeight = true) {
                     SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -326,21 +328,33 @@ private fun SettingsItem(
     subtitle: String? = null,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
+    customHeight: Boolean = false,
     trailingContent: @Composable (() -> Unit)? = null,
     content: @Composable (() -> Unit)? = null
 ) {
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    // In Material 3, the disabled alpha is usually internal, but we can retrieve it
-    // from the library's own defaults to avoid hardcoding magic numbers.
-    val disabledAlpha = ListItemDefaults.colors().disabledHeadlineColor.alpha
-
-    val itemContent = @Composable {
+    Card(
+        onClick = onClick ?: {},
+        modifier = modifier.fillMaxWidth(),
+        enabled = enabled && onClick != null,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            disabledContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
         Column(
             modifier = Modifier
+                .then(
+                    if (customHeight) Modifier else Modifier.height(64.dp)
+                )
                 .fillMaxWidth()
-                .padding(12.dp)
-                .alpha(if (enabled) 1f else disabledAlpha),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(
+                    vertical = if (customHeight) 12.dp else 0.dp,
+                    horizontal = 12.dp
+                )
+                .alpha(if (enabled) 1f else ListItemDefaults.colors().disabledHeadlineColor.alpha),
+            verticalArrangement = Arrangement.Center
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -365,18 +379,6 @@ private fun SettingsItem(
             }
             content?.invoke()
         }
-    }
-
-    Card(
-        onClick = onClick ?: {},
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled && onClick != null,
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            disabledContainerColor = containerColor
-        )
-    ) {
-        itemContent()
     }
 }
 
