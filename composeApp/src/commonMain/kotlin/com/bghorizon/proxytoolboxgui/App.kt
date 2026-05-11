@@ -62,52 +62,9 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                 val isCompact = maxWidth < 600.dp
                 val isExpanded = maxWidth >= 900.dp
 
-                if (isExpanded) {
-                    val navDrawItemHorizontalPadding = 12.dp
-                    val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
-                    val navRailSpacer: @Composable () -> Unit = {
-                        Spacer(Modifier.height(navRailItemsSpacerHeight))
-                    }
-                    Row(Modifier.fillMaxSize()) {
-                        NavigationRail(
-                            modifier = Modifier.width(IntrinsicSize.Max),
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            windowInsets = NavigationRailDefaults.windowInsets
-                        ) {
-                            navRailSpacer()
-                            NavigationDrawerItem(
-                                label = { Text(stringResource(Res.string.home)) },
-                                icon = { Icon(Icons.Default.Home, null) },
-                                selected = uiState.currentScreen == Screen.Main,
-                                onClick = { viewModel.navigateTo(Screen.Main) },
-                                modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                            )
-                            navRailSpacer()
-                            NavigationDrawerItem(
-                                label = { Text(stringResource(Res.string.subscriptions)) },
-                                icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
-                                selected = uiState.currentScreen == Screen.Subscriptions,
-                                onClick = { viewModel.navigateTo(Screen.Subscriptions) },
-                                modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                            )
-                            navRailSpacer()
-                            NavigationDrawerItem(
-                                label = { Text(stringResource(Res.string.title_settings)) },
-                                icon = { Icon(Icons.Default.Settings, null) },
-                                selected = uiState.currentScreen == Screen.Settings,
-                                onClick = { viewModel.navigateTo(Screen.Settings) },
-                                modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                            )
-                        }
-                        Box(Modifier.fillMaxSize().weight(1f)) {
-                            AppScreenContent(uiState.currentScreen, viewModel)
-                        }
-                    }
-                    // isExpanded
-                } else {
-                    // isCompact
-                    Scaffold(
-                        bottomBar = {
+                Scaffold(
+                    bottomBar = {
+                        if (!isExpanded) {
                             NavigationBar(modifier = Modifier.height(80.dp)) {
                                 AdaptiveNavigationItem(
                                     label = stringResource(Res.string.home),
@@ -132,12 +89,50 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 )
                             }
                         }
-                    ) { padding ->
-                        Box(Modifier.fillMaxSize().padding(padding)) {
+                    }
+                ) { padding ->
+                    Row(Modifier.fillMaxSize().padding(padding)) {
+                        if (isExpanded) {
+                            val navDrawItemHorizontalPadding = 12.dp
+                            val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
+                            val navRailSpacer: @Composable () -> Unit = {
+                                Spacer(Modifier.height(navRailItemsSpacerHeight))
+                            }
+                            NavigationRail(
+                                modifier = Modifier.width(IntrinsicSize.Max),
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                windowInsets = NavigationRailDefaults.windowInsets
+                            ) {
+                                navRailSpacer()
+                                NavigationDrawerItem(
+                                    label = { Text(stringResource(Res.string.home)) },
+                                    icon = { Icon(Icons.Default.Home, null) },
+                                    selected = uiState.currentScreen == Screen.Main,
+                                    onClick = { viewModel.navigateTo(Screen.Main) },
+                                    modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                )
+                                navRailSpacer()
+                                NavigationDrawerItem(
+                                    label = { Text(stringResource(Res.string.subscriptions)) },
+                                    icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
+                                    selected = uiState.currentScreen == Screen.Subscriptions,
+                                    onClick = { viewModel.navigateTo(Screen.Subscriptions) },
+                                    modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                )
+                                navRailSpacer()
+                                NavigationDrawerItem(
+                                    label = { Text(stringResource(Res.string.title_settings)) },
+                                    icon = { Icon(Icons.Default.Settings, null) },
+                                    selected = uiState.currentScreen == Screen.Settings,
+                                    onClick = { viewModel.navigateTo(Screen.Settings) },
+                                    modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                )
+                            }
+                        }
+                        Box(Modifier.fillMaxSize().weight(1f)) {
                             AppScreenContent(uiState.currentScreen, viewModel)
                         }
                     }
-                    // isCompact
                 }
             }
         }
