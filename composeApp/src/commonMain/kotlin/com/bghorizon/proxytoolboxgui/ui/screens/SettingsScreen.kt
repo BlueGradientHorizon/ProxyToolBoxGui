@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -39,155 +40,144 @@ fun SettingsScreen(viewModel: MainViewModel) {
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-            item {
-                Column {
-                    SettingsCategory(title = stringResource(Res.string.category_appearance))
-                    SettingsItem(title = stringResource(Res.string.app_theme)) {
-                        SingleChoiceSegmentedButtonRow(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            ThemeMode.entries.forEachIndexed { index, theme ->
-                                SegmentedButton(
-                                    selected = settings.theme == theme,
-                                    onClick = { viewModel.updateTheme(theme) },
-                                    shape = SegmentedButtonDefaults.itemShape(
-                                        index = index,
-                                        count = ThemeMode.entries.size
-                                    ),
-                                    label = {
-                                        Text(
-                                            when (theme) {
-                                                ThemeMode.LIGHT -> stringResource(Res.string.app_theme_light)
-                                                ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
-                                                ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
-                                            }
-                                        )
-                                    }
-                                )
-                            }
+        item {
+            SettingsSection(title = stringResource(Res.string.category_appearance)) {
+                SettingsItem(title = stringResource(Res.string.app_theme)) {
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ThemeMode.entries.forEachIndexed { index, theme ->
+                            SegmentedButton(
+                                selected = settings.theme == theme,
+                                onClick = { viewModel.updateTheme(theme) },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = ThemeMode.entries.size
+                                ),
+                                label = {
+                                    Text(
+                                        when (theme) {
+                                            ThemeMode.LIGHT -> stringResource(Res.string.app_theme_light)
+                                            ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
+                                            ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
+                                        }
+                                    )
+                                }
+                            )
                         }
                     }
-                    SettingsSwitchItem(
-                        title = stringResource(Res.string.use_monet),
-                        checked = settings.dynamicColor,
-                        onCheckedChange = {
-                            viewModel.updateSettings(settings.copy(dynamicColor = it))
-                        },
-                        enabled = uiState.isDynamicColorSupported
-                    )
                 }
-            }
-
-            item {
-                Column {
-                    SettingsCategory(title = stringResource(Res.string.category_worker))
-                    SettingsItem(
-                        title = stringResource(Res.string.current_worker),
-                        subtitle = workers.find { it.path == settings.selectedWorker }?.name
-                            ?: stringResource(Res.string.no_workers_available),
-                        onClick = { viewModel.updateDialog(ActiveDialog.Worker) }
-                    )
-                }
-            }
-
-            item {
-                Column {
-                    SettingsCategory(title = stringResource(Res.string.category_download))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SettingsItem(
-                            title = stringResource(Res.string.sub_download_timeout),
-                            subtitle = stringResource(
-                                Res.string.hint_seconds_preview,
-                                settings.downloadTimeout
-                            ),
-                            onClick = { viewModel.updateDialog(ActiveDialog.DownloadTimeout) }
-                        )
-                        SettingsItem(
-                            title = stringResource(Res.string.parallel_sub_downloads),
-                            subtitle = settings.parallelSubscriptionDownloads.toString(),
-                            onClick = { viewModel.updateDialog(ActiveDialog.ParallelDownloads) }
-                        )
-                        SettingsSwitchItem(
-                            title = stringResource(Res.string.perform_deduplication),
-                            checked = settings.performDedup,
-                            onCheckedChange = {
-                                viewModel.updateSettings(settings.copy(performDedup = it))
-                            }
-                        )
-                    }
-                }
-            }
-
-            item {
-                Column {
-                    SettingsCategory(title = stringResource(Res.string.category_testing))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SettingsItem(
-                            title = stringResource(Res.string.latency_test_rounds),
-                            subtitle = stringResource(
-                                Res.string.hint_rounds_preview,
-                                settings.latencyRounds
-                            ),
-                            onClick = { viewModel.updateDialog(ActiveDialog.LatencyRounds) }
-                        )
-                        SettingsItem(
-                            title = stringResource(Res.string.round_timeout),
-                            subtitle = stringResource(
-                                Res.string.hint_seconds_preview,
-                                settings.roundTimeout
-                            ),
-                            onClick = { viewModel.updateDialog(ActiveDialog.RoundTimeout) }
-                        )
-                        SettingsSwitchItem(
-                            title = stringResource(Res.string.test_by_batches),
-                            checked = settings.testByBatches,
-                            onCheckedChange = {
-                                viewModel.updateSettings(settings.copy(testByBatches = it))
-                            }
-                        )
-                        SettingsItem(
-                            title = stringResource(Res.string.batch_size),
-                            //subtitle = stringResource(Res.string.hint_rounds_preview, settings.batchSize),
-                            subtitle = settings.batchSize.toString(),
-                            enabled = settings.testByBatches,
-                            onClick = { viewModel.updateDialog(ActiveDialog.BatchSize) }
-                        )
-                        SettingsItem(
-                            title = stringResource(Res.string.latency_test_url),
-                            subtitle = settings.testUrl,
-                            onClick = { viewModel.updateDialog(ActiveDialog.TestUrl) }
-                        )
-                    }
-                }
-            }
-
-            item {
-                Column {
-                    SettingsCategory(title = stringResource(Res.string.category_web_server))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SettingsSwitchItem(
-                            title = stringResource(Res.string.web_server_auto_start),
-                            checked = settings.autoStartWebServer,
-                            onCheckedChange = {
-                                viewModel.updateSettings(settings.copy(autoStartWebServer = it))
-                            }
-                        )
-                        SettingsItem(
-                            title = stringResource(Res.string.web_server_port),
-                            subtitle = settings.webServerPort.toString(),
-                            onClick = { viewModel.updateDialog(ActiveDialog.Port) }
-                        )
-                        SettingsSwitchItem(
-                            title = stringResource(Res.string.web_server_localhost),
-                            checked = settings.webServerLocalhost,
-                            onCheckedChange = {
-                                viewModel.updateSettings(settings.copy(webServerLocalhost = it))
-                            }
-                        )
-                    }
-                }
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.use_monet),
+                    checked = settings.dynamicColor,
+                    onCheckedChange = {
+                        viewModel.updateSettings(settings.copy(dynamicColor = it))
+                    },
+                    enabled = uiState.isDynamicColorSupported
+                )
             }
         }
+
+        item {
+            SettingsSection(title = stringResource(Res.string.category_worker)) {
+                SettingsItem(
+                    title = stringResource(Res.string.current_worker),
+                    subtitle = workers.find { it.path == settings.selectedWorker }?.name
+                        ?: stringResource(Res.string.no_workers_available),
+                    onClick = { viewModel.updateDialog(ActiveDialog.Worker) }
+                )
+            }
+        }
+
+        item {
+            SettingsSection(title = stringResource(Res.string.category_download)) {
+                SettingsItem(
+                    title = stringResource(Res.string.sub_download_timeout),
+                    subtitle = stringResource(
+                        Res.string.hint_seconds_preview,
+                        settings.downloadTimeout
+                    ),
+                    onClick = { viewModel.updateDialog(ActiveDialog.DownloadTimeout) }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.parallel_sub_downloads),
+                    subtitle = settings.parallelSubscriptionDownloads.toString(),
+                    onClick = { viewModel.updateDialog(ActiveDialog.ParallelDownloads) }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.perform_deduplication),
+                    checked = settings.performDedup,
+                    onCheckedChange = {
+                        viewModel.updateSettings(settings.copy(performDedup = it))
+                    }
+                )
+            }
+        }
+
+        item {
+            SettingsSection(title = stringResource(Res.string.category_testing)) {
+                SettingsItem(
+                    title = stringResource(Res.string.latency_test_rounds),
+                    subtitle = stringResource(
+                        Res.string.hint_rounds_preview,
+                        settings.latencyRounds
+                    ),
+                    onClick = { viewModel.updateDialog(ActiveDialog.LatencyRounds) }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.round_timeout),
+                    subtitle = stringResource(
+                        Res.string.hint_seconds_preview,
+                        settings.roundTimeout
+                    ),
+                    onClick = { viewModel.updateDialog(ActiveDialog.RoundTimeout) }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.test_by_batches),
+                    checked = settings.testByBatches,
+                    onCheckedChange = {
+                        viewModel.updateSettings(settings.copy(testByBatches = it))
+                    }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.batch_size),
+                    //subtitle = stringResource(Res.string.hint_rounds_preview, settings.batchSize),
+                    subtitle = settings.batchSize.toString(),
+                    enabled = settings.testByBatches,
+                    onClick = { viewModel.updateDialog(ActiveDialog.BatchSize) }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.latency_test_url),
+                    subtitle = settings.testUrl,
+                    onClick = { viewModel.updateDialog(ActiveDialog.TestUrl) }
+                )
+            }
+        }
+
+        item {
+            SettingsSection(title = stringResource(Res.string.category_web_server)) {
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.web_server_auto_start),
+                    checked = settings.autoStartWebServer,
+                    onCheckedChange = {
+                        viewModel.updateSettings(settings.copy(autoStartWebServer = it))
+                    }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.web_server_port),
+                    subtitle = settings.webServerPort.toString(),
+                    onClick = { viewModel.updateDialog(ActiveDialog.Port) }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.web_server_localhost),
+                    checked = settings.webServerLocalhost,
+                    onCheckedChange = {
+                        viewModel.updateSettings(settings.copy(webServerLocalhost = it))
+                    }
+                )
+            }
+        }
+    }
 
     when (activeDialog) {
         ActiveDialog.Worker -> {
@@ -308,6 +298,18 @@ fun SettingsScreen(viewModel: MainViewModel) {
 }
 
 @Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    SettingsCategory(title = title)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        content = content
+    )
+}
+
+@Composable
 private fun SettingsCategory(title: String) {
     Text(
         text = title,
@@ -328,11 +330,16 @@ private fun SettingsItem(
     content: @Composable (() -> Unit)? = null
 ) {
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    // In Material 3, the disabled alpha is usually internal, but we can retrieve it
+    // from the library's own defaults to avoid hardcoding magic numbers.
+    val disabledAlpha = ListItemDefaults.colors().disabledHeadlineColor.alpha
+
     val itemContent = @Composable {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(12.dp)
+                .alpha(if (enabled) 1f else disabledAlpha),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -364,7 +371,10 @@ private fun SettingsItem(
         onClick = onClick ?: {},
         modifier = modifier.fillMaxWidth(),
         enabled = enabled && onClick != null,
-        colors = CardDefaults.cardColors(containerColor = containerColor)
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor,
+            disabledContainerColor = containerColor
+        )
     ) {
         itemContent()
     }
