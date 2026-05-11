@@ -36,48 +36,49 @@ import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun SubscriptionsTopBar(viewModel: MainViewModel) {
+    TopAppBar(
+        title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
+        actions = {
+            IconButton(onClick = { viewModel.updateSubscriptions() }) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(Res.string.btn_subs_update)
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun SubscriptionsFAB(viewModel: MainViewModel) {
+    FloatingActionButton(onClick = { viewModel.showAddSubscription() }) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = stringResource(Res.string.sub_add)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun SubscriptionsScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val subscriptions by viewModel.subscriptions.collectAsState()
     val activeDialog = uiState.activeDialog
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
-                actions = {
-                    IconButton(onClick = { viewModel.updateSubscriptions() }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(Res.string.btn_subs_update)
-                        )
-                    }
-                }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(subscriptions) { sub ->
+            SubscriptionItem(
+                subscription = sub,
+                onEdit = { viewModel.showEditSubscription(sub) },
+                onDelete = { viewModel.showDeleteSubscription(sub) }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.showAddSubscription() }) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.sub_add)
-                )
-            }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(subscriptions) { sub ->
-                SubscriptionItem(
-                    subscription = sub,
-                    onEdit = { viewModel.showEditSubscription(sub) },
-                    onDelete = { viewModel.showDeleteSubscription(sub) }
-                )
-            }
         }
     }
 

@@ -1,5 +1,7 @@
 package com.bghorizon.proxytoolboxgui.ui.theme
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -95,10 +97,13 @@ fun AppTheme(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    val colorScheme = if (darkTheme) DarkColors else LightColors
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
-    )
+    Crossfade(
+        targetState = darkTheme,
+        animationSpec = tween(durationMillis = 500)
+    ) { isDark ->
+        MaterialTheme(
+            colorScheme = if (isDark) DarkColors else LightColors,
+            content = content
+        )
+    }
 }

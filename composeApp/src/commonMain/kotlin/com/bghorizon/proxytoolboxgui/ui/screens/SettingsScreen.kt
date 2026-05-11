@@ -4,8 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,26 +19,26 @@ import proxytoolboxgui.composeapp.generated.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun SettingsTopBar() {
+    TopAppBar(
+        title = { Text(stringResource(Res.string.title_settings)) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun SettingsScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val settings = uiState.settings
     val workers = uiState.workers
     val activeDialog = uiState.activeDialog
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.title_settings)) }
-            )
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
             item {
                 Column {
                     SettingsCategory(title = stringResource(Res.string.category_appearance))
@@ -182,8 +180,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
         }
-
-    }
 
     when (activeDialog) {
         ActiveDialog.Worker -> {

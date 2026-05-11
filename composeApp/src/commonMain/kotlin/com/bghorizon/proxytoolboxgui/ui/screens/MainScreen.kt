@@ -52,6 +52,29 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun MainTopBar(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    TopAppBar(
+        title = { Text(stringResource(Res.string.app_name)) },
+        actions = {
+            TextButton(onClick = { viewModel.updateSubscriptions() }) {
+                Text(
+                    if (uiState.downloadProgress.isRunning)
+                        stringResource(
+                            Res.string.btn_subs_update_in_progress,
+                            uiState.downloadProgress.total,
+                            uiState.downloadProgress.succeeded,
+                            uiState.downloadProgress.failed
+                        )
+                    else
+                        stringResource(Res.string.btn_subs_update)
+                )
+            }
+        }
+    )
+}
+
+@Composable
 fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val subs by viewModel.subscriptions.collectAsState()
@@ -69,139 +92,115 @@ fun MainScreen(viewModel: MainViewModel) {
     val totalValidErr = subs.sumOf { it.validErr }
     val totalWorking = subs.sumOf { it.working }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.app_name)) },
-                actions = {
-                    TextButton(onClick = { viewModel.updateSubscriptions() }) {
-                        Text(
-                            if (downloadProgress.isRunning)
-                                stringResource(
-                                    Res.string.btn_subs_update_in_progress,
-                                    downloadProgress.total,
-                                    downloadProgress.succeeded,
-                                    downloadProgress.failed
-                                )
-                            else
-                                stringResource(Res.string.btn_subs_update)
-                        )
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatsCard(
-                found = totalFound,
-                duplicated = totalDuplicate,
-                parseErr = totalParseErr,
-                validErr = totalValidErr,
-                working = totalWorking
-            )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        StatsCard(
+            found = totalFound,
+            duplicated = totalDuplicate,
+            parseErr = totalParseErr,
+            validErr = totalValidErr,
+            working = totalWorking
+        )
 
-            if (testProgress.batchProgresses.isNotEmpty()) {
-                val groupedBatches = remember(testProgress.batchProgresses) {
-                    testProgress.batchProgresses.groupBy { it.batchNum }.toList()
-                        .sortedBy { it.first }
-                }
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(groupedBatches) { (batchNum, rounds) ->
-                        BatchTable(batchNum, rounds)
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = when (appStatus) {
-                            AppStatus.IDLE -> stringResource(Res.string.ready)
-                            AppStatus.COMPLETED -> stringResource(Res.string.completed)
-                            AppStatus.ERROR -> stringResource(Res.string.error)
-                            else -> stringResource(Res.string.testing)
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        if (testProgress.batchProgresses.isNotEmpty()) {
+            val groupedBatches = remember(testProgress.batchProgresses) {
+                testProgress.batchProgresses.groupBy { it.batchNum }.toList()
+                    .sortedBy { it.first }
             }
-
-            if (testProgress.isRunning) {
-                TestProgressBar(testProgress)
-            }
-
-            if (downloadProgress.isRunning) {
-                DownloadProgressIndicator(downloadProgress)
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = { viewModel.copyWorkingConfigs() },
-                    modifier = Modifier.weight(1f),
-                    enabled = totalWorking > 0
-                ) {
-                    Text(stringResource(Res.string.btn_copy))
-                }
-                Button(
-                    onClick = { viewModel.exportWorkingConfigs() },
-                    modifier = Modifier.weight(1f),
-                    enabled = totalWorking > 0
-                ) {
-                    Text(stringResource(Res.string.btn_export))
-                }
-                Button(
-                    onClick = { viewModel.toggleWebServer() },
-                    modifier = Modifier.weight(1f),
-                    colors = if (webServerRunning) {
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    } else ButtonDefaults.buttonColors()
-                ) {
-                    Text(stringResource(Res.string.btn_web_server))
+                items(groupedBatches) { (batchNum, rounds) ->
+                    BatchTable(batchNum, rounds)
                 }
             }
+        } else {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = when (appStatus) {
+                        AppStatus.IDLE -> stringResource(Res.string.ready)
+                        AppStatus.COMPLETED -> stringResource(Res.string.completed)
+                        AppStatus.ERROR -> stringResource(Res.string.error)
+                        else -> stringResource(Res.string.testing)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
+        if (testProgress.isRunning) {
+            TestProgressBar(testProgress)
+        }
+
+        if (downloadProgress.isRunning) {
+            DownloadProgressIndicator(downloadProgress)
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Button(
-                onClick = {
-                    if (appStatus == AppStatus.TESTING) {
-                        viewModel.stopTest()
-                    } else {
-                        viewModel.startTest()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = workers.isNotEmpty() || appStatus == AppStatus.TESTING,
-                colors = if (appStatus == AppStatus.TESTING) {
+                onClick = { viewModel.copyWorkingConfigs() },
+                modifier = Modifier.weight(1f),
+                enabled = totalWorking > 0
+            ) {
+                Text(stringResource(Res.string.btn_copy))
+            }
+            Button(
+                onClick = { viewModel.exportWorkingConfigs() },
+                modifier = Modifier.weight(1f),
+                enabled = totalWorking > 0
+            ) {
+                Text(stringResource(Res.string.btn_export))
+            }
+            Button(
+                onClick = { viewModel.toggleWebServer() },
+                modifier = Modifier.weight(1f),
+                colors = if (webServerRunning) {
                     ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 } else ButtonDefaults.buttonColors()
             ) {
-                Text(
-                    text = when {
-                        appStatus == AppStatus.TESTING -> stringResource(Res.string.btn_test_stop)
-                        workers.isEmpty() -> stringResource(Res.string.no_workers_found)
-                        else -> stringResource(Res.string.btn_test)
-                    }
-                )
+                Text(stringResource(Res.string.btn_web_server))
             }
+        }
+
+        Button(
+            onClick = {
+                if (appStatus == AppStatus.TESTING) {
+                    viewModel.stopTest()
+                } else {
+                    viewModel.startTest()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = workers.isNotEmpty() || appStatus == AppStatus.TESTING,
+            colors = if (appStatus == AppStatus.TESTING) {
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            } else ButtonDefaults.buttonColors()
+        ) {
+            Text(
+                text = when {
+                    appStatus == AppStatus.TESTING -> stringResource(Res.string.btn_test_stop)
+                    workers.isEmpty() -> stringResource(Res.string.no_workers_found)
+                    else -> stringResource(Res.string.btn_test)
+                }
+            )
         }
     }
 }

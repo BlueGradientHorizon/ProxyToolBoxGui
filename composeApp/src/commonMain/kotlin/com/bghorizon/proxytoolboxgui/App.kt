@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,8 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
@@ -26,18 +23,14 @@ import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
 import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
 import com.bghorizon.proxytoolboxgui.platform.getPlatform
-import com.bghorizon.proxytoolboxgui.ui.screens.MainScreen
-import com.bghorizon.proxytoolboxgui.ui.screens.SettingsScreen
-import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionsScreen
+import com.bghorizon.proxytoolboxgui.ui.screens.*
 import com.bghorizon.proxytoolboxgui.ui.theme.AppTheme
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import com.bghorizon.proxytoolboxgui.viewmodel.Screen
 import org.jetbrains.compose.resources.stringResource
-import proxytoolboxgui.composeapp.generated.resources.Res
-import proxytoolboxgui.composeapp.generated.resources.home
-import proxytoolboxgui.composeapp.generated.resources.subscriptions
-import proxytoolboxgui.composeapp.generated.resources.title_settings
+import proxytoolboxgui.composeapp.generated.resources.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val platform = remember { getPlatform() }
@@ -63,6 +56,13 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                 val isExpanded = maxWidth >= 900.dp
 
                 Scaffold(
+                    topBar = {
+                        when (uiState.currentScreen) {
+                            Screen.Main -> MainTopBar(viewModel)
+                            Screen.Subscriptions -> SubscriptionsTopBar(viewModel)
+                            Screen.Settings -> SettingsTopBar()
+                        }
+                    },
                     bottomBar = {
                         if (!isExpanded) {
                             NavigationBar(modifier = Modifier.height(80.dp)) {
@@ -89,6 +89,12 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 )
                             }
                         }
+                    },
+                    floatingActionButton = {
+                        when (uiState.currentScreen) {
+                            Screen.Subscriptions -> SubscriptionsFAB(viewModel)
+                            else -> {}
+                        }
                     }
                 ) { padding ->
                     Row(Modifier.fillMaxSize().padding(padding)) {
@@ -101,9 +107,8 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                             NavigationRail(
                                 modifier = Modifier.width(IntrinsicSize.Max),
                                 containerColor = MaterialTheme.colorScheme.surface,
-                                windowInsets = NavigationRailDefaults.windowInsets
+                                windowInsets = WindowInsets(0, 0, 0, 0)
                             ) {
-                                navRailSpacer()
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(Res.string.home)) },
                                     icon = { Icon(Icons.Default.Home, null) },
