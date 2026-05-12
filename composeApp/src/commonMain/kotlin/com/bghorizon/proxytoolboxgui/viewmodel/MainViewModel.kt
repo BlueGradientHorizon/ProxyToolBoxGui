@@ -497,6 +497,40 @@ class MainViewModel(
         hideDialog()
     }
 
+    fun importFromClipboard() {
+        val text = platform.getClipboardText() ?: return
+        viewModelScope.launch {
+            val unnamedStr = getString(Res.string.sub_unnamed)
+            val subs = text.lines()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .map { line ->
+                    val lastSpaceIndex = line.lastIndexOf(' ')
+                    if (lastSpaceIndex != -1) {
+                        val note = line.substring(0, lastSpaceIndex).trim()
+                        val url = line.substring(lastSpaceIndex + 1).trim()
+                        if (note.isEmpty()) unnamedStr to url else note to url
+                    } else {
+                        unnamedStr to line
+                    }
+                }
+            if (subs.isNotEmpty()) {
+                subs.forEach { (note, url) ->
+                    subscriptionRepository.saveSub(
+                        Subscription(
+                            id = ConfigUtils.generateUUID(),
+                            note = note,
+                            url = url
+                        )
+                    )
+                }
+                platform.showToast(getString(Res.string.msg_imported_subs, subs.size))
+            } else {
+                platform.showToast(getString(Res.string.msg_no_subs_found))
+            }
+        }
+    }
+
     fun showDeleteSubscription(sub: Subscription) {
         updateDialog(ActiveDialog.DeleteConfirmation(sub))
     }

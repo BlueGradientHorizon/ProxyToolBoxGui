@@ -5,19 +5,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.data.Subscription
+import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.sub_add
+import proxytoolboxgui.composeapp.generated.resources.sub_add_clipboard
+import proxytoolboxgui.composeapp.generated.resources.sub_add_manual
 import proxytoolboxgui.composeapp.generated.resources.dialog_btn_cancel
 import proxytoolboxgui.composeapp.generated.resources.dialog_btn_delete
 import proxytoolboxgui.composeapp.generated.resources.sub_del_confirm
@@ -49,12 +56,47 @@ fun SubscriptionsTopBar(viewModel: MainViewModel) {
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SubscriptionsFAB(viewModel: MainViewModel) {
-    FloatingActionButton(onClick = { viewModel.showAddSubscription() }) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = stringResource(Res.string.sub_add)
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    FloatingActionButtonMenu(
+        modifier = Modifier.removeFabMenuPaddings(),
+        expanded = expanded,
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = { expanded = !expanded }
+            ) {
+                val imageVector by remember {
+                    derivedStateOf {
+                        if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
+                    }
+                }
+                Icon(
+                    imageVector = imageVector,
+                    contentDescription = null,
+                    modifier = Modifier.animateIcon({ checkedProgress })
+                )
+            }
+        }
+    ) {
+        FloatingActionButtonMenuItem(
+            onClick = {
+                viewModel.importFromClipboard()
+                expanded = false
+            },
+            icon = { Icon(Icons.Default.ContentPaste, null) },
+            text = { Text(stringResource(Res.string.sub_add_clipboard)) }
+        )
+        FloatingActionButtonMenuItem(
+            onClick = {
+                viewModel.showAddSubscription()
+                expanded = false
+            },
+            icon = { Icon(Icons.Default.Edit, null) },
+            text = { Text(stringResource(Res.string.sub_add_manual)) }
         )
     }
 }
@@ -89,6 +131,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                 onSave = { note, url -> viewModel.saveSubscription(note, url) }
             )
         }
+
         is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.EditSubscription -> {
             AddSubscriptionDialog(
                 editingSubscription = activeDialog.subscription,
@@ -96,6 +139,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                 onSave = { note, url -> viewModel.saveSubscription(note, url) }
             )
         }
+
         is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.DeleteConfirmation -> {
             DeleteConfirmationDialog(
                 subscription = activeDialog.subscription,
@@ -103,6 +147,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                 onConfirm = { viewModel.confirmDeleteSubscription() }
             )
         }
+
         else -> {}
     }
 }
@@ -143,7 +188,9 @@ private fun SubscriptionItem(
                 val dateStr = if (subscription.updatedAt > 0) {
                     val instant = Instant.fromEpochMilliseconds(subscription.updatedAt)
                     val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-                    "${localDateTime.date} ${localDateTime.time.hour.toString().padStart(2, '0')}:${localDateTime.time.minute.toString().padStart(2, '0')}"
+                    "${localDateTime.date} ${
+                        localDateTime.time.hour.toString().padStart(2, '0')
+                    }:${localDateTime.time.minute.toString().padStart(2, '0')}"
                 } else {
                     stringResource(Res.string.sub_not_updated)
                 }

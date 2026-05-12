@@ -37,6 +37,15 @@ class AndroidPlatform(private val context: Context) : Platform {
         }
     }
 
+    override fun getClipboardText(): String? {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = clipboard.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            return clip.getItemAt(0).text?.toString()
+        }
+        return null
+    }
+
     override suspend fun exportToFile(text: String, filename: String): String? = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { continuation ->
             val activity = ProxyToolBoxApplication.currentActivity as? ComponentActivity

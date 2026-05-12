@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
+import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.data.AppStatus
 import com.bghorizon.proxytoolboxgui.data.BatchProgress
 import com.bghorizon.proxytoolboxgui.data.DownloadProgress
@@ -164,34 +165,6 @@ fun MainFAB(viewModel: MainViewModel) {
     val isTesting = appStatus == AppStatus.TESTING
 
     var expanded by rememberSaveable { mutableStateOf(false) }
-
-    /**
-     * Negates both the hardcoded horizontal padding [FabMenuPaddingHorizontal] and bottom
-     * padding [FabMenuButtonPaddingBottom] in the Material 3 [FloatingActionButtonMenu].
-     * Paddings are already applied by [Scaffold].
-     * The height will still be 72dp though, but this wouldn't be detectable visually.
-     * This is probably the worst decision ever made when they hardcoded paddings without
-     * easy way to remove them.
-     * Maybe buggy, but works at least :/
-     */
-    fun Modifier.removeFabMenuPaddings(
-        horizontalPadding: Dp = 16.dp,
-        bottomPadding: Dp = 16.dp
-    ): Modifier = this.layout { measurable, constraints ->
-        val horizontalPx = horizontalPadding.roundToPx()
-        val bottomPx = bottomPadding.roundToPx()
-
-        val placeable = measurable.measure(
-            constraints.copy(minWidth = 0, minHeight = 0)
-        )
-
-        val width = maxOf(0, placeable.width - horizontalPx * 2)
-        val height = maxOf(0, placeable.height - bottomPx)
-
-        layout(width, height) {
-            placeable.place(-horizontalPx, 0)
-        }
-    }
 
     Column(
         horizontalAlignment = Alignment.End

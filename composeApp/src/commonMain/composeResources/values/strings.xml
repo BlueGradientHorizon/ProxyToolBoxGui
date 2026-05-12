@@ -40,11 +40,14 @@
     <string name="title_manage_subscriptions">Manage Subscriptions</string>
     <string name="back">Back</string>
     <string name="sub_add">Add Subscription</string>
+    <string name="sub_add_clipboard">From clipboard</string>
+    <string name="sub_add_manual">Manual input</string>
     <string name="sub_edit">Edit Subscription</string>
     <string name="sub_edit_note">Note</string>
     <string name="sub_edit_link">Link</string>
     <string name="sub_del_confirm">Delete subscription "%1$s"?</string>
     <string name="sub_item_total_working">Total: %1$d | Working: %2$d</string>
+    <string name="sub_unnamed">Unnamed</string>
     <string name="sub_not_updated">Not updated yet</string>
 <!--    <string name="sub_add">Add</string>-->
 
@@ -96,6 +99,8 @@
     <string name="msg_exported_to">Exported to %1$s</string>
     <string name="msg_export_failed">Export failed</string>
     <string name="msg_copied_to_clipboard">Copied to clipboard</string>
+    <string name="msg_imported_subs">Imported %1$d subscriptions</string>
+    <string name="msg_no_subs_found">No subscriptions found</string>
     <string name="msg_no_configs_to_test">No configs found to test</string>
     <string name="msg_select_worker">Please select a worker in settings</string>
     <string name="msg_test_error">Test Error: %1$s</string>

@@ -2,6 +2,7 @@ package com.bghorizon.proxytoolboxgui.platform
 
 import com.bghorizon.proxytoolboxgui.data.NativeLoader
 import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.io.File
 import javax.swing.JFileChooser
@@ -23,6 +24,20 @@ class JVMPlatform : Platform {
     override fun copyToClipboard(text: String, label: String) {
         val clipboard = Toolkit.getDefaultToolkit().systemClipboard
         clipboard.setContents(StringSelection(text), null)
+    }
+
+    override fun getClipboardText(): String? {
+        return try {
+            val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+            val contents = clipboard.getContents(null)
+            if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+                contents.getTransferData(DataFlavor.stringFlavor) as String
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override suspend fun exportToFile(text: String, filename: String): String? {
