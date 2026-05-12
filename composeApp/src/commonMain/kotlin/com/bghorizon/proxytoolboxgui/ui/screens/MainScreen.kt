@@ -1,18 +1,24 @@
 package com.bghorizon.proxytoolboxgui.ui.screens
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import kotlinx.coroutines.delay
 import androidx.compose.material3.*
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import com.bghorizon.proxytoolboxgui.data.AppStatus
 import com.bghorizon.proxytoolboxgui.data.BatchProgress
 import com.bghorizon.proxytoolboxgui.data.DownloadProgress
@@ -82,8 +88,6 @@ fun MainScreen(viewModel: MainViewModel) {
     val testProgress = uiState.testProgress
     val downloadProgress = uiState.downloadProgress
     val appStatus = uiState.appStatus
-    val workers = uiState.workers
-    val webServerRunning = uiState.webServerRunning
     val settings = uiState.settings
 
     val totalFound = subs.sumOf { it.total }
@@ -144,66 +148,145 @@ fun MainScreen(viewModel: MainViewModel) {
         if (downloadProgress.isRunning) {
             DownloadProgressIndicator(downloadProgress)
         }
+    }
+}
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = { viewModel.copyWorkingConfigs() },
-                modifier = Modifier.weight(1f),
-                enabled = totalWorking > 0
-            ) {
-                Text(stringResource(Res.string.btn_copy))
-            }
-            Button(
-                onClick = { viewModel.exportWorkingConfigs() },
-                modifier = Modifier.weight(1f),
-                enabled = totalWorking > 0
-            ) {
-                Text(stringResource(Res.string.btn_export))
-            }
-            Button(
-                onClick = { viewModel.toggleWebServer() },
-                modifier = Modifier.weight(1f),
-                colors = if (webServerRunning) {
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun MainFAB(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    val subs by viewModel.subscriptions.collectAsState()
+    val totalWorking = subs.sumOf { it.working }
+
+    val appStatus = uiState.appStatus
+    val workers = uiState.workers
+
+    val isTesting = appStatus == AppStatus.TESTING
+
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    /**
+     * Negates both the hardcoded horizontal padding [FabMenuPaddingHorizontal] and bottom
+     * padding [FabMenuButtonPaddingBottom] in the Material 3 [FloatingActionButtonMenu].
+     * Paddings are already applied by [Scaffold].
+     * The height will still be 72dp though, but this wouldn't be detectable visually.
+     * This is probably the worst decision ever made when they hardcoded paddings without
+     * easy way to remove them.
+     * Maybe buggy, but works at least :/
+     */
+    fun Modifier.removeFabMenuPaddings(
+        horizontalPadding: Dp = 16.dp,
+        bottomPadding: Dp = 16.dp
+    ): Modifier = this.layout { measurable, constraints ->
+        val horizontalPx = horizontalPadding.roundToPx()
+        val bottomPx = bottomPadding.roundToPx()
+
+        val placeable = measurable.measure(
+            constraints.copy(minWidth = 0, minHeight = 0)
+        )
+
+        val width = maxOf(0, placeable.width - horizontalPx * 2)
+        val height = maxOf(0, placeable.height - bottomPx)
+
+        layout(width, height) {
+            placeable.place(-horizontalPx, 0)
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.End
+    ) {
+        FloatingActionButtonMenu(
+            modifier = Modifier.removeFabMenuPaddings(),
+            expanded = expanded,
+            button = {
+                ToggleFloatingActionButton(
+                    checked = expanded,
+                    onCheckedChange = { expanded = !expanded }
+                ) {
+                    val imageVector by remember {
+                        derivedStateOf {
+                            if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Share
+                        }
+                    }
+                    Icon(
+                        imageVector = imageVector,
+                        contentDescription = null,
+                        modifier = Modifier.animateIcon({ checkedProgress })
                     )
-                } else ButtonDefaults.buttonColors()
-            ) {
-                Text(stringResource(Res.string.btn_web_server))
+                }
             }
+        ) {
+            FloatingActionButtonMenuItem(
+                onClick = {
+                    viewModel.toggleWebServer()
+                    expanded = false
+                },
+                icon = { Icon(Icons.Default.Public, null) },
+                text = { Text(stringResource(Res.string.btn_web_server)) }
+            )
+            FloatingActionButtonMenuItem(
+                onClick = {
+                    if (totalWorking > 0) {
+                        viewModel.exportWorkingConfigs()
+                        expanded = false
+                    }
+                },
+                icon = { Icon(Icons.Default.Download, null) },
+                text = { Text(stringResource(Res.string.btn_export)) }
+            )
+            FloatingActionButtonMenuItem(
+                onClick = {
+                    if (totalWorking > 0) {
+                        viewModel.copyWorkingConfigs()
+                        expanded = false
+                    }
+                },
+                icon = { Icon(Icons.Default.ContentCopy, null) },
+                text = { Text(stringResource(Res.string.btn_copy)) }
+            )
         }
 
-        Button(
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Main Test FAB
+        ExtendedFloatingActionButton(
             onClick = {
-                if (appStatus == AppStatus.TESTING) {
+                if (isTesting) {
                     viewModel.stopTest()
-                } else {
+                } else if (workers.isNotEmpty()) {
                     viewModel.startTest()
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = workers.isNotEmpty() || appStatus == AppStatus.TESTING,
-            colors = if (appStatus == AppStatus.TESTING) {
-                ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+            icon = {
+                Icon(
+                    imageVector = if (isTesting) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = null
                 )
-            } else ButtonDefaults.buttonColors()
-        ) {
-            Text(
-                text = when {
-                    appStatus == AppStatus.TESTING -> stringResource(Res.string.btn_test_stop)
-                    workers.isEmpty() -> stringResource(Res.string.no_workers_found)
-                    else -> stringResource(Res.string.btn_test)
-                }
-            )
-        }
+            },
+            text = {
+                Text(
+                    text = when {
+                        isTesting -> stringResource(Res.string.btn_test_stop)
+                        workers.isEmpty() -> stringResource(Res.string.no_workers_found)
+                        else -> stringResource(Res.string.btn_test)
+                    }
+                )
+            },
+            containerColor = when {
+                isTesting -> MaterialTheme.colorScheme.errorContainer
+                workers.isEmpty() -> MaterialTheme.colorScheme.surfaceVariant
+                else -> MaterialTheme.colorScheme.primaryContainer
+            },
+            contentColor = when {
+                isTesting -> MaterialTheme.colorScheme.onErrorContainer
+                workers.isEmpty() -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                else -> MaterialTheme.colorScheme.onPrimaryContainer
+            }
+        )
     }
 }
+
 
 @Composable
 private fun StatsCard(

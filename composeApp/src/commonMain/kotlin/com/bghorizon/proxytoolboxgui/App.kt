@@ -95,6 +95,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                     },
                     floatingActionButton = {
                         when (uiState.currentScreen) {
+                            Screen.Main -> MainFAB(viewModel)
                             Screen.Subscriptions -> SubscriptionsFAB(viewModel)
                             else -> {}
                         }
