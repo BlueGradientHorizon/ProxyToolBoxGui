@@ -8,6 +8,9 @@ import com.bghorizon.proxytoolboxgui.platform.Platform
 import com.bghorizon.proxytoolboxgui.utils.ConfigUtils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -393,7 +396,19 @@ class MainViewModel(
     fun exportWorkingConfigs() {
         viewModelScope.launch(Dispatchers.IO) {
             val uris = getWorkingConfigsString()
-            val path = platform.exportToFile(uris, "working_configs.txt")
+            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+
+            val day = now.day.toString().padStart(2, '0')
+            val month = now.month.ordinal.toString().padStart(2, '0')
+            val dmy = "${day}${month}${now.year}"
+
+            val hour = now.hour.toString().padStart(2, '0')
+            val minute = now.minute.toString().padStart(2, '0')
+            val second = now.second.toString().padStart(2, '0')
+            val hms = "${hour}${minute}${second}"
+            val filename = "ProxyToolBoxGui_export_${dmy}_${hms}.txt"
+
+            val path = platform.exportToFile(uris, filename)
             val msg = if (path != null) {
                 getString(Res.string.msg_exported_to, path)
             } else {

@@ -25,7 +25,7 @@ class JVMPlatform : Platform {
         clipboard.setContents(StringSelection(text), null)
     }
 
-    override fun exportToFile(text: String, filename: String): String? {
+    override suspend fun exportToFile(text: String, filename: String): String? {
         val chooser = JFileChooser()
         chooser.selectedFile = File(filename)
         if (chooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
