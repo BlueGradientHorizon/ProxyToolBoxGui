@@ -1,11 +1,9 @@
 package com.bghorizon.proxytoolboxgui.ui.screens
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import kotlinx.coroutines.delay
 import androidx.compose.material3.*
@@ -14,22 +12,19 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.offset
+import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
+import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.data.AppStatus
 import com.bghorizon.proxytoolboxgui.data.BatchProgress
 import com.bghorizon.proxytoolboxgui.data.DownloadProgress
 import com.bghorizon.proxytoolboxgui.data.TestProgress
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
-import com.bghorizon.proxytoolboxgui.viewmodel.Screen
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.app_name
-import proxytoolboxgui.composeapp.generated.resources.home
 import proxytoolboxgui.composeapp.generated.resources.batch_title
 import proxytoolboxgui.composeapp.generated.resources.column_failed
 import proxytoolboxgui.composeapp.generated.resources.column_round
@@ -45,9 +40,7 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_parsing_errors
 import proxytoolboxgui.composeapp.generated.resources.lbl_profiles_duplicated
 import proxytoolboxgui.composeapp.generated.resources.lbl_profiles_found
 import proxytoolboxgui.composeapp.generated.resources.ready
-import proxytoolboxgui.composeapp.generated.resources.title_settings
 import proxytoolboxgui.composeapp.generated.resources.btn_test_stop
-import proxytoolboxgui.composeapp.generated.resources.subscriptions
 import proxytoolboxgui.composeapp.generated.resources.btn_test
 import proxytoolboxgui.composeapp.generated.resources.test_progress_status
 import proxytoolboxgui.composeapp.generated.resources.testing
@@ -89,7 +82,6 @@ fun MainScreen(viewModel: MainViewModel) {
     val testProgress = uiState.testProgress
     val downloadProgress = uiState.downloadProgress
     val appStatus = uiState.appStatus
-    val settings = uiState.settings
 
     val totalFound = subs.sumOf { it.total }
     val totalDuplicate = subs.sumOf { it.duplicated }
@@ -97,57 +89,67 @@ fun MainScreen(viewModel: MainViewModel) {
     val totalValidErr = subs.sumOf { it.validErr }
     val totalWorking = subs.sumOf { it.working }
 
-    Column(
+    val scaffoldPadding = LocalScaffoldPadding.current
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = ScreenPadding),
+        contentPadding = PaddingValues(
+            top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
+            bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        StatsCard(
-            found = totalFound,
-            duplicated = totalDuplicate,
-            parseErr = totalParseErr,
-            validErr = totalValidErr,
-            working = totalWorking
-        )
+        item {
+            StatsCard(
+                found = totalFound,
+                duplicated = totalDuplicate,
+                parseErr = totalParseErr,
+                validErr = totalValidErr,
+                working = totalWorking
+            )
+        }
 
         if (testProgress.batchProgresses.isNotEmpty()) {
-            val groupedBatches = remember(testProgress.batchProgresses) {
-                testProgress.batchProgresses.groupBy { it.batchNum }.toList()
-                    .sortedBy { it.first }
-            }
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(groupedBatches) { (batchNum, rounds) ->
-                    BatchTable(batchNum, rounds)
-                }
+            val groupedBatches = testProgress.batchProgresses.groupBy { it.batchNum }.toList()
+                .sortedBy { it.first }
+
+            items(groupedBatches) { (batchNum, rounds) ->
+                BatchTable(batchNum, rounds)
             }
         } else {
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = when (appStatus) {
-                        AppStatus.IDLE -> stringResource(Res.string.ready)
-                        AppStatus.COMPLETED -> stringResource(Res.string.completed)
-                        AppStatus.ERROR -> stringResource(Res.string.error)
-                        else -> stringResource(Res.string.testing)
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = when (appStatus) {
+                            AppStatus.IDLE -> stringResource(Res.string.ready)
+                            AppStatus.COMPLETED -> stringResource(Res.string.completed)
+                            AppStatus.ERROR -> stringResource(Res.string.error)
+                            else -> stringResource(Res.string.testing)
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
         if (testProgress.isRunning) {
-            TestProgressBar(testProgress)
+            item {
+                TestProgressBar(testProgress)
+            }
         }
 
         if (downloadProgress.isRunning) {
-            DownloadProgressIndicator(downloadProgress)
+            item {
+                DownloadProgressIndicator(downloadProgress)
+            }
         }
     }
 }

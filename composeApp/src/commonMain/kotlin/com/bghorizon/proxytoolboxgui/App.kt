@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
@@ -29,6 +30,9 @@ import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import com.bghorizon.proxytoolboxgui.viewmodel.Screen
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
+
+val LocalScaffoldPadding = compositionLocalOf { PaddingValues(0.dp) }
+val ScreenPadding = 16.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +105,15 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                         }
                     }
                 ) { padding ->
-                    Row(Modifier.fillMaxSize().padding(padding)) {
+                    val layoutDirection = LocalLayoutDirection.current
+                    Row(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                start = padding.calculateStartPadding(layoutDirection),
+                                end = padding.calculateEndPadding(layoutDirection)
+                            )
+                    ) {
                         if (isExpanded) {
                             val navDrawItemHorizontalPadding = 12.dp
                             val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
@@ -113,6 +125,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 windowInsets = WindowInsets(0, 0, 0, 0)
                             ) {
+                                Spacer(Modifier.height(padding.calculateTopPadding()))
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(Res.string.home)) },
                                     icon = { Icon(Icons.Default.Home, null) },
@@ -139,7 +152,9 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                             }
                         }
                         Box(Modifier.fillMaxSize().weight(1f)) {
-                            AppScreenContent(uiState.currentScreen, viewModel)
+                            CompositionLocalProvider(LocalScaffoldPadding provides padding) {
+                                AppScreenContent(uiState.currentScreen, viewModel)
+                            }
                         }
                     }
                 }
@@ -181,7 +196,7 @@ fun RowScope.AdaptiveNavigationItem(
                     .clip(CircleShape)
                     .background(containerColor)
                     .clickable(onClick = onClick)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = ScreenPadding, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {

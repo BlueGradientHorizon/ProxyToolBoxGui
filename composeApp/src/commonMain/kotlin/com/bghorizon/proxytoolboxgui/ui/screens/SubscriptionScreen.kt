@@ -22,6 +22,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
+import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.data.Subscription
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
@@ -133,7 +135,6 @@ fun SubscriptionsFAB(viewModel: MainViewModel) {
             FloatingActionButtonMenuItem(
                 onClick = {
                     viewModel.importFromClipboard()
-                    expanded = false
                 },
                 icon = { Icon(Icons.Default.ContentPaste, null) },
                 text = { Text(stringResource(Res.string.sub_add_clipboard)) }
@@ -141,7 +142,6 @@ fun SubscriptionsFAB(viewModel: MainViewModel) {
             FloatingActionButtonMenuItem(
                 onClick = {
                     viewModel.updateDialog(SubscriptionDialog.Add)
-                    expanded = false
                 },
                 icon = { Icon(Icons.Default.Edit, null) },
                 text = { Text(stringResource(Res.string.sub_add_manual)) }
@@ -156,10 +156,16 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
     val subscriptions by viewModel.subscriptions.collectAsState()
     val activeDialog = uiState.activeDialog
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = ScreenPadding),
+        contentPadding = PaddingValues(
+            top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
+            bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(subscriptions) { sub ->
@@ -400,7 +406,7 @@ private fun AddSubscriptionDialog(
             TextButton(
                 onClick = {
                     if (note.isBlank() || url.isBlank()) {
-                        error = true
+//                        error = true
                     } else {
                         onSave(note, url)
                     }

@@ -12,6 +12,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
+import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
@@ -45,11 +47,17 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val workers = uiState.workers
     val activeDialog = uiState.activeDialog
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = ScreenPadding),
+        contentPadding = PaddingValues(
+            top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
+            bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
+        ),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             SettingsSection(title = stringResource(Res.string.category_appearance)) {
@@ -325,7 +333,7 @@ private fun SettingsCategory(title: String) {
         text = title,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+        modifier = Modifier.padding(bottom = 8.dp)
     )
 }
 
