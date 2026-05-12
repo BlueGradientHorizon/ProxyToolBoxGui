@@ -4,12 +4,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.*
@@ -21,21 +26,7 @@ import com.bghorizon.proxytoolboxgui.data.Subscription
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
-import proxytoolboxgui.composeapp.generated.resources.Res
-import proxytoolboxgui.composeapp.generated.resources.sub_add
-import proxytoolboxgui.composeapp.generated.resources.sub_add_clipboard
-import proxytoolboxgui.composeapp.generated.resources.sub_add_manual
-import proxytoolboxgui.composeapp.generated.resources.dialog_btn_cancel
-import proxytoolboxgui.composeapp.generated.resources.dialog_btn_delete
-import proxytoolboxgui.composeapp.generated.resources.sub_del_confirm
-import proxytoolboxgui.composeapp.generated.resources.sub_edit
-import proxytoolboxgui.composeapp.generated.resources.sub_edit_link
-import proxytoolboxgui.composeapp.generated.resources.title_manage_subscriptions
-import proxytoolboxgui.composeapp.generated.resources.sub_edit_note
-import proxytoolboxgui.composeapp.generated.resources.dialog_btn_save
-import proxytoolboxgui.composeapp.generated.resources.sub_item_total_working
-import proxytoolboxgui.composeapp.generated.resources.sub_not_updated
-import proxytoolboxgui.composeapp.generated.resources.btn_subs_update
+import proxytoolboxgui.composeapp.generated.resources.*
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -43,61 +34,110 @@ import kotlinx.datetime.toLocalDateTime
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionsTopBar(viewModel: MainViewModel) {
-    TopAppBar(
-        title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
-        actions = {
-            IconButton(onClick = { viewModel.updateSubscriptions() }) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(Res.string.btn_subs_update)
-                )
+    val subscriptions by viewModel.subscriptions.collectAsState()
+    val isAllSelected = viewModel.selectedSubscriptionIds.size == subscriptions.size && subscriptions.isNotEmpty()
+
+    if (viewModel.isExportMode) {
+        TopAppBar(
+            title = { Text(stringResource(Res.string.title_export_subscriptions)) },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            ),
+            navigationIcon = {
+                IconButton(onClick = { viewModel.toggleExportMode() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(Res.string.back)
+                    )
+                }
+            },
+            actions = {
+                IconButton(
+                    onClick = {
+                        if (isAllSelected) viewModel.deselectAllSubscriptions()
+                        else viewModel.selectAllSubscriptions()
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                        contentDescription = stringResource(
+                            if (isAllSelected) Res.string.sub_deselect_all else Res.string.sub_select_all
+                        )
+                    )
+                }
             }
-        }
-    )
+        )
+    } else {
+        TopAppBar(
+            title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
+            actions = {
+                IconButton(onClick = { viewModel.toggleExportMode() }) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = stringResource(Res.string.sub_export_share)
+                    )
+                }
+                IconButton(onClick = { viewModel.updateSubscriptions() }) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(Res.string.btn_subs_update)
+                    )
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SubscriptionsFAB(viewModel: MainViewModel) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    if (viewModel.isExportMode) {
+        ExtendedFloatingActionButton(
+            onClick = { viewModel.showExportOptionsDialog = true },
+            icon = { Icon(Icons.Default.Share, null) },
+            text = { Text(stringResource(Res.string.btn_export_options)) }
+        )
+    } else {
+        var expanded by rememberSaveable { mutableStateOf(false) }
 
-    FloatingActionButtonMenu(
-        modifier = Modifier.removeFabMenuPaddings(),
-        expanded = expanded,
-        button = {
-            ToggleFloatingActionButton(
-                checked = expanded,
-                onCheckedChange = { expanded = !expanded }
-            ) {
-                val imageVector by remember {
-                    derivedStateOf {
-                        if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
+        FloatingActionButtonMenu(
+            modifier = Modifier.removeFabMenuPaddings(),
+            expanded = expanded,
+            button = {
+                ToggleFloatingActionButton(
+                    checked = expanded,
+                    onCheckedChange = { expanded = !expanded }
+                ) {
+                    val imageVector by remember {
+                        derivedStateOf {
+                            if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
+                        }
                     }
+                    Icon(
+                        imageVector = imageVector,
+                        contentDescription = null,
+                        modifier = Modifier.animateIcon({ checkedProgress })
+                    )
                 }
-                Icon(
-                    imageVector = imageVector,
-                    contentDescription = null,
-                    modifier = Modifier.animateIcon({ checkedProgress })
-                )
             }
+        ) {
+            FloatingActionButtonMenuItem(
+                onClick = {
+                    viewModel.importFromClipboard()
+                    expanded = false
+                },
+                icon = { Icon(Icons.Default.ContentPaste, null) },
+                text = { Text(stringResource(Res.string.sub_add_clipboard)) }
+            )
+            FloatingActionButtonMenuItem(
+                onClick = {
+                    viewModel.showAddSubscription()
+                    expanded = false
+                },
+                icon = { Icon(Icons.Default.Edit, null) },
+                text = { Text(stringResource(Res.string.sub_add_manual)) }
+            )
         }
-    ) {
-        FloatingActionButtonMenuItem(
-            onClick = {
-                viewModel.importFromClipboard()
-                expanded = false
-            },
-            icon = { Icon(Icons.Default.ContentPaste, null) },
-            text = { Text(stringResource(Res.string.sub_add_clipboard)) }
-        )
-        FloatingActionButtonMenuItem(
-            onClick = {
-                viewModel.showAddSubscription()
-                expanded = false
-            },
-            icon = { Icon(Icons.Default.Edit, null) },
-            text = { Text(stringResource(Res.string.sub_add_manual)) }
-        )
     }
 }
 
@@ -117,6 +157,9 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
         items(subscriptions) { sub ->
             SubscriptionItem(
                 subscription = sub,
+                isExportMode = viewModel.isExportMode,
+                isSelected = viewModel.selectedSubscriptionIds.contains(sub.id),
+                onSelectionChange = { viewModel.toggleSubscriptionSelection(sub.id) },
                 onEdit = { viewModel.showEditSubscription(sub) },
                 onDelete = { viewModel.showDeleteSubscription(sub) }
             )
@@ -150,11 +193,24 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
 
         else -> {}
     }
+
+    if (viewModel.showExportOptionsDialog) {
+        ExportOptionsDialog(
+            onDismiss = { viewModel.showExportOptionsDialog = false },
+            onExportToClipboard = { includeNotes ->
+                viewModel.exportSelectedToClipboard(includeNotes)
+                viewModel.showExportOptionsDialog = false
+            }
+        )
+    }
 }
 
 @Composable
 private fun SubscriptionItem(
     subscription: Subscription,
+    isExportMode: Boolean,
+    isSelected: Boolean,
+    onSelectionChange: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -162,7 +218,8 @@ private fun SubscriptionItem(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        ),
+        onClick = { if (isExportMode) onSelectionChange(!isSelected) }
     ) {
         Row(
             modifier = Modifier
@@ -200,22 +257,84 @@ private fun SubscriptionItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick = onEdit) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = stringResource(Res.string.sub_edit)
-                    )
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(Res.string.dialog_btn_delete)
-                    )
+            if (isExportMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = onSelectionChange
+                )
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(onClick = onEdit) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(Res.string.sub_edit)
+                        )
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = stringResource(Res.string.dialog_btn_delete)
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ExportOptionsDialog(
+    onDismiss: () -> Unit,
+    onExportToClipboard: (Boolean) -> Unit
+) {
+    var includeNotes by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.btn_export_options)) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = { /* Not implemented */ },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.QrCode, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(Res.string.export_show_qr))
+                }
+                Button(
+                    onClick = { onExportToClipboard(includeNotes) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.ContentPaste, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(Res.string.export_to_clipboard))
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Checkbox(
+                        checked = includeNotes,
+                        onCheckedChange = { includeNotes = it }
+                    )
+                    Text(
+                        text = stringResource(Res.string.export_include_notes),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.dialog_btn_cancel))
+            }
+        }
+    )
 }
 
 @Composable

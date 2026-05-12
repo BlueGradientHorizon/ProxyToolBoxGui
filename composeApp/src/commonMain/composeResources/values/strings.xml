@@ -38,6 +38,7 @@
 
     <!-- Subscriptions Screen -->
     <string name="title_manage_subscriptions">Manage Subscriptions</string>
+    <string name="title_export_subscriptions">Export subscriptions</string>
     <string name="back">Back</string>
     <string name="sub_add">Add Subscription</string>
     <string name="sub_add_clipboard">From clipboard</string>
@@ -49,6 +50,13 @@
     <string name="sub_item_total_working">Total: %1$d | Working: %2$d</string>
     <string name="sub_unnamed">Unnamed</string>
     <string name="sub_not_updated">Not updated yet</string>
+    <string name="sub_export_share">Share</string>
+    <string name="btn_export_options">Export options</string>
+    <string name="export_show_qr">Show QR code</string>
+    <string name="export_to_clipboard">Export to clipboard</string>
+    <string name="export_include_notes">Include notes</string>
+    <string name="sub_select_all">Select all</string>
+    <string name="sub_deselect_all">Deselect all</string>
 <!--    <string name="sub_add">Add</string>-->
 
     <!-- Settings Screen -->

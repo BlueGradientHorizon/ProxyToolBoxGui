@@ -27,6 +27,7 @@ sealed class ActiveDialog {
     object Port : ActiveDialog()
     object TestUrl : ActiveDialog()
     object ParallelDownloads : ActiveDialog()
+    object ExportOptions : ActiveDialog()
 }
 
 enum class Screen {

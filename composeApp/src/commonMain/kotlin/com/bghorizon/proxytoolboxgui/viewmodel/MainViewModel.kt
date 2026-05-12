@@ -1,5 +1,8 @@
 package com.bghorizon.proxytoolboxgui.viewmodel
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.*
@@ -26,6 +29,12 @@ class MainViewModel(
         MainUiState(isDynamicColorSupported = platform.isDynamicColorSupported)
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    var isExportMode by mutableStateOf(false)
+
+    var selectedSubscriptionIds by mutableStateOf(setOf<String>())
+
+    var showExportOptionsDialog by mutableStateOf(false)
 
     val subscriptions: StateFlow<List<Subscription>> = subscriptionRepository.subscriptions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -533,6 +542,48 @@ class MainViewModel(
 
     fun showDeleteSubscription(sub: Subscription) {
         updateDialog(ActiveDialog.DeleteConfirmation(sub))
+    }
+
+    fun toggleExportMode() {
+        isExportMode = !isExportMode
+        if (!isExportMode) {
+            selectedSubscriptionIds = emptySet()
+        }
+    }
+
+    fun toggleSubscriptionSelection(id: String) {
+        selectedSubscriptionIds = if (selectedSubscriptionIds.contains(id)) {
+            selectedSubscriptionIds - id
+        } else {
+            selectedSubscriptionIds + id
+        }
+    }
+
+    fun selectAllSubscriptions() {
+        selectedSubscriptionIds = subscriptions.value.map { it.id }.toSet()
+    }
+
+    fun deselectAllSubscriptions() {
+        selectedSubscriptionIds = emptySet()
+    }
+
+    fun exportSelectedToClipboard(includeNotes: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val selected = subscriptions.value.filter { selectedSubscriptionIds.contains(it.id) }
+            if (selected.isEmpty()) return@launch
+
+            val text = selected.joinToString("\n") {
+                if (includeNotes) "${it.note} ${it.url}" else it.url
+            }
+
+            val msg = getString(Res.string.msg_copied_to_clipboard)
+            val label = getString(Res.string.label_proxy_configs)
+            withContext(Dispatchers.Main) {
+                platform.copyToClipboard(text, label)
+                platform.showToast(msg)
+                toggleExportMode()
+            }
+        }
     }
 
     fun confirmDeleteSubscription() {
