@@ -1,6 +1,5 @@
 package com.bghorizon.proxytoolboxgui.ui.theme
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -43,13 +42,9 @@ fun AppTheme(
     Surface(
         color = colorScheme.background
     ) {
-        Crossfade(
-            targetState = colorScheme
-        ) { scheme ->
-            MaterialTheme(
-                colorScheme = scheme,
-                content = content
-            )
-        }
+        MaterialTheme(
+            colorScheme = colorScheme,
+            content = content
+        )
     }
 }
