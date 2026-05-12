@@ -182,6 +182,7 @@ private fun AddSubscriptionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(),
         title = {
             Text(
                 if (editingSubscription != null)
@@ -191,7 +192,10 @@ private fun AddSubscriptionDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedTextField(
                     value = note,
                     onValueChange = {
@@ -200,6 +204,7 @@ private fun AddSubscriptionDialog(
                     },
                     label = { Text(stringResource(Res.string.sub_edit_note)) },
                     isError = error && note.isBlank(),
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
@@ -210,6 +215,7 @@ private fun AddSubscriptionDialog(
                     },
                     label = { Text(stringResource(Res.string.sub_edit_link)) },
                     isError = error && url.isBlank(),
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
             }
