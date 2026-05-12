@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -19,7 +18,6 @@ import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.sub_add
-import proxytoolboxgui.composeapp.generated.resources.back
 import proxytoolboxgui.composeapp.generated.resources.dialog_btn_cancel
 import proxytoolboxgui.composeapp.generated.resources.dialog_btn_delete
 import proxytoolboxgui.composeapp.generated.resources.sub_del_confirm
@@ -29,8 +27,9 @@ import proxytoolboxgui.composeapp.generated.resources.title_manage_subscriptions
 import proxytoolboxgui.composeapp.generated.resources.sub_edit_note
 import proxytoolboxgui.composeapp.generated.resources.dialog_btn_save
 import proxytoolboxgui.composeapp.generated.resources.sub_item_total_working
+import proxytoolboxgui.composeapp.generated.resources.sub_not_updated
 import proxytoolboxgui.composeapp.generated.resources.btn_subs_update
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -141,16 +140,18 @@ private fun SubscriptionItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (subscription.updatedAt > 0) {
+                val dateStr = if (subscription.updatedAt > 0) {
                     val instant = Instant.fromEpochMilliseconds(subscription.updatedAt)
                     val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-                    val dateStr = "${localDateTime.date} ${localDateTime.time.hour.toString().padStart(2, '0')}:${localDateTime.time.minute.toString().padStart(2, '0')}"
-                    Text(
-                        text = dateStr,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    "${localDateTime.date} ${localDateTime.time.hour.toString().padStart(2, '0')}:${localDateTime.time.minute.toString().padStart(2, '0')}"
+                } else {
+                    stringResource(Res.string.sub_not_updated)
                 }
+                Text(
+                    text = dateStr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = onEdit) {
