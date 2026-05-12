@@ -25,17 +25,26 @@ import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.data.Subscription
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
+import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+sealed interface SubscriptionDialog : UiDialog {
+    data object Add : SubscriptionDialog
+    data class Edit(val subscription: Subscription) : SubscriptionDialog
+    data class Delete(val subscription: Subscription) : SubscriptionDialog
+    data object Export : SubscriptionDialog
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionsTopBar(viewModel: MainViewModel) {
     val subscriptions by viewModel.subscriptions.collectAsState()
-    val isAllSelected = viewModel.selectedSubscriptionIds.size == subscriptions.size && subscriptions.isNotEmpty()
+    val isAllSelected =
+        viewModel.selectedSubscriptionIds.size == subscriptions.size && subscriptions.isNotEmpty()
 
     if (viewModel.isExportMode) {
         TopAppBar(
@@ -93,7 +102,7 @@ fun SubscriptionsTopBar(viewModel: MainViewModel) {
 fun SubscriptionsFAB(viewModel: MainViewModel) {
     if (viewModel.isExportMode) {
         ExtendedFloatingActionButton(
-            onClick = { viewModel.showExportOptionsDialog = true },
+            onClick = { viewModel.updateDialog(SubscriptionDialog.Export) },
             icon = { Icon(Icons.Default.Share, null) },
             text = { Text(stringResource(Res.string.btn_export_options)) }
         )
@@ -131,7 +140,7 @@ fun SubscriptionsFAB(viewModel: MainViewModel) {
             )
             FloatingActionButtonMenuItem(
                 onClick = {
-                    viewModel.showAddSubscription()
+                    viewModel.updateDialog(SubscriptionDialog.Add)
                     expanded = false
                 },
                 icon = { Icon(Icons.Default.Edit, null) },
@@ -141,7 +150,6 @@ fun SubscriptionsFAB(viewModel: MainViewModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionsScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
@@ -160,14 +168,14 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                 isExportMode = viewModel.isExportMode,
                 isSelected = viewModel.selectedSubscriptionIds.contains(sub.id),
                 onSelectionChange = { viewModel.toggleSubscriptionSelection(sub.id) },
-                onEdit = { viewModel.showEditSubscription(sub) },
-                onDelete = { viewModel.showDeleteSubscription(sub) }
+                onEdit = { viewModel.updateDialog(SubscriptionDialog.Edit(sub)) },
+                onDelete = { viewModel.updateDialog(SubscriptionDialog.Delete(sub)) }
             )
         }
     }
 
-    when (activeDialog) {
-        is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.AddSubscription -> {
+    when (val dialog = activeDialog as? SubscriptionDialog) {
+        SubscriptionDialog.Add -> {
             AddSubscriptionDialog(
                 editingSubscription = null,
                 onDismiss = { viewModel.hideDialog() },
@@ -175,33 +183,34 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
             )
         }
 
-        is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.EditSubscription -> {
+        is SubscriptionDialog.Edit -> {
             AddSubscriptionDialog(
-                editingSubscription = activeDialog.subscription,
+                editingSubscription = dialog.subscription,
                 onDismiss = { viewModel.hideDialog() },
-                onSave = { note, url -> viewModel.saveSubscription(note, url) }
+                onSave = { note, url ->
+                    viewModel.saveSubscription(note, url, dialog.subscription)
+                }
             )
         }
 
-        is com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog.DeleteConfirmation -> {
+        is SubscriptionDialog.Delete -> {
             DeleteConfirmationDialog(
-                subscription = activeDialog.subscription,
+                subscription = dialog.subscription,
                 onDismiss = { viewModel.hideDialog() },
-                onConfirm = { viewModel.confirmDeleteSubscription() }
+                onConfirm = { viewModel.confirmDeleteSubscription(dialog.subscription.id) }
             )
         }
 
-        else -> {}
-    }
+        SubscriptionDialog.Export -> {
+            ExportOptionsDialog(
+                onDismiss = { viewModel.hideDialog() },
+                onExportToClipboard = { includeNotes ->
+                    viewModel.exportSelectedToClipboard(includeNotes)
+                }
+            )
+        }
 
-    if (viewModel.showExportOptionsDialog) {
-        ExportOptionsDialog(
-            onDismiss = { viewModel.showExportOptionsDialog = false },
-            onExportToClipboard = { includeNotes ->
-                viewModel.exportSelectedToClipboard(includeNotes)
-                viewModel.showExportOptionsDialog = false
-            }
-        )
+        null -> {}
     }
 }
 

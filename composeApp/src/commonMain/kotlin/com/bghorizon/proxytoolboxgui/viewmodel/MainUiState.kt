@@ -2,6 +2,9 @@ package com.bghorizon.proxytoolboxgui.viewmodel
 
 import com.bghorizon.proxytoolboxgui.data.*
 
+/** Marker interface for any dialog state in the app */
+interface UiDialog
+
 data class MainUiState(
     val currentScreen: Screen = Screen.Main,
     val testProgress: TestProgress = TestProgress(),
@@ -11,24 +14,8 @@ data class MainUiState(
     val webServerRunning: Boolean = false,
     val settings: AppSettings = AppSettings(),
     val isDynamicColorSupported: Boolean = false,
-    val activeDialog: ActiveDialog = ActiveDialog.None
+    val activeDialog: UiDialog? = null
 )
-
-sealed class ActiveDialog {
-    object None : ActiveDialog()
-    object AddSubscription : ActiveDialog()
-    data class EditSubscription(val subscription: Subscription) : ActiveDialog()
-    data class DeleteConfirmation(val subscription: Subscription) : ActiveDialog()
-    object Worker : ActiveDialog()
-    object DownloadTimeout : ActiveDialog()
-    object LatencyRounds : ActiveDialog()
-    object RoundTimeout : ActiveDialog()
-    object BatchSize : ActiveDialog()
-    object Port : ActiveDialog()
-    object TestUrl : ActiveDialog()
-    object ParallelDownloads : ActiveDialog()
-    object ExportOptions : ActiveDialog()
-}
 
 enum class Screen {
     Main, Subscriptions, Settings

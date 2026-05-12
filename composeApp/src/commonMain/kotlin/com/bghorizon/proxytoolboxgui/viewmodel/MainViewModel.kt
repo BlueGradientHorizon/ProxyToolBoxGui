@@ -34,8 +34,6 @@ class MainViewModel(
 
     var selectedSubscriptionIds by mutableStateOf(setOf<String>())
 
-    var showExportOptionsDialog by mutableStateOf(false)
-
     val subscriptions: StateFlow<List<Subscription>> = subscriptionRepository.subscriptions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -474,22 +472,11 @@ class MainViewModel(
         }
     }
 
-    fun showAddSubscription() {
-        updateDialog(ActiveDialog.AddSubscription)
-    }
-
-    fun showEditSubscription(sub: Subscription) {
-        updateDialog(ActiveDialog.EditSubscription(sub))
-    }
-
     fun hideDialog() {
-        updateDialog(ActiveDialog.None)
+        updateDialog(null)
     }
 
-    fun saveSubscription(note: String, url: String) {
-        val activeDialog = _uiState.value.activeDialog
-        val existing =
-            if (activeDialog is ActiveDialog.EditSubscription) activeDialog.subscription else null
+    fun saveSubscription(note: String, url: String, existing: Subscription? = null) {
         val newSub = if (existing != null) {
             existing.copy(note = note, url = url)
         } else {
@@ -502,8 +489,8 @@ class MainViewModel(
 
         viewModelScope.launch {
             subscriptionRepository.saveSub(newSub)
+            hideDialog()
         }
-        hideDialog()
     }
 
     fun importFromClipboard() {
@@ -538,10 +525,6 @@ class MainViewModel(
                 platform.showToast(getString(Res.string.msg_no_subs_found))
             }
         }
-    }
-
-    fun showDeleteSubscription(sub: Subscription) {
-        updateDialog(ActiveDialog.DeleteConfirmation(sub))
     }
 
     fun toggleExportMode() {
@@ -582,22 +565,19 @@ class MainViewModel(
                 platform.copyToClipboard(text, label)
                 platform.showToast(msg)
                 toggleExportMode()
+                hideDialog()
             }
         }
     }
 
-    fun confirmDeleteSubscription() {
-        val activeDialog = _uiState.value.activeDialog
-        if (activeDialog is ActiveDialog.DeleteConfirmation) {
-            val sub = activeDialog.subscription
-            viewModelScope.launch {
-                subscriptionRepository.deleteSub(sub.id)
-            }
+    fun confirmDeleteSubscription(subId: String) {
+        viewModelScope.launch {
+            subscriptionRepository.deleteSub(subId)
+            hideDialog()
         }
-        hideDialog()
     }
 
-    fun updateDialog(dialog: ActiveDialog) {
+    fun updateDialog(dialog: UiDialog?) {
         _uiState.update { it.copy(activeDialog = dialog) }
     }
 

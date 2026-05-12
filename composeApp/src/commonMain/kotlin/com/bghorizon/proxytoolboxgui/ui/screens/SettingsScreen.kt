@@ -9,16 +9,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
-import com.bghorizon.proxytoolboxgui.viewmodel.ActiveDialog
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
+import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
+
+sealed interface SettingsDialog : UiDialog {
+    data object Worker : SettingsDialog
+    data object DownloadTimeout : SettingsDialog
+    data object LatencyRounds : SettingsDialog
+    data object RoundTimeout : SettingsDialog
+    data object BatchSize : SettingsDialog
+    data object Port : SettingsDialog
+    data object TestUrl : SettingsDialog
+    data object ParallelDownloads : SettingsDialog
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,7 +95,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     title = stringResource(Res.string.current_worker),
                     subtitle = workers.find { it.path == settings.selectedWorker }?.name
                         ?: stringResource(Res.string.no_workers_available),
-                    onClick = { viewModel.updateDialog(ActiveDialog.Worker) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.Worker) }
                 )
             }
         }
@@ -99,12 +108,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         Res.string.hint_seconds_preview,
                         settings.downloadTimeout
                     ),
-                    onClick = { viewModel.updateDialog(ActiveDialog.DownloadTimeout) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.DownloadTimeout) }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.parallel_sub_downloads),
                     subtitle = settings.parallelSubscriptionDownloads.toString(),
-                    onClick = { viewModel.updateDialog(ActiveDialog.ParallelDownloads) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.ParallelDownloads) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.perform_deduplication),
@@ -124,7 +133,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         Res.string.hint_rounds_preview,
                         settings.latencyRounds
                     ),
-                    onClick = { viewModel.updateDialog(ActiveDialog.LatencyRounds) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.LatencyRounds) }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.round_timeout),
@@ -132,7 +141,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         Res.string.hint_seconds_preview,
                         settings.roundTimeout
                     ),
-                    onClick = { viewModel.updateDialog(ActiveDialog.RoundTimeout) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.RoundTimeout) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.test_by_batches),
@@ -143,15 +152,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 )
                 SettingsItem(
                     title = stringResource(Res.string.batch_size),
-                    //subtitle = stringResource(Res.string.hint_rounds_preview, settings.batchSize),
                     subtitle = settings.batchSize.toString(),
                     enabled = settings.testByBatches,
-                    onClick = { viewModel.updateDialog(ActiveDialog.BatchSize) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.BatchSize) }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.latency_test_url),
                     subtitle = settings.testUrl,
-                    onClick = { viewModel.updateDialog(ActiveDialog.TestUrl) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.TestUrl) }
                 )
             }
         }
@@ -168,7 +176,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SettingsItem(
                     title = stringResource(Res.string.web_server_port),
                     subtitle = settings.webServerPort.toString(),
-                    onClick = { viewModel.updateDialog(ActiveDialog.Port) }
+                    onClick = { viewModel.updateDialog(SettingsDialog.Port) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.web_server_localhost),
@@ -181,8 +189,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
         }
     }
 
-    when (activeDialog) {
-        ActiveDialog.Worker -> {
+    when (activeDialog as? SettingsDialog) {
+        SettingsDialog.Worker -> {
             SelectionDialog(
                 title = stringResource(Res.string.current_worker),
                 items = workers,
@@ -195,7 +203,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        ActiveDialog.DownloadTimeout -> {
+        SettingsDialog.DownloadTimeout -> {
             NumberInputDialog(
                 title = stringResource(Res.string.sub_download_timeout),
                 initialValue = settings.downloadTimeout,
@@ -208,7 +216,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        ActiveDialog.LatencyRounds -> {
+        SettingsDialog.LatencyRounds -> {
             NumberInputDialog(
                 title = stringResource(Res.string.latency_test_rounds),
                 initialValue = settings.latencyRounds,
@@ -221,7 +229,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        ActiveDialog.RoundTimeout -> {
+        SettingsDialog.RoundTimeout -> {
             NumberInputDialog(
                 title = stringResource(Res.string.round_timeout),
                 initialValue = settings.roundTimeout,
@@ -234,7 +242,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        ActiveDialog.BatchSize -> {
+        SettingsDialog.BatchSize -> {
             NumberInputDialog(
                 title = stringResource(Res.string.batch_size),
                 initialValue = settings.batchSize,
@@ -247,7 +255,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        ActiveDialog.Port -> {
+        SettingsDialog.Port -> {
             NumberInputDialog(
                 title = stringResource(Res.string.web_server_port),
                 initialValue = settings.webServerPort,
@@ -262,7 +270,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        ActiveDialog.TestUrl -> {
+        SettingsDialog.TestUrl -> {
             TextInputDialog(
                 title = stringResource(Res.string.latency_test_url),
                 initialValue = settings.testUrl,
@@ -276,7 +284,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        ActiveDialog.ParallelDownloads -> {
+        SettingsDialog.ParallelDownloads -> {
             NumberInputDialog(
                 title = stringResource(Res.string.parallel_sub_downloads),
                 initialValue = settings.parallelSubscriptionDownloads,
@@ -295,7 +303,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             )
         }
 
-        else -> {}
+        null -> {}
     }
 }
 
