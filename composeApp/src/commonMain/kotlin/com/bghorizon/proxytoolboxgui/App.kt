@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,7 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -53,6 +58,15 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
 
     val uiState by viewModel.uiState.collectAsState()
 
+    // Autonomous FAB padding calculation:
+    // We use remember(uiState.currentScreen) to reset the padding to 0.dp whenever the screen changes.
+    // This prevents "padding leakage" from previous screens. The measurement logic below 
+    // will re-calculate the clearance if the new screen contains a FAB.
+    var fabTotalPadding by remember(uiState.currentScreen) { mutableStateOf(0.dp) }
+    var scaffoldCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val density = LocalDensity.current
+    val animatedFabPadding by animateDpAsState(fabTotalPadding)
+
     AppTheme(
         themeMode = uiState.settings.theme,
         dynamicColor = uiState.settings.dynamicColor
@@ -63,6 +77,8 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                 val isExpanded = maxWidth >= 900.dp
 
                 Scaffold(
+                    // Track scaffold coordinates to enable relative measurement of the FAB position
+                    modifier = Modifier.onGloballyPositioned { scaffoldCoords = it },
                     topBar = {
                         when (uiState.currentScreen) {
                             Screen.Main -> MainTopBar(viewModel)
@@ -98,10 +114,29 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                         }
                     },
                     floatingActionButton = {
-                        when (uiState.currentScreen) {
-                            Screen.Main -> MainFAB(viewModel)
-                            Screen.Subscriptions -> SubscriptionsFAB(viewModel)
-                            else -> {}
+                        // Use a container Box to autonomously measure FAB clearance without screen-specific knowledge.
+                        // If no FAB is rendered, size becomes 0 and padding resets.
+                        Box(
+                            modifier = Modifier.onGloballyPositioned { fabCoords ->
+                                scaffoldCoords?.let { sc ->
+                                    if (sc.isAttached && fabCoords.isAttached) {
+                                        if (fabCoords.size.height > 0) {
+                                            // Calculate clearance: Distance from FAB top to Scaffold bottom.
+                                            // This includes FAB height, margins, and bottom bar height.
+                                            val fabTopInScaffold = sc.localPositionOf(fabCoords, Offset.Zero).y
+                                            fabTotalPadding = with(density) { (sc.size.height - fabTopInScaffold).toDp() }
+                                        } else {
+                                            fabTotalPadding = 0.dp
+                                        }
+                                    }
+                                }
+                            }
+                        ) {
+                            when (uiState.currentScreen) {
+                                Screen.Main -> MainFAB(viewModel)
+                                Screen.Subscriptions -> SubscriptionsFAB(viewModel)
+                                else -> {}
+                            }
                         }
                     }
                 ) { padding ->
@@ -152,7 +187,15 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                             }
                         }
                         Box(Modifier.fillMaxSize().weight(1f)) {
-                            CompositionLocalProvider(LocalScaffoldPadding provides padding) {
+                            // Inject adjusted padding into LocalScaffoldPadding.
+                            // All screens use this to ensure content clears both the bottom bar and the FAB.
+                            val adjustedPadding = PaddingValues(
+                                start = padding.calculateStartPadding(layoutDirection),
+                                top = padding.calculateTopPadding(),
+                                end = padding.calculateEndPadding(layoutDirection),
+                                bottom = maxOf(padding.calculateBottomPadding(), animatedFabPadding)
+                            )
+                            CompositionLocalProvider(LocalScaffoldPadding provides adjustedPadding) {
                                 AppScreenContent(uiState.currentScreen, viewModel)
                             }
                         }
