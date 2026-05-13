@@ -19,7 +19,6 @@ import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.data.AppStatus
 import com.bghorizon.proxytoolboxgui.data.BatchProgress
-import com.bghorizon.proxytoolboxgui.data.DownloadProgress
 import com.bghorizon.proxytoolboxgui.data.TestProgress
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -44,33 +43,15 @@ import proxytoolboxgui.composeapp.generated.resources.btn_test_stop
 import proxytoolboxgui.composeapp.generated.resources.btn_test
 import proxytoolboxgui.composeapp.generated.resources.test_progress_status
 import proxytoolboxgui.composeapp.generated.resources.testing
-import proxytoolboxgui.composeapp.generated.resources.btn_subs_update
-import proxytoolboxgui.composeapp.generated.resources.btn_subs_update_in_progress
 import proxytoolboxgui.composeapp.generated.resources.lbl_validation_errors
 import proxytoolboxgui.composeapp.generated.resources.btn_web_server
 import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainTopBar(viewModel: MainViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
+fun MainTopBar() {
     TopAppBar(
-        title = { Text(stringResource(Res.string.app_name)) },
-        actions = {
-            TextButton(onClick = { viewModel.updateSubscriptions() }) {
-                Text(
-                    if (uiState.downloadProgress.isRunning)
-                        stringResource(
-                            Res.string.btn_subs_update_in_progress,
-                            uiState.downloadProgress.total,
-                            uiState.downloadProgress.succeeded,
-                            uiState.downloadProgress.failed
-                        )
-                    else
-                        stringResource(Res.string.btn_subs_update)
-                )
-            }
-        }
+        title = { Text(stringResource(Res.string.app_name)) }
     )
 }
 
@@ -80,7 +61,6 @@ fun MainScreen(viewModel: MainViewModel) {
     val subs by viewModel.subscriptions.collectAsState()
 
     val testProgress = uiState.testProgress
-    val downloadProgress = uiState.downloadProgress
     val appStatus = uiState.appStatus
 
     val totalFound = subs.sumOf { it.total }
@@ -111,6 +91,12 @@ fun MainScreen(viewModel: MainViewModel) {
             )
         }
 
+        if (testProgress.isRunning) {
+            item {
+                TestProgressBar(testProgress)
+            }
+        }
+
         if (testProgress.batchProgresses.isNotEmpty()) {
             val groupedBatches = testProgress.batchProgresses.groupBy { it.batchNum }.toList()
                 .sortedBy { it.first }
@@ -137,18 +123,6 @@ fun MainScreen(viewModel: MainViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-        }
-
-        if (testProgress.isRunning) {
-            item {
-                TestProgressBar(testProgress)
-            }
-        }
-
-        if (downloadProgress.isRunning) {
-            item {
-                DownloadProgressIndicator(downloadProgress)
             }
         }
     }
@@ -406,20 +380,3 @@ private fun TestProgressBar(progress: TestProgress) {
     }
 }
 
-@Composable
-private fun DownloadProgressIndicator(progress: DownloadProgress) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        Text(
-            text = stringResource(
-                Res.string.btn_subs_update_in_progress,
-                progress.total,
-                progress.succeeded,
-                progress.failed
-            ),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-    }
-}

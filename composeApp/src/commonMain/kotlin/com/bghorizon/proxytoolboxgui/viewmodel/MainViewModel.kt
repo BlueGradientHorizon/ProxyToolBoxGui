@@ -110,6 +110,13 @@ class MainViewModel(
     fun startTest() {
         if (_uiState.value.workers.isEmpty() || testJob?.isActive == true) return
 
+        if (_uiState.value.appStatus == AppStatus.UPDATING_SUBS) {
+            viewModelScope.launch {
+                platform.showToast(getString(Res.string.msg_cannot_test_while_updating))
+            }
+            return
+        }
+
         testJob = viewModelScope.launch(Dispatchers.IO) {
             val job = coroutineContext[Job]
             val currentSettings = _uiState.value.settings
@@ -332,17 +339,19 @@ class MainViewModel(
         if (downloadJob?.isActive == true) return
 
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(appStatus = AppStatus.DOWNLOADING) }
             val subs = subscriptions.value
-            val settings = _uiState.value.settings
             _uiState.update {
                 it.copy(
-                    downloadProgress = DownloadProgress(
+                    appStatus = AppStatus.UPDATING_SUBS,
+                    updatingSubscriptionsIds = subs.map { it.id }.toSet(),
+                    subsUpdateProgress = SubsUpdateProgress(
                         total = subs.size,
                         isRunning = true
                     )
                 )
             }
+
+            val settings = _uiState.value.settings
 
             SubscriptionDownloader.downloadParallel(
                 urls = subs,
@@ -361,27 +370,37 @@ class MainViewModel(
 
                     _uiState.update {
                         it.copy(
-                            downloadProgress = it.downloadProgress.copy(
-                                succeeded = it.downloadProgress.succeeded + 1
+                            updatingSubscriptionsIds = it.updatingSubscriptionsIds - sub.id,
+                            subsUpdateProgress = it.subsUpdateProgress.copy(
+                                succeeded = it.subsUpdateProgress.succeeded + 1
                             )
                         )
                     }
                 },
-                onDownloadError = { _, e ->
+                onDownloadError = { sub, e ->
                     e.printStackTrace()
                     _uiState.update {
                         it.copy(
-                            downloadProgress = it.downloadProgress.copy(
-                                failed = it.downloadProgress.failed + 1
+                            updatingSubscriptionsIds = it.updatingSubscriptionsIds - sub.id,
+                            subsUpdateProgress = it.subsUpdateProgress.copy(
+                                failed = it.subsUpdateProgress.failed + 1
                             )
                         )
                     }
                 }
             )
 
-            _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
-            _uiState.update { it.copy(downloadProgress = it.downloadProgress.copy(isRunning = false)) }
+            _uiState.update {
+                it.copy(
+                    appStatus = AppStatus.IDLE,
+                    subsUpdateProgress = it.subsUpdateProgress.copy(isRunning = false)
+                )
+            }
         }
+    }
+
+    fun clearSubsUpdateProgress() {
+        _uiState.update { it.copy(subsUpdateProgress = SubsUpdateProgress()) }
     }
 
     private suspend fun getWorkingConfigsString(): String {

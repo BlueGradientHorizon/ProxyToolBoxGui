@@ -5,6 +5,7 @@
     <string name="dialog_btn_cancel">Cancel</string>
     <string name="dialog_btn_save">Save</string>
     <string name="dialog_btn_delete">Delete</string>
+    <string name="dialog_btn_close">Close</string>
 
     <!-- Main Screen -->
     <string name="home">Home</string>
@@ -15,7 +16,7 @@
     <string name="lbl_working_profiles">Working profiles total: %1$d</string>
     <string name="subscriptions">Subscriptions</string>
     <string name="btn_subs_update">Update</string>
-    <string name="btn_subs_update_in_progress">Updating... (%1$d/%2$d/%3$d)</string>
+    <string name="btn_subs_update_result">Total: %1$d\nFailed: %2$d\nSucceeded: %3$d</string>
     <string name="btn_copy">Copy</string>
     <string name="btn_export">Export</string>
     <string name="btn_web_server">Web-Server</string>
@@ -46,6 +47,7 @@
     <string name="sub_edit">Edit Subscription</string>
     <string name="sub_edit_note">Note</string>
     <string name="sub_edit_link">Link</string>
+    <string name="sub_update_confirm">Updating subscriptions will clear all existing test results. Continue?</string>
     <string name="sub_del_confirm">Delete subscription "%1$s"?</string>
     <string name="sub_item_total_working">Total: %1$d | Working: %2$d</string>
     <string name="sub_unnamed">Unnamed</string>
@@ -112,6 +114,7 @@
     <string name="msg_no_configs_to_test">No configs found to test</string>
     <string name="msg_select_worker">Please select a worker in settings</string>
     <string name="msg_test_error">Test Error: %1$s</string>
+    <string name="msg_cannot_test_while_updating">Cannot start test while subscriptions are updating</string>
     <string name="label_proxy_configs">Proxy configs</string>
 
     <!-- Errors -->

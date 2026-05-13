@@ -39,14 +39,19 @@ sealed interface SubscriptionDialog : UiDialog {
     data class Edit(val subscription: Subscription) : SubscriptionDialog
     data class Delete(val subscription: Subscription) : SubscriptionDialog
     data object Export : SubscriptionDialog
+    data object UpdateConfirm : SubscriptionDialog
+    data class UpdateResult(val total: Int, val succeeded: Int, val failed: Int) :
+        SubscriptionDialog
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionsTopBar(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
     val subscriptions by viewModel.subscriptions.collectAsState()
     val isAllSelected =
         viewModel.selectedSubscriptionIds.size == subscriptions.size && subscriptions.isNotEmpty()
+    val isUpdating = uiState.subsUpdateProgress.isRunning
 
     if (viewModel.isExportMode) {
         TopAppBar(
@@ -82,13 +87,19 @@ fun SubscriptionsTopBar(viewModel: MainViewModel) {
         TopAppBar(
             title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
             actions = {
-                IconButton(onClick = { viewModel.toggleExportMode() }) {
+                IconButton(
+                    onClick = { viewModel.toggleExportMode() },
+                    enabled = !isUpdating
+                ) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = stringResource(Res.string.sub_export_share)
                     )
                 }
-                IconButton(onClick = { viewModel.updateSubscriptions() }) {
+                IconButton(
+                    onClick = { viewModel.updateDialog(SubscriptionDialog.UpdateConfirm) },
+                    enabled = !isUpdating
+                ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(Res.string.btn_subs_update)
@@ -102,9 +113,12 @@ fun SubscriptionsTopBar(viewModel: MainViewModel) {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SubscriptionsFAB(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    val isUpdating = uiState.subsUpdateProgress.isRunning
+
     if (viewModel.isExportMode) {
         ExtendedFloatingActionButton(
-            onClick = { viewModel.updateDialog(SubscriptionDialog.Export) },
+            onClick = { if (!isUpdating) viewModel.updateDialog(SubscriptionDialog.Export) },
             icon = { Icon(Icons.Default.Share, null) },
             text = { Text(stringResource(Res.string.btn_export_options)) }
         )
@@ -113,11 +127,11 @@ fun SubscriptionsFAB(viewModel: MainViewModel) {
 
         FloatingActionButtonMenu(
             modifier = Modifier.removeFabMenuPaddings(),
-            expanded = expanded,
+            expanded = expanded && !isUpdating,
             button = {
                 ToggleFloatingActionButton(
                     checked = expanded,
-                    onCheckedChange = { expanded = !expanded }
+                    onCheckedChange = { if (!isUpdating) expanded = !expanded }
                 ) {
                     val imageVector by remember {
                         derivedStateOf {
@@ -158,6 +172,20 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
 
     val scaffoldPadding = LocalScaffoldPadding.current
 
+    val updateProgress = uiState.subsUpdateProgress
+    LaunchedEffect(updateProgress.isRunning) {
+        if (!updateProgress.isRunning && updateProgress.total > 0) {
+            viewModel.updateDialog(
+                SubscriptionDialog.UpdateResult(
+                    total = updateProgress.total,
+                    succeeded = updateProgress.succeeded,
+                    failed = updateProgress.failed
+                )
+            )
+            viewModel.clearSubsUpdateProgress()
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -173,6 +201,8 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                 subscription = sub,
                 isExportMode = viewModel.isExportMode,
                 isSelected = viewModel.selectedSubscriptionIds.contains(sub.id),
+                isUpdating = uiState.updatingSubscriptionsIds.contains(sub.id),
+                isAnyUpdating = uiState.subsUpdateProgress.isRunning,
                 onSelectionChange = { viewModel.toggleSubscriptionSelection(sub.id) },
                 onEdit = { viewModel.updateDialog(SubscriptionDialog.Edit(sub)) },
                 onDelete = { viewModel.updateDialog(SubscriptionDialog.Delete(sub)) }
@@ -216,6 +246,25 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
             )
         }
 
+        is SubscriptionDialog.UpdateResult -> {
+            UpdateResultDialog(
+                total = dialog.total,
+                succeeded = dialog.succeeded,
+                failed = dialog.failed,
+                onDismiss = { viewModel.hideDialog() }
+            )
+        }
+
+        SubscriptionDialog.UpdateConfirm -> {
+            UpdateConfirmationDialog(
+                onDismiss = { viewModel.hideDialog() },
+                onConfirm = {
+                    viewModel.hideDialog()
+                    viewModel.updateSubscriptions()
+                }
+            )
+        }
+
         null -> {}
     }
 }
@@ -225,6 +274,8 @@ private fun SubscriptionItem(
     subscription: Subscription,
     isExportMode: Boolean,
     isSelected: Boolean,
+    isUpdating: Boolean,
+    isAnyUpdating: Boolean,
     onSelectionChange: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -278,18 +329,25 @@ private fun SubscriptionItem(
                     onCheckedChange = onSelectionChange
                 )
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(onClick = onEdit) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(Res.string.sub_edit)
-                        )
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(Res.string.dialog_btn_delete)
-                        )
+                if (isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp).padding(4.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(onClick = onEdit, enabled = !isAnyUpdating) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(Res.string.sub_edit)
+                            )
+                        }
+                        IconButton(onClick = onDelete, enabled = !isAnyUpdating) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(Res.string.dialog_btn_delete)
+                            )
+                        }
                     }
                 }
             }
@@ -448,6 +506,64 @@ private fun DeleteConfirmationDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.dialog_btn_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun UpdateConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.btn_subs_update)) },
+        text = {
+            Text(stringResource(Res.string.sub_update_confirm))
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text(stringResource(Res.string.btn_subs_update))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.dialog_btn_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun UpdateResultDialog(
+    total: Int,
+    succeeded: Int,
+    failed: Int,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.btn_subs_update)) },
+        text = {
+            Text(
+                stringResource(
+                    Res.string.btn_subs_update_result,
+                    total,
+                    failed,
+                    succeeded
+                )
+            )
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.dialog_btn_close))
             }
         }
     )

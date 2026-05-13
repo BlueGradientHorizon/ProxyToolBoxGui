@@ -81,7 +81,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                     modifier = Modifier.onGloballyPositioned { scaffoldCoords = it },
                     topBar = {
                         when (uiState.currentScreen) {
-                            Screen.Main -> MainTopBar(viewModel)
+                            Screen.Main -> MainTopBar()
                             Screen.Subscriptions -> SubscriptionsTopBar(viewModel)
                             Screen.Settings -> SettingsTopBar()
                         }
@@ -123,8 +123,10 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                         if (fabCoords.size.height > 0) {
                                             // Calculate clearance: Distance from FAB top to Scaffold bottom.
                                             // This includes FAB height, margins, and bottom bar height.
-                                            val fabTopInScaffold = sc.localPositionOf(fabCoords, Offset.Zero).y
-                                            fabTotalPadding = with(density) { (sc.size.height - fabTopInScaffold).toDp() }
+                                            val fabTopInScaffold =
+                                                sc.localPositionOf(fabCoords, Offset.Zero).y
+                                            fabTotalPadding =
+                                                with(density) { (sc.size.height - fabTopInScaffold).toDp() }
                                         } else {
                                             fabTotalPadding = 0.dp
                                         }

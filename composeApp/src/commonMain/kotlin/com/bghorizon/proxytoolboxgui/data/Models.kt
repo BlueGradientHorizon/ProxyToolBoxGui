@@ -50,7 +50,7 @@ data class TestProgress(
 )
 
 @Serializable
-data class DownloadProgress(
+data class SubsUpdateProgress(
     val total: Int = 0,
     val succeeded: Int = 0,
     val failed: Int = 0,
@@ -87,7 +87,7 @@ enum class ThemeMode {
 }
 
 enum class AppStatus {
-    IDLE, DOWNLOADING, PARSING, VALIDATING, TESTING, COMPLETED, ERROR
+    IDLE, UPDATING_SUBS, PARSING, VALIDATING, TESTING, COMPLETED, ERROR
 }
 
 object JsonConfig {
