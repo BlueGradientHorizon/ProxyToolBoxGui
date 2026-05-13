@@ -569,6 +569,13 @@ class MainViewModel(
         selectedSubscriptionIds = emptySet()
     }
 
+    fun getSelectedExportText(includeNotes: Boolean): String {
+        val selected = subscriptions.value.filter { selectedSubscriptionIds.contains(it.id) }
+        return selected.joinToString("\n") {
+            if (includeNotes) "${it.note} ${it.url}" else it.url
+        }
+    }
+
     fun exportSelectedToClipboard(includeNotes: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             val selected = subscriptions.value.filter { selectedSubscriptionIds.contains(it.id) }

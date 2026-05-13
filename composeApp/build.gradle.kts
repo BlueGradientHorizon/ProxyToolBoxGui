@@ -51,6 +51,7 @@ kotlin {
             implementation(libs.ktor.client.cio)
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.qrose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

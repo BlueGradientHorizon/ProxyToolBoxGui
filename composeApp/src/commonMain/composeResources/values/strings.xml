@@ -59,6 +59,7 @@
     <string name="export_include_notes">Include notes</string>
     <string name="sub_select_all">Select all</string>
     <string name="sub_deselect_all">Deselect all</string>
+    <string name="title_qr_code">QR Code</string>
 <!--    <string name="sub_add">Add</string>-->
 
     <!-- Settings Screen -->

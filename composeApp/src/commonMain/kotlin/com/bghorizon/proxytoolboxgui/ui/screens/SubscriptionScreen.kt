@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,8 +29,13 @@ import com.bghorizon.proxytoolboxgui.data.Subscription
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
+import io.github.alexzhirkevich.qrose.options.QrBrush
+import io.github.alexzhirkevich.qrose.options.solid
+import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
+import kotlin.math.max
+import kotlin.math.sqrt
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -39,6 +45,7 @@ sealed interface SubscriptionDialog : UiDialog {
     data class Edit(val subscription: Subscription) : SubscriptionDialog
     data class Delete(val subscription: Subscription) : SubscriptionDialog
     data object Export : SubscriptionDialog
+    data class QrCode(val content: String) : SubscriptionDialog
     data object UpdateConfirm : SubscriptionDialog
     data class UpdateResult(val total: Int, val succeeded: Int, val failed: Int) :
         SubscriptionDialog
@@ -242,7 +249,18 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                 onDismiss = { viewModel.hideDialog() },
                 onExportToClipboard = { includeNotes ->
                     viewModel.exportSelectedToClipboard(includeNotes)
+                },
+                onShowQrCode = { includeNotes ->
+                    val content = viewModel.getSelectedExportText(includeNotes)
+                    viewModel.updateDialog(SubscriptionDialog.QrCode(content))
                 }
+            )
+        }
+
+        is SubscriptionDialog.QrCode -> {
+            QrCodeDialog(
+                content = dialog.content,
+                onDismiss = { viewModel.hideDialog() }
             )
         }
 
@@ -358,7 +376,8 @@ private fun SubscriptionItem(
 @Composable
 private fun ExportOptionsDialog(
     onDismiss: () -> Unit,
-    onExportToClipboard: (Boolean) -> Unit
+    onExportToClipboard: (Boolean) -> Unit,
+    onShowQrCode: (Boolean) -> Unit
 ) {
     var includeNotes by remember { mutableStateOf(true) }
 
@@ -371,7 +390,7 @@ private fun ExportOptionsDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = { /* Not implemented */ },
+                    onClick = { onShowQrCode(includeNotes) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.QrCode, null)
@@ -408,6 +427,59 @@ private fun ExportOptionsDialog(
             }
         }
     )
+}
+
+@Composable
+private fun QrCodeDialog(
+    content: String,
+    onDismiss: () -> Unit
+) {
+    val qrSize = remember(content) { calculateQrSizeDp(content.length) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.title_qr_code)) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (content.isNotBlank()) {
+                    val qrColor = MaterialTheme.colorScheme.onSurface
+                    Image(
+                        painter = rememberQrCodePainter(content) {
+                            colors {
+                                dark = QrBrush.solid(qrColor)
+                            }
+                        },
+                        contentDescription = stringResource(Res.string.title_qr_code),
+                        modifier = Modifier
+                            .widthIn(max = qrSize.dp)
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                    )
+                } else {
+                    Text("No content selected")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.dialog_btn_close))
+            }
+        }
+    )
+}
+
+private fun calculateQrSizeDp(textLength: Int): Int {
+    val minSizeDp = 100
+    val paddingDp = 24
+    val density = 1.5
+    val scale = 10.0
+
+    val calculated = (sqrt(textLength.toDouble() / density) * scale).toInt() + paddingDp
+    return max(minSizeDp, calculated)
 }
 
 @Composable
