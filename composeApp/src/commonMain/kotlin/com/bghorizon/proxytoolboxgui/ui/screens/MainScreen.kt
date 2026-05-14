@@ -20,6 +20,7 @@ import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.data.AppStatus
 import com.bghorizon.proxytoolboxgui.data.TestProgress
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
+import com.bghorizon.proxytoolboxgui.viewmodel.MainMode
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.app_name
@@ -46,9 +47,20 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_validation_errors
 import proxytoolboxgui.composeapp.generated.resources.btn_web_server
 import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 
+@Composable
+fun MainTopBar(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when (uiState.mainMode) {
+        is MainMode.Normal -> {
+            NormalMainTopBar()
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainTopBar() {
+private fun NormalMainTopBar() {
     TopAppBar(
         title = { Text(stringResource(Res.string.app_name)) }
     )
@@ -149,7 +161,6 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainFAB(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
@@ -158,9 +169,36 @@ fun MainFAB(viewModel: MainViewModel) {
 
     val appStatus = uiState.appStatus
     val workers = uiState.workers
-
     val isTesting = appStatus == AppStatus.TESTING
 
+    when (uiState.mainMode) {
+        is MainMode.Normal -> {
+            NormalMainFAB(
+                isTesting = isTesting,
+                workersNotEmpty = workers.isNotEmpty(),
+                totalWorking = totalWorking,
+                onToggleWebServer = { viewModel.toggleWebServer() },
+                onExportWorkingConfigs = { viewModel.exportWorkingConfigs() },
+                onCopyWorkingConfigs = { viewModel.copyWorkingConfigs() },
+                onStopTest = { viewModel.stopTest() },
+                onStartTest = { viewModel.startTest() }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun NormalMainFAB(
+    isTesting: Boolean,
+    workersNotEmpty: Boolean,
+    totalWorking: Int,
+    onToggleWebServer: () -> Unit,
+    onExportWorkingConfigs: () -> Unit,
+    onCopyWorkingConfigs: () -> Unit,
+    onStopTest: () -> Unit,
+    onStartTest: () -> Unit
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
@@ -189,7 +227,7 @@ fun MainFAB(viewModel: MainViewModel) {
         ) {
             FloatingActionButtonMenuItem(
                 onClick = {
-                    viewModel.toggleWebServer()
+                    onToggleWebServer()
                     expanded = false
                 },
                 icon = { Icon(Icons.Default.Public, null) },
@@ -198,7 +236,7 @@ fun MainFAB(viewModel: MainViewModel) {
             FloatingActionButtonMenuItem(
                 onClick = {
                     if (totalWorking > 0) {
-                        viewModel.exportWorkingConfigs()
+                        onExportWorkingConfigs()
                         expanded = false
                     }
                 },
@@ -208,7 +246,7 @@ fun MainFAB(viewModel: MainViewModel) {
             FloatingActionButtonMenuItem(
                 onClick = {
                     if (totalWorking > 0) {
-                        viewModel.copyWorkingConfigs()
+                        onCopyWorkingConfigs()
                         expanded = false
                     }
                 },
@@ -223,9 +261,9 @@ fun MainFAB(viewModel: MainViewModel) {
         ExtendedFloatingActionButton(
             onClick = {
                 if (isTesting) {
-                    viewModel.stopTest()
-                } else if (workers.isNotEmpty()) {
-                    viewModel.startTest()
+                    onStopTest()
+                } else if (workersNotEmpty) {
+                    onStartTest()
                 }
             },
             icon = {
@@ -238,19 +276,19 @@ fun MainFAB(viewModel: MainViewModel) {
                 Text(
                     text = when {
                         isTesting -> stringResource(Res.string.btn_test_stop)
-                        workers.isEmpty() -> stringResource(Res.string.no_workers_found)
+                        !workersNotEmpty -> stringResource(Res.string.no_workers_found)
                         else -> stringResource(Res.string.btn_test)
                     }
                 )
             },
             containerColor = when {
                 isTesting -> MaterialTheme.colorScheme.errorContainer
-                workers.isEmpty() -> MaterialTheme.colorScheme.surfaceVariant
+                !workersNotEmpty -> MaterialTheme.colorScheme.surfaceVariant
                 else -> MaterialTheme.colorScheme.primaryContainer
             },
             contentColor = when {
                 isTesting -> MaterialTheme.colorScheme.onErrorContainer
-                workers.isEmpty() -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                !workersNotEmpty -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                 else -> MaterialTheme.colorScheme.onPrimaryContainer
             }
         )
@@ -291,4 +329,3 @@ private fun TestProgressBar(progress: TestProgress) {
         )
     }
 }
-

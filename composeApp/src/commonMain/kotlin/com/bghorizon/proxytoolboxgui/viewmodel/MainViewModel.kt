@@ -1,8 +1,5 @@
 package com.bghorizon.proxytoolboxgui.viewmodel
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.*
@@ -32,10 +29,6 @@ class MainViewModel(
         )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
-
-    var isExportMode by mutableStateOf(false)
-
-    var selectedSubscriptionIds by mutableStateOf(setOf<String>())
 
     val subscriptions: StateFlow<List<Subscription>> = subscriptionRepository.subscriptions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -499,15 +492,12 @@ class MainViewModel(
     }
 
     fun saveSubscription(note: String, url: String, existing: Subscription? = null) {
-        val newSub = if (existing != null) {
-            existing.copy(note = note, url = url)
-        } else {
-            Subscription(
+        val newSub = existing?.copy(note = note, url = url)
+            ?: Subscription(
                 id = ConfigUtils.generateUUID(),
                 note = note,
                 url = url
             )
-        }
 
         viewModelScope.launch {
             subscriptionRepository.saveSub(newSub)
@@ -553,31 +543,43 @@ class MainViewModel(
         }
     }
 
-    fun toggleExportMode() {
-        isExportMode = !isExportMode
-        if (!isExportMode) {
-            selectedSubscriptionIds = emptySet()
+    fun updateMode(mode: UiMode) {
+        _uiState.update { state ->
+            when (mode) {
+                is MainMode -> state.copy(mainMode = mode)
+                is SubscriptionMode -> state.copy(
+                    subscriptionMode = mode,
+                    selectedSubscriptionIds = if (mode is SubscriptionMode.Normal) emptySet() else state.selectedSubscriptionIds
+                )
+                is SettingsMode -> state.copy(settingsMode = mode)
+                else -> state
+            }
         }
     }
 
     fun toggleSubscriptionSelection(id: String) {
-        selectedSubscriptionIds = if (selectedSubscriptionIds.contains(id)) {
-            selectedSubscriptionIds - id
-        } else {
-            selectedSubscriptionIds + id
+        _uiState.update { state ->
+            val newSelection = if (state.selectedSubscriptionIds.contains(id)) {
+                state.selectedSubscriptionIds - id
+            } else {
+                state.selectedSubscriptionIds + id
+            }
+            state.copy(selectedSubscriptionIds = newSelection)
         }
     }
 
     fun selectAllSubscriptions() {
-        selectedSubscriptionIds = subscriptions.value.map { it.id }.toSet()
+        val ids = subscriptions.value.map { it.id }
+        _uiState.update { it.copy(selectedSubscriptionIds = ids.toSet()) }
     }
 
     fun deselectAllSubscriptions() {
-        selectedSubscriptionIds = emptySet()
+        _uiState.update { it.copy(selectedSubscriptionIds = emptySet()) }
     }
 
     fun getSelectedExportText(includeNotes: Boolean): String {
-        val selected = subscriptions.value.filter { selectedSubscriptionIds.contains(it.id) }
+        val selectedIds = _uiState.value.selectedSubscriptionIds
+        val selected = subscriptions.value.filter { selectedIds.contains(it.id) }
         return selected.joinToString("\n") {
             if (includeNotes) "${it.note} ${it.url}" else it.url
         }
@@ -585,7 +587,8 @@ class MainViewModel(
 
     fun exportSelectedToClipboard(includeNotes: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            val selected = subscriptions.value.filter { selectedSubscriptionIds.contains(it.id) }
+            val selectedIds = _uiState.value.selectedSubscriptionIds
+            val selected = subscriptions.value.filter { selectedIds.contains(it.id) }
             if (selected.isEmpty()) return@launch
 
             val text = selected.joinToString("\n") {
@@ -597,7 +600,7 @@ class MainViewModel(
             withContext(Dispatchers.Main) {
                 platform.copyToClipboard(text, label)
                 platform.showToast(msg)
-                toggleExportMode()
+                updateMode(SubscriptionMode.Normal)
                 hideDialog()
             }
         }

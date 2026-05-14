@@ -5,20 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Deselect
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.QrCode
-import com.bghorizon.proxytoolboxgui.ui.components.*
-import androidx.compose.material.icons.filled.QrCodeScanner
-import com.bghorizon.proxytoolboxgui.platform.getPlatform
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.*
@@ -30,15 +17,16 @@ import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.data.Subscription
+import com.bghorizon.proxytoolboxgui.platform.getPlatform
+import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
+import com.bghorizon.proxytoolboxgui.viewmodel.SubscriptionMode
 import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
-import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import com.bghorizon.proxytoolboxgui.viewmodel.UiMode
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
-import kotlin.math.max
-import kotlin.math.sqrt
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -55,130 +43,183 @@ sealed interface SubscriptionDialog : UiDialog {
         SubscriptionDialog
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionsTopBar(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val subscriptions by viewModel.subscriptions.collectAsState()
     val isAllSelected =
-        viewModel.selectedSubscriptionIds.size == subscriptions.size && subscriptions.isNotEmpty()
+        (uiState.selectedSubscriptionIds.size == subscriptions.size) && subscriptions.isNotEmpty()
     val isUpdating = uiState.subsUpdateProgress.isRunning
 
-    if (viewModel.isExportMode) {
-        TopAppBar(
-            title = { Text(stringResource(Res.string.title_export_subscriptions)) },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-            ),
-            navigationIcon = {
-                IconButton(onClick = { viewModel.toggleExportMode() }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(Res.string.back)
-                    )
-                }
-            },
-            actions = {
-                IconButton(
-                    onClick = {
-                        if (isAllSelected) viewModel.deselectAllSubscriptions()
-                        else viewModel.selectAllSubscriptions()
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
-                        contentDescription = stringResource(
-                            if (isAllSelected) Res.string.sub_deselect_all else Res.string.sub_select_all
-                        )
-                    )
-                }
-            }
-        )
-    } else {
-        TopAppBar(
-            title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
-            actions = {
-                IconButton(
-                    onClick = { viewModel.toggleExportMode() },
-                    enabled = !isUpdating
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = stringResource(Res.string.sub_export_share)
-                    )
-                }
-                IconButton(
-                    onClick = { viewModel.updateDialog(SubscriptionDialog.UpdateConfirm) },
-                    enabled = !isUpdating
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(Res.string.btn_subs_update)
-                    )
-                }
-            }
-        )
+    when (uiState.subscriptionMode) {
+        is SubscriptionMode.Selection -> {
+            SelectionSubscriptionsTopBar(
+                isAllSelected = isAllSelected,
+                onBack = { viewModel.updateMode(SubscriptionMode.Normal) },
+                onToggleSelectAll = {
+                    if (isAllSelected) viewModel.deselectAllSubscriptions()
+                    else viewModel.selectAllSubscriptions()
+                },
+            )
+        }
+
+        is SubscriptionMode.Normal -> {
+            NormalSubscriptionsTopBar(
+                isUpdating = isUpdating,
+                onExportMode = { viewModel.updateMode(SubscriptionMode.Selection) },
+                onUpdateConfirm = { viewModel.updateDialog(SubscriptionDialog.UpdateConfirm) }
+            )
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectionSubscriptionsTopBar(
+    isAllSelected: Boolean,
+    onBack: () -> Unit,
+    onToggleSelectAll: () -> Unit
+) {
+    TopAppBar(
+        title = { Text(stringResource(Res.string.title_export_subscriptions)) },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(Res.string.back)
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = onToggleSelectAll) {
+                Icon(
+                    imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                    contentDescription = stringResource(
+                        if (isAllSelected) Res.string.sub_deselect_all else Res.string.sub_select_all
+                    )
+                )
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NormalSubscriptionsTopBar(
+    isUpdating: Boolean,
+    onExportMode: () -> Unit,
+    onUpdateConfirm: () -> Unit
+) {
+    TopAppBar(
+        title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
+        actions = {
+            IconButton(
+                onClick = onExportMode,
+                enabled = !isUpdating
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = stringResource(Res.string.sub_export_share)
+                )
+            }
+            IconButton(
+                onClick = onUpdateConfirm,
+                enabled = !isUpdating
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(Res.string.btn_subs_update)
+                )
+            }
+        }
+    )
+}
+
 @Composable
 fun SubscriptionsFAB(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val isUpdating = uiState.subsUpdateProgress.isRunning
 
-    if (viewModel.isExportMode) {
-        ExtendedFloatingActionButton(
-            onClick = { if (!isUpdating) viewModel.updateDialog(SubscriptionDialog.Export) },
-            icon = { Icon(Icons.Default.Share, null) },
-            text = { Text(stringResource(Res.string.btn_export_options)) }
-        )
-    } else {
-        var expanded by rememberSaveable { mutableStateOf(false) }
-
-        FloatingActionButtonMenu(
-            modifier = Modifier.removeFabMenuPaddings(),
-            expanded = expanded && !isUpdating,
-            button = {
-                ToggleFloatingActionButton(
-                    checked = expanded,
-                    onCheckedChange = { if (!isUpdating) expanded = !expanded }
-                ) {
-                    val imageVector by remember {
-                        derivedStateOf {
-                            if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
-                        }
-                    }
-                    Icon(
-                        imageVector = imageVector,
-                        contentDescription = null,
-                        modifier = Modifier.animateIcon({ checkedProgress })
-                    )
-                }
-            }
-        ) {
-            FloatingActionButtonMenuItem(
-                onClick = {
-                    viewModel.importFromClipboard()
-                },
-                icon = { Icon(Icons.Default.ContentPaste, null) },
-                text = { Text(stringResource(Res.string.sub_add_clipboard)) }
-            )
-            FloatingActionButtonMenuItem(
-                onClick = {
-                    viewModel.updateDialog(SubscriptionDialog.Scan)
-                },
-                icon = { Icon(Icons.Default.QrCodeScanner, null) },
-                text = { Text(stringResource(Res.string.sub_add_qr)) }
-            )
-            FloatingActionButtonMenuItem(
-                onClick = {
-                    viewModel.updateDialog(SubscriptionDialog.Add)
-                },
-                icon = { Icon(Icons.Default.Edit, null) },
-                text = { Text(stringResource(Res.string.sub_add_manual)) }
+    when (uiState.subscriptionMode) {
+        is SubscriptionMode.Selection -> {
+            SelectionSubscriptionsFAB(
+                isUpdating = isUpdating,
+                onExport = { viewModel.updateDialog(SubscriptionDialog.Export) }
             )
         }
+
+        is SubscriptionMode.Normal -> {
+            NormalSubscriptionsFAB(
+                isUpdating = isUpdating,
+                onImportClipboard = { viewModel.importFromClipboard() },
+                onImportQr = { viewModel.updateDialog(SubscriptionDialog.Scan) },
+                onAddManual = { viewModel.updateDialog(SubscriptionDialog.Add) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionSubscriptionsFAB(
+    isUpdating: Boolean,
+    onExport: () -> Unit
+) {
+    ExtendedFloatingActionButton(
+        onClick = { if (!isUpdating) onExport() },
+        icon = { Icon(Icons.Default.Share, null) },
+        text = { Text(stringResource(Res.string.btn_export_options)) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun NormalSubscriptionsFAB(
+    isUpdating: Boolean,
+    onImportClipboard: () -> Unit,
+    onImportQr: () -> Unit,
+    onAddManual: () -> Unit
+) {
+    var expanded by rememberSaveable { mutableStateOf(value = false) }
+
+    FloatingActionButtonMenu(
+        modifier = Modifier.removeFabMenuPaddings(),
+        expanded = expanded && !isUpdating,
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = { if (!isUpdating) expanded = !expanded }
+            ) {
+                val imageVector by remember {
+                    derivedStateOf {
+                        if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
+                    }
+                }
+                Icon(
+                    imageVector = imageVector,
+                    contentDescription = null,
+                    modifier = Modifier.animateIcon({ checkedProgress })
+                )
+            }
+        }
+    ) {
+        FloatingActionButtonMenuItem(
+            onClick = onImportClipboard,
+            icon = { Icon(Icons.Default.ContentPaste, null) },
+            text = { Text(stringResource(Res.string.sub_add_clipboard)) }
+        )
+        FloatingActionButtonMenuItem(
+            onClick = onImportQr,
+            icon = { Icon(Icons.Default.QrCodeScanner, null) },
+            text = { Text(stringResource(Res.string.sub_add_qr)) }
+        )
+        FloatingActionButtonMenuItem(
+            onClick = onAddManual,
+            icon = { Icon(Icons.Default.Edit, null) },
+            text = { Text(stringResource(Res.string.sub_add_manual)) }
+        )
     }
 }
 
@@ -192,7 +233,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
 
     val updateProgress = uiState.subsUpdateProgress
     LaunchedEffect(updateProgress.isRunning) {
-        if (!updateProgress.isRunning && updateProgress.total > 0) {
+        if (!updateProgress.isRunning && (updateProgress.total > 0)) {
             viewModel.updateDialog(
                 SubscriptionDialog.UpdateResult(
                     total = updateProgress.total,
@@ -217,8 +258,8 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
         items(subscriptions) { sub ->
             SubscriptionItem(
                 subscription = sub,
-                isExportMode = viewModel.isExportMode,
-                isSelected = viewModel.selectedSubscriptionIds.contains(sub.id),
+                uiMode = uiState.subscriptionMode,
+                isSelected = uiState.selectedSubscriptionIds.contains(sub.id),
                 isUpdating = uiState.updatingSubscriptionsIds.contains(sub.id),
                 isAnyUpdating = uiState.subsUpdateProgress.isRunning,
                 onSelectionChange = { viewModel.toggleSubscriptionSelection(sub.id) },
@@ -327,11 +368,11 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
 @Composable
 private fun SubscriptionItem(
     subscription: Subscription,
-    isExportMode: Boolean,
+    uiMode: UiMode?,
     isSelected: Boolean,
     isUpdating: Boolean,
     isAnyUpdating: Boolean,
-    onSelectionChange: (Boolean) -> Unit,
+    onSelectionChange: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -340,7 +381,13 @@ private fun SubscriptionItem(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        onClick = { if (isExportMode) onSelectionChange(!isSelected) }
+        onClick = {
+            when (uiMode) {
+                is SubscriptionMode.Selection -> onSelectionChange()
+                else -> { /* No-op for now */
+                }
+            }
+        }
     ) {
         Row(
             modifier = Modifier
@@ -378,30 +425,35 @@ private fun SubscriptionItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (isExportMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = onSelectionChange
-                )
-            } else {
-                if (isUpdating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp).padding(4.dp),
-                        strokeWidth = 2.dp
+
+            when (uiMode) {
+                is SubscriptionMode.Selection -> {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onSelectionChange() }
                     )
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(onClick = onEdit, enabled = !isAnyUpdating) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(Res.string.sub_edit)
-                            )
-                        }
-                        IconButton(onClick = onDelete, enabled = !isAnyUpdating) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(Res.string.dialog_btn_delete)
-                            )
+                }
+
+                else -> {
+                    if (isUpdating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp).padding(4.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            IconButton(onClick = onEdit, enabled = !isAnyUpdating) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = stringResource(Res.string.sub_edit)
+                                )
+                            }
+                            IconButton(onClick = onDelete, enabled = !isAnyUpdating) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(Res.string.dialog_btn_delete)
+                                )
+                            }
                         }
                     }
                 }
@@ -437,9 +489,7 @@ private fun QrScannerDialog(
                     ) {
                         SubscriptionScannerView(
                             modifier = Modifier.fillMaxSize(),
-                            onCodeScanned = { result ->
-                                onCodeScanned(result)
-                            }
+                            onCodeScanned = { result -> onCodeScanned(result) }
                         )
                     }
                 } else {
@@ -449,8 +499,7 @@ private fun QrScannerDialog(
                 Button(
                     onClick = {
                         scope.launch {
-                            val result = platform.pickImageAndScanQr()
-                            if (result != null) {
+                            platform.pickImageAndScanQr()?.let { result ->
                                 onCodeScanned(result)
                             }
                         }

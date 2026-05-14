@@ -81,9 +81,9 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                     modifier = Modifier.onGloballyPositioned { scaffoldCoords = it },
                     topBar = {
                         when (uiState.currentScreen) {
-                            Screen.Main -> MainTopBar()
+                            Screen.Main -> MainTopBar(viewModel)
                             Screen.Subscriptions -> SubscriptionsTopBar(viewModel)
-                            Screen.Settings -> SettingsTopBar()
+                            Screen.Settings -> SettingsTopBar(viewModel)
                         }
                     },
                     bottomBar = {

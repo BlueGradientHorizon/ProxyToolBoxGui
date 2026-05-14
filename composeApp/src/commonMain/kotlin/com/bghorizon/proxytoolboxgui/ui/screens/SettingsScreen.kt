@@ -11,6 +11,7 @@ import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
+import com.bghorizon.proxytoolboxgui.viewmodel.SettingsMode
 import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
@@ -26,15 +27,25 @@ sealed interface SettingsDialog : UiDialog {
     data object ParallelDownloads : SettingsDialog
 }
 
+@Composable
+fun SettingsTopBar(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when (uiState.settingsMode) {
+        is SettingsMode.Normal -> {
+            NormalSettingsTopBar()
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsTopBar() {
+private fun NormalSettingsTopBar() {
     TopAppBar(
         title = { Text(stringResource(Res.string.title_settings)) }
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
