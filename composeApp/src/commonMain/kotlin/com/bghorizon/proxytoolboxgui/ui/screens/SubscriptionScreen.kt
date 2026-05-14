@@ -420,7 +420,7 @@ private fun QrScannerDialog(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fillMaxHeight(0.8f)
+                            .aspectRatio(1f)
                             .clip(MaterialTheme.shapes.medium)
                     ) {
                         SubscriptionScannerView(

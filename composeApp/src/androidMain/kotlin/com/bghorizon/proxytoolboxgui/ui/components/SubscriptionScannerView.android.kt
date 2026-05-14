@@ -68,10 +68,11 @@ actual fun SubscriptionScannerView(
         AndroidView(
             modifier = modifier,
             factory = { ctx ->
-                val previewView = PreviewView(ctx).apply {
+                PreviewView(ctx).apply {
                     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 }
-
+            },
+            update = { previewView ->
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
 
@@ -80,18 +81,18 @@ actual fun SubscriptionScannerView(
                     }
 
                     val resolutionSelector = ResolutionSelector.Builder()
-                    .setResolutionStrategy(
-                        ResolutionStrategy(
-                            Size(1280, 720),
-                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                        .setResolutionStrategy(
+                            ResolutionStrategy(
+                                Size(1280, 720),
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                            )
                         )
-                    )
-                    .build()
+                        .build()
 
-                val imageAnalysis = ImageAnalysis.Builder()
-                    .setResolutionSelector(resolutionSelector)
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
+                    val imageAnalysis = ImageAnalysis.Builder()
+                        .setResolutionSelector(resolutionSelector)
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
                         .also {
                             it.setAnalyzer(analysisExecutor, QrCodeAnalyzer { result ->
                                 onCodeScanned(result)
@@ -112,8 +113,6 @@ actual fun SubscriptionScannerView(
                         exc.printStackTrace()
                     }
                 }, ContextCompat.getMainExecutor(context))
-
-                previewView
             }
         )
     } else {
