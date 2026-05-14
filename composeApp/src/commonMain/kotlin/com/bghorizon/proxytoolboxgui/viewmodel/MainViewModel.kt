@@ -26,7 +26,10 @@ class MainViewModel(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        MainUiState(isDynamicColorSupported = platform.isDynamicColorSupported)
+        MainUiState(
+            isDynamicColorSupported = platform.isDynamicColorSupported,
+            isQrScannerSupported = platform.isQrScannerSupported
+        )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
@@ -514,9 +517,13 @@ class MainViewModel(
 
     fun importFromClipboard() {
         val text = platform.getClipboardText() ?: return
+        importFromUrl(text)
+    }
+
+    fun importFromUrl(content: String) {
         viewModelScope.launch {
             val unnamedStr = getString(Res.string.sub_unnamed)
-            val subs = text.lines()
+            val subs = content.lines()
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
                 .map { line ->

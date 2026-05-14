@@ -14,6 +14,7 @@ data class MainUiState(
     val webServerRunning: Boolean = false,
     val settings: AppSettings = AppSettings(),
     val isDynamicColorSupported: Boolean = false,
+    val isQrScannerSupported: Boolean = false,
     val activeDialog: UiDialog? = null,
     val updatingSubscriptionsIds: Set<String> = emptySet()
 )

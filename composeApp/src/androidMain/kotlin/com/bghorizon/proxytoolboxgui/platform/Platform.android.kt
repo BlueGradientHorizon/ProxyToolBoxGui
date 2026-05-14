@@ -13,6 +13,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.bghorizon.proxytoolboxgui.ProxyToolBoxApplication
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -21,6 +25,61 @@ import kotlin.coroutines.resume
 class AndroidPlatform(private val context: Context) : Platform {
     override val name: String = "Android ${Build.VERSION.SDK_INT}"
     override val isDynamicColorSupported: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    override val isQrScannerSupported: Boolean = true
+
+    override suspend fun pickImageAndScanQr(): String? = withContext(Dispatchers.Main) {
+        suspendCancellableCoroutine { continuation ->
+            val activity = ProxyToolBoxApplication.currentActivity as? ComponentActivity
+            if (activity == null) {
+                continuation.resume(null)
+                return@suspendCancellableCoroutine
+            }
+
+            val registry = activity.activityResultRegistry
+            val key = "pick_qr_image_${System.currentTimeMillis()}"
+
+            var launcher: ActivityResultLauncher<String>? = null
+            launcher = registry.register(key, ActivityResultContracts.GetContent()) { uri ->
+                if (uri != null) {
+                    val image: InputImage
+                    try {
+                        image = InputImage.fromFilePath(activity, uri)
+                        val options = BarcodeScannerOptions.Builder()
+                            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                            .build()
+                        val scanner = BarcodeScanning.getClient(options)
+
+                        scanner.process(image)
+                            .addOnSuccessListener { barcodes ->
+                                val qrCode = barcodes.firstOrNull {
+                                    it.valueType == Barcode.TYPE_TEXT || it.valueType == Barcode.TYPE_URL
+                                }?.rawValue
+                                continuation.resume(qrCode)
+                            }
+                            .addOnFailureListener {
+                                continuation.resume(null)
+                            }
+                    } catch (e: Exception) {
+                        continuation.resume(null)
+                    }
+                } else {
+                    continuation.resume(null)
+                }
+                launcher?.unregister()
+            }
+
+            try {
+                launcher.launch("image/*")
+            } catch (e: Exception) {
+                launcher.unregister()
+                continuation.resume(null)
+            }
+
+            continuation.invokeOnCancellation {
+                launcher.unregister()
+            }
+        }
+    }
 
     override fun getAppDataDir(): String {
         return context.filesDir.absolutePath

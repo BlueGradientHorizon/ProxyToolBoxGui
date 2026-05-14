@@ -3,6 +3,8 @@ package com.bghorizon.proxytoolboxgui.platform
 interface Platform {
     val name: String
     val isDynamicColorSupported: Boolean
+    val isQrScannerSupported: Boolean
+    suspend fun pickImageAndScanQr(): String?
     fun getAppDataDir(): String
     fun getWorkerLibraryPath(): String
     fun copyToClipboard(text: String, label: String)

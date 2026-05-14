@@ -13,7 +13,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCode
+import com.bghorizon.proxytoolboxgui.ui.components.SubscriptionScannerView
+import androidx.compose.material.icons.filled.QrCodeScanner
+import com.bghorizon.proxytoolboxgui.platform.getPlatform
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
@@ -22,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
@@ -32,6 +37,7 @@ import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
 import io.github.alexzhirkevich.qrose.options.QrBrush
 import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 import kotlin.math.max
@@ -42,6 +48,7 @@ import kotlinx.datetime.toLocalDateTime
 
 sealed interface SubscriptionDialog : UiDialog {
     data object Add : SubscriptionDialog
+    data object Scan : SubscriptionDialog
     data class Edit(val subscription: Subscription) : SubscriptionDialog
     data class Delete(val subscription: Subscription) : SubscriptionDialog
     data object Export : SubscriptionDialog
@@ -162,6 +169,13 @@ fun SubscriptionsFAB(viewModel: MainViewModel) {
             )
             FloatingActionButtonMenuItem(
                 onClick = {
+                    viewModel.updateDialog(SubscriptionDialog.Scan)
+                },
+                icon = { Icon(Icons.Default.QrCodeScanner, null) },
+                text = { Text(stringResource(Res.string.sub_add_qr)) }
+            )
+            FloatingActionButtonMenuItem(
+                onClick = {
                     viewModel.updateDialog(SubscriptionDialog.Add)
                 },
                 icon = { Icon(Icons.Default.Edit, null) },
@@ -223,6 +237,17 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
                 editingSubscription = null,
                 onDismiss = { viewModel.hideDialog() },
                 onSave = { note, url -> viewModel.saveSubscription(note, url) }
+            )
+        }
+
+        SubscriptionDialog.Scan -> {
+            QrScannerDialog(
+                viewModel = viewModel,
+                onDismiss = { viewModel.hideDialog() },
+                onCodeScanned = { result ->
+                    viewModel.hideDialog()
+                    viewModel.importFromUrl(result)
+                }
             )
         }
 
@@ -371,6 +396,68 @@ private fun SubscriptionItem(
             }
         }
     }
+}
+
+@Composable
+private fun QrScannerDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+    onCodeScanned: (String) -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val platform = getPlatform()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.sub_add_qr)) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (uiState.isQrScannerSupported) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.8f)
+                            .clip(MaterialTheme.shapes.medium)
+                    ) {
+                        SubscriptionScannerView(
+                            modifier = Modifier.fillMaxSize(),
+                            onCodeScanned = { result ->
+                                onCodeScanned(result)
+                            }
+                        )
+                    }
+                } else {
+                    Text(stringResource(Res.string.sub_qr_not_supported))
+                }
+
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val result = platform.pickImageAndScanQr()
+                            if (result != null) {
+                                onCodeScanned(result)
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.PhotoLibrary, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(Res.string.sub_add_qr_file))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.dialog_btn_cancel))
+            }
+        }
+    )
 }
 
 @Composable

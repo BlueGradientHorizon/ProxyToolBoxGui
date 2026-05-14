@@ -43,6 +43,9 @@
     <string name="back">Back</string>
     <string name="sub_add">Add Subscription</string>
     <string name="sub_add_clipboard">From clipboard</string>
+    <string name="sub_add_qr">From QR code</string>
+    <string name="sub_add_qr_file">Import from image</string>
+    <string name="sub_qr_not_supported">QR Scanner not supported on this platform</string>
     <string name="sub_add_manual">Manual input</string>
     <string name="sub_edit">Edit Subscription</string>
     <string name="sub_edit_note">Note</string>
