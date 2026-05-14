@@ -38,6 +38,10 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.deleteSubscription(id)
     }
 
+    suspend fun deleteSubs(ids: List<String>) {
+        dao.deleteSubscriptions(ids)
+    }
+
     suspend fun getWorkingConfigs(): List<ProxyConfig> {
         return dao.getAllConfigs().filter { it.working }.map { data ->
             ProxyConfig(

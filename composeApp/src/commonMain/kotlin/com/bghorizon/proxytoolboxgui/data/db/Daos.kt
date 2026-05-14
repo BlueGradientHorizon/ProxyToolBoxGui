@@ -30,6 +30,10 @@ interface SubscriptionDao {
     @Query("DELETE FROM subscriptions WHERE id = :id")
     suspend fun deleteSubscription(id: String)
 
+    @Transaction
+    @Query("DELETE FROM subscriptions WHERE id IN (:ids)")
+    suspend fun deleteSubscriptions(ids: List<String>)
+
     @Query("SELECT * FROM subscriptions_data WHERE subId = :subId")
     suspend fun getConfigs(subId: String): List<SubscriptionDataEntity>
 

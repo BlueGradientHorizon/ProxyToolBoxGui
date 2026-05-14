@@ -1,5 +1,9 @@
 package com.bghorizon.proxytoolboxgui.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +38,7 @@ sealed interface SubscriptionsScreenDialog : UiDialog {
     data object Scan : SubscriptionsScreenDialog
     data class Edit(val subscription: Subscription) : SubscriptionsScreenDialog
     data class Delete(val subscription: Subscription) : SubscriptionsScreenDialog
+    data class DeleteSelected(val count: Int) : SubscriptionsScreenDialog
     data object Export : SubscriptionsScreenDialog
     data class QrCode(val content: String) : SubscriptionsScreenDialog
     data object UpdateConfirm : SubscriptionsScreenDialog
@@ -84,18 +89,22 @@ fun SubscriptionsScreenTopBar(mainVm: MainViewModel, subVm: SubscriptionsScreenV
         is SubscriptionsScreenUiMode.Selection -> {
             SelectionSubscriptionsTopBar(
                 isAllSelected = isAllSelected,
+                selectedCount = subUiState.selectedIds.size,
                 onBack = { subVm.updateMode(SubscriptionsScreenUiMode.Normal) },
                 onToggleSelectAll = {
                     if (isAllSelected) subVm.deselectAll()
                     else subVm.selectAll()
                 },
+                onDeleteSelected = {
+                    mainVm.updateDialog(SubscriptionsScreenDialog.DeleteSelected(subUiState.selectedIds.size))
+                }
             )
         }
 
         is SubscriptionsScreenUiMode.Normal -> {
             NormalSubscriptionsTopBar(
                 isUpdating = isUpdating,
-                onExportMode = { subVm.updateMode(SubscriptionsScreenUiMode.Selection) },
+                onSelectionMode = { subVm.updateMode(SubscriptionsScreenUiMode.Selection) },
                 onUpdateConfirm = { mainVm.updateDialog(SubscriptionsScreenDialog.UpdateConfirm) }
             )
         }
@@ -106,11 +115,13 @@ fun SubscriptionsScreenTopBar(mainVm: MainViewModel, subVm: SubscriptionsScreenV
 @Composable
 private fun SelectionSubscriptionsTopBar(
     isAllSelected: Boolean,
+    selectedCount: Int,
     onBack: () -> Unit,
-    onToggleSelectAll: () -> Unit
+    onToggleSelectAll: () -> Unit,
+    onDeleteSelected: () -> Unit
 ) {
     TopAppBar(
-        title = { Text(stringResource(Res.string.title_export_subscriptions)) },
+        title = { Text(stringResource(Res.string.title_select_subscriptions)) },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
@@ -123,6 +134,15 @@ private fun SelectionSubscriptionsTopBar(
             }
         },
         actions = {
+            IconButton(
+                onClick = onDeleteSelected,
+                enabled = selectedCount > 0
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(Res.string.dialog_btn_delete)
+                )
+            }
             IconButton(onClick = onToggleSelectAll) {
                 Icon(
                     imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
@@ -139,19 +159,19 @@ private fun SelectionSubscriptionsTopBar(
 @Composable
 private fun NormalSubscriptionsTopBar(
     isUpdating: Boolean,
-    onExportMode: () -> Unit,
+    onSelectionMode: () -> Unit,
     onUpdateConfirm: () -> Unit
 ) {
     TopAppBar(
         title = { Text(stringResource(Res.string.title_manage_subscriptions)) },
         actions = {
             IconButton(
-                onClick = onExportMode,
+                onClick = onSelectionMode,
                 enabled = !isUpdating
             ) {
                 Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = stringResource(Res.string.sub_export_share)
+                    imageVector = Icons.Default.LibraryAddCheck,
+                    contentDescription = stringResource(Res.string.sub_select_mode)
                 )
             }
             IconButton(
@@ -294,7 +314,13 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
                 isAnyUpdating = subUiState.updateProgress.isRunning,
                 onSelectionChange = { subVm.toggleSelection(sub.id) },
                 onEdit = { mainVm.updateDialog(SubscriptionsScreenDialog.Edit(sub)) },
-                onDelete = { mainVm.updateDialog(SubscriptionsScreenDialog.Delete(sub)) }
+                onDelete = { mainVm.updateDialog(SubscriptionsScreenDialog.Delete(sub)) },
+                onLongClick = {
+                    if (subUiState.mode is SubscriptionsScreenUiMode.Normal) {
+                        subVm.updateMode(SubscriptionsScreenUiMode.Selection)
+                        subVm.toggleSelection(sub.id)
+                    }
+                }
             )
         }
     }
@@ -335,6 +361,20 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
                 message = stringResource(Res.string.sub_del_confirm, dialog.subscription.note),
                 onDismiss = { mainVm.hideDialog() },
                 onConfirm = { subVm.confirmDeleteSubscription(dialog.subscription.id) },
+                confirmText = stringResource(Res.string.dialog_btn_delete),
+                isDestructive = true
+            )
+        }
+
+        is SubscriptionsScreenDialog.DeleteSelected -> {
+            ConfirmationDialog(
+                title = stringResource(Res.string.dialog_btn_delete),
+                message = stringResource(Res.string.sub_del_multiple_confirm, dialog.count),
+                onDismiss = { mainVm.hideDialog() },
+                onConfirm = {
+                    mainVm.hideDialog()
+                    subVm.deleteSelectedSubscriptions()
+                },
                 confirmText = stringResource(Res.string.dialog_btn_delete),
                 isDestructive = true
             )
@@ -395,6 +435,7 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SubscriptionItem(
     subscription: Subscription,
@@ -404,20 +445,29 @@ private fun SubscriptionItem(
     isAnyUpdating: Boolean,
     onSelectionChange: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onLongClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardDefaults.shape)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = {
+                    when (uiMode) {
+                        is SubscriptionsScreenUiMode.Selection -> onSelectionChange()
+                        else -> { /* No-op for now */
+                        }
+                    }
+                },
+                onLongClick = onLongClick
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        onClick = {
-            when (uiMode) {
-                is SubscriptionsScreenUiMode.Selection -> onSelectionChange()
-                else -> { /* No-op for now */
-                }
-            }
-        }
+        )
     ) {
         Row(
             modifier = Modifier

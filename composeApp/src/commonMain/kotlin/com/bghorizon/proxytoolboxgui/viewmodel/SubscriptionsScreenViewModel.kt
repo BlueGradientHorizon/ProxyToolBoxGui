@@ -55,9 +55,9 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
             mainVm.updateAppStatus(AppStatus.UPDATING_SUBS)
             val subs = subscriptions.value
-            _uiState.update {
-                it.copy(
-                    updatingIds = subs.map { it.id }.toSet(),
+            _uiState.update { state ->
+                state.copy(
+                    updatingIds = subs.map { sub -> sub.id }.toSet(),
                     updateProgress = SubsUpdateProgress(
                         total = subs.size,
                         isRunning = true
@@ -165,6 +165,14 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
     fun confirmDeleteSubscription(subId: String) {
         viewModelScope.launch {
             module.subscriptionRepository.deleteSub(subId)
+        }
+    }
+
+    fun deleteSelectedSubscriptions() {
+        viewModelScope.launch {
+            val selectedIds = _uiState.value.selectedIds.toList()
+            module.subscriptionRepository.deleteSubs(selectedIds)
+            updateMode(SubscriptionsScreenUiMode.Normal)
         }
     }
 
