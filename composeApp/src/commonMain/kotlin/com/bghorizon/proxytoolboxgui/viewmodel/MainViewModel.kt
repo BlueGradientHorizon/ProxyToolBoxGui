@@ -14,6 +14,8 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 import proxytoolboxgui.composeapp.generated.resources.*
 
+import com.bghorizon.proxytoolboxgui.ui.screens.*
+
 class MainViewModel(
     private val platform: Platform,
     private val settingsRepository: SettingsRepository,
@@ -24,6 +26,7 @@ class MainViewModel(
 
     private val _uiState = MutableStateFlow(
         MainUiState(
+            screen = MainScreenState(),
             isDynamicColorSupported = platform.isDynamicColorSupported,
             isQrScannerSupported = platform.isQrScannerSupported
         )
@@ -58,12 +61,8 @@ class MainViewModel(
         }
     }
 
-    fun navigateTo(screen: Screen) {
-        _uiState.update { it.copy(currentScreen = screen) }
-    }
-
-    fun navigateBack() {
-        _uiState.update { it.copy(currentScreen = Screen.Main) }
+    fun navigateTo(screen: AppScreen) {
+        _uiState.update { it.copy(screen = screen) }
     }
 
     fun discoverWorkers() {
@@ -543,42 +542,61 @@ class MainViewModel(
         }
     }
 
-    fun updateMode(mode: UiMode) {
+    fun updateMode(mode: ScreenUiMode) {
         _uiState.update { state ->
-            when (mode) {
-                is MainMode -> state.copy(mainMode = mode)
-                is SubscriptionMode -> state.copy(
-                    subscriptionMode = mode,
-                    selectedSubscriptionIds = if (mode is SubscriptionMode.Normal) emptySet() else state.selectedSubscriptionIds
-                )
-                is SettingsMode -> state.copy(settingsMode = mode)
-                else -> state
+            val screen = state.screen
+            val updatedScreen = when {
+                mode is SubscriptionUiMode && screen is SubscriptionsScreenState -> {
+                    screen.copy(
+                        mode = mode,
+                        selectedIds = if (mode is SubscriptionUiMode.Normal) emptySet() else screen.selectedIds
+                    )
+                }
+
+                mode is MainUiMode && screen is MainScreenState -> {
+                    screen.copy(mode = mode)
+                }
+
+                mode is SettingsUiMode && screen is SettingsScreenState -> {
+                    screen.copy(mode = mode)
+                }
+
+                else -> screen
             }
+            state.copy(screen = updatedScreen)
         }
     }
 
     fun toggleSubscriptionSelection(id: String) {
         _uiState.update { state ->
-            val newSelection = if (state.selectedSubscriptionIds.contains(id)) {
-                state.selectedSubscriptionIds - id
+            val screen = state.screen as? SubscriptionsScreenState ?: return@update state
+            val newSelection = if (screen.selectedIds.contains(id)) {
+                screen.selectedIds - id
             } else {
-                state.selectedSubscriptionIds + id
+                screen.selectedIds + id
             }
-            state.copy(selectedSubscriptionIds = newSelection)
+            state.copy(screen = screen.copy(selectedIds = newSelection))
         }
     }
 
     fun selectAllSubscriptions() {
         val ids = subscriptions.value.map { it.id }
-        _uiState.update { it.copy(selectedSubscriptionIds = ids.toSet()) }
+        _uiState.update { state ->
+            val screen = state.screen as? SubscriptionsScreenState ?: return@update state
+            state.copy(screen = screen.copy(selectedIds = ids.toSet()))
+        }
     }
 
     fun deselectAllSubscriptions() {
-        _uiState.update { it.copy(selectedSubscriptionIds = emptySet()) }
+        _uiState.update { state ->
+            val screen = state.screen as? SubscriptionsScreenState ?: return@update state
+            state.copy(screen = screen.copy(selectedIds = emptySet()))
+        }
     }
 
     fun getSelectedExportText(includeNotes: Boolean): String {
-        val selectedIds = _uiState.value.selectedSubscriptionIds
+        val screen = _uiState.value.screen as? SubscriptionsScreenState ?: return ""
+        val selectedIds = screen.selectedIds
         val selected = subscriptions.value.filter { selectedIds.contains(it.id) }
         return selected.joinToString("\n") {
             if (includeNotes) "${it.note} ${it.url}" else it.url
@@ -587,7 +605,8 @@ class MainViewModel(
 
     fun exportSelectedToClipboard(includeNotes: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            val selectedIds = _uiState.value.selectedSubscriptionIds
+            val screen = _uiState.value.screen as? SubscriptionsScreenState ?: return@launch
+            val selectedIds = screen.selectedIds
             val selected = subscriptions.value.filter { selectedIds.contains(it.id) }
             if (selected.isEmpty()) return@launch
 
@@ -600,7 +619,7 @@ class MainViewModel(
             withContext(Dispatchers.Main) {
                 platform.copyToClipboard(text, label)
                 platform.showToast(msg)
-                updateMode(SubscriptionMode.Normal)
+                updateMode(SubscriptionUiMode.Normal)
                 hideDialog()
             }
         }

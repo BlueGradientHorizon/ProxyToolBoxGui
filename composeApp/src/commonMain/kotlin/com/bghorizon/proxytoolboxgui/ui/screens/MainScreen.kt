@@ -19,8 +19,7 @@ import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.data.AppStatus
 import com.bghorizon.proxytoolboxgui.data.TestProgress
-import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
-import com.bghorizon.proxytoolboxgui.viewmodel.MainMode
+import com.bghorizon.proxytoolboxgui.viewmodel.*
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.app_name
@@ -47,12 +46,36 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_validation_errors
 import proxytoolboxgui.composeapp.generated.resources.btn_web_server
 import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 
+sealed interface MainUiMode : ScreenUiMode {
+    data object Normal : MainUiMode, ScreenUiMode.Normal
+}
+
+data class MainScreenState(
+    override val mode: MainUiMode = MainUiMode.Normal
+) : AppScreen {
+    @Composable
+    override fun TopBar(viewModel: MainViewModel) {
+        MainTopBar(viewModel)
+    }
+
+    @Composable
+    override fun Content(viewModel: MainViewModel) {
+        MainScreen(viewModel)
+    }
+
+    @Composable
+    override fun FAB(viewModel: MainViewModel) {
+        MainFAB(viewModel)
+    }
+}
+
 @Composable
 fun MainTopBar(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    val screen = uiState.screen as? MainScreenState ?: return
 
-    when (uiState.mainMode) {
-        is MainMode.Normal -> {
+    when (screen.mode) {
+        is MainUiMode.Normal -> {
             NormalMainTopBar()
         }
     }
@@ -164,6 +187,7 @@ fun MainScreen(viewModel: MainViewModel) {
 @Composable
 fun MainFAB(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    val screen = uiState.screen as? MainScreenState ?: return
     val subs by viewModel.subscriptions.collectAsState()
     val totalWorking = subs.sumOf { it.working }
 
@@ -171,8 +195,8 @@ fun MainFAB(viewModel: MainViewModel) {
     val workers = uiState.workers
     val isTesting = appStatus == AppStatus.TESTING
 
-    when (uiState.mainMode) {
-        is MainMode.Normal -> {
+    when (screen.mode) {
+        is MainUiMode.Normal -> {
             NormalMainFAB(
                 isTesting = isTesting,
                 workersNotEmpty = workers.isNotEmpty(),

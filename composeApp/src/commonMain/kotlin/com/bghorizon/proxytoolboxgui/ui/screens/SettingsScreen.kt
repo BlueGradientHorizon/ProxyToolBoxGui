@@ -10,9 +10,7 @@ import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
-import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
-import com.bghorizon.proxytoolboxgui.viewmodel.SettingsMode
-import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
+import com.bghorizon.proxytoolboxgui.viewmodel.*
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -27,12 +25,31 @@ sealed interface SettingsDialog : UiDialog {
     data object ParallelDownloads : SettingsDialog
 }
 
-@Composable
-fun SettingsTopBar(viewModel: MainViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
+sealed interface SettingsUiMode : ScreenUiMode {
+    data object Normal : SettingsUiMode, ScreenUiMode.Normal
+}
 
-    when (uiState.settingsMode) {
-        is SettingsMode.Normal -> {
+data class SettingsScreenState(
+    override val mode: SettingsUiMode = SettingsUiMode.Normal
+) : AppScreen {
+    @Composable
+    override fun TopBar(viewModel: MainViewModel) {
+        SettingsTopBar(viewModel, this)
+    }
+
+    @Composable
+    override fun Content(viewModel: MainViewModel) {
+        SettingsScreen(viewModel)
+    }
+
+    @Composable
+    override fun FAB(viewModel: MainViewModel) {}
+}
+
+@Composable
+fun SettingsTopBar(viewModel: MainViewModel, screen: SettingsScreenState) {
+    when (screen.mode) {
+        is SettingsUiMode.Normal -> {
             NormalSettingsTopBar()
         }
     }

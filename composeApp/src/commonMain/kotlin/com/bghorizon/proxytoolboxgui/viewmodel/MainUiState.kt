@@ -1,28 +1,34 @@
 package com.bghorizon.proxytoolboxgui.viewmodel
 
+import androidx.compose.runtime.Composable
 import com.bghorizon.proxytoolboxgui.data.*
 
 /** Marker interface for any dialog state in the app */
 interface UiDialog
 
-/** Marker interface for any contextual mode in the app */
-interface UiMode
-
-sealed interface MainMode : UiMode {
-    data object Normal : MainMode
+/** Marker for all screen modes. Enforces that every screen has a 'Normal' mode. */
+interface ScreenUiMode {
+    interface Normal : ScreenUiMode
 }
 
-sealed interface SubscriptionMode : UiMode {
-    data object Normal : SubscriptionMode
-    data object Selection : SubscriptionMode
-}
+/**
+ * Represents the full state and rendering logic of a screen.
+ */
+interface AppScreen {
+    val mode: ScreenUiMode
 
-sealed interface SettingsMode : UiMode {
-    data object Normal : SettingsMode
+    @Composable
+    fun TopBar(viewModel: MainViewModel)
+
+    @Composable
+    fun Content(viewModel: MainViewModel)
+
+    @Composable
+    fun FAB(viewModel: MainViewModel)
 }
 
 data class MainUiState(
-    val currentScreen: Screen = Screen.Main,
+    val screen: AppScreen,
     val testProgress: TestProgress = TestProgress(),
     val subsUpdateProgress: SubsUpdateProgress = SubsUpdateProgress(),
     val workers: List<WorkerInfo> = emptyList(),
@@ -32,13 +38,5 @@ data class MainUiState(
     val isDynamicColorSupported: Boolean = false,
     val isQrScannerSupported: Boolean = false,
     val activeDialog: UiDialog? = null,
-    val mainMode: MainMode = MainMode.Normal,
-    val subscriptionMode: SubscriptionMode = SubscriptionMode.Normal,
-    val settingsMode: SettingsMode = SettingsMode.Normal,
-    val selectedSubscriptionIds: Set<String> = emptySet(),
     val updatingSubscriptionsIds: Set<String> = emptySet(),
 )
-
-enum class Screen {
-    Main, Subscriptions, Settings
-}

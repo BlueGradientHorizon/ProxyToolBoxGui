@@ -20,10 +20,7 @@ import com.bghorizon.proxytoolboxgui.data.Subscription
 import com.bghorizon.proxytoolboxgui.platform.getPlatform
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
-import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
-import com.bghorizon.proxytoolboxgui.viewmodel.SubscriptionMode
-import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
-import com.bghorizon.proxytoolboxgui.viewmodel.UiMode
+import com.bghorizon.proxytoolboxgui.viewmodel.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
@@ -43,19 +40,44 @@ sealed interface SubscriptionDialog : UiDialog {
         SubscriptionDialog
 }
 
+sealed interface SubscriptionUiMode : ScreenUiMode {
+    data object Normal : SubscriptionUiMode, ScreenUiMode.Normal
+    data object Selection : SubscriptionUiMode
+}
+
+data class SubscriptionsScreenState(
+    override val mode: SubscriptionUiMode = SubscriptionUiMode.Normal,
+    val selectedIds: Set<String> = emptySet()
+) : AppScreen {
+    @Composable
+    override fun TopBar(viewModel: MainViewModel) {
+        SubscriptionsTopBar(viewModel, this)
+    }
+
+    @Composable
+    override fun Content(viewModel: MainViewModel) {
+        SubscriptionsScreen(viewModel, this)
+    }
+
+    @Composable
+    override fun FAB(viewModel: MainViewModel) {
+        SubscriptionsFAB(viewModel, this)
+    }
+}
+
 @Composable
-fun SubscriptionsTopBar(viewModel: MainViewModel) {
+fun SubscriptionsTopBar(viewModel: MainViewModel, screen: SubscriptionsScreenState) {
     val uiState by viewModel.uiState.collectAsState()
     val subscriptions by viewModel.subscriptions.collectAsState()
     val isAllSelected =
-        (uiState.selectedSubscriptionIds.size == subscriptions.size) && subscriptions.isNotEmpty()
+        (screen.selectedIds.size == subscriptions.size) && subscriptions.isNotEmpty()
     val isUpdating = uiState.subsUpdateProgress.isRunning
 
-    when (uiState.subscriptionMode) {
-        is SubscriptionMode.Selection -> {
+    when (screen.mode) {
+        is SubscriptionUiMode.Selection -> {
             SelectionSubscriptionsTopBar(
                 isAllSelected = isAllSelected,
-                onBack = { viewModel.updateMode(SubscriptionMode.Normal) },
+                onBack = { viewModel.updateMode(SubscriptionUiMode.Normal) },
                 onToggleSelectAll = {
                     if (isAllSelected) viewModel.deselectAllSubscriptions()
                     else viewModel.selectAllSubscriptions()
@@ -63,10 +85,10 @@ fun SubscriptionsTopBar(viewModel: MainViewModel) {
             )
         }
 
-        is SubscriptionMode.Normal -> {
+        is SubscriptionUiMode.Normal -> {
             NormalSubscriptionsTopBar(
                 isUpdating = isUpdating,
-                onExportMode = { viewModel.updateMode(SubscriptionMode.Selection) },
+                onExportMode = { viewModel.updateMode(SubscriptionUiMode.Selection) },
                 onUpdateConfirm = { viewModel.updateDialog(SubscriptionDialog.UpdateConfirm) }
             )
         }
@@ -139,19 +161,19 @@ private fun NormalSubscriptionsTopBar(
 }
 
 @Composable
-fun SubscriptionsFAB(viewModel: MainViewModel) {
+fun SubscriptionsFAB(viewModel: MainViewModel, screen: SubscriptionsScreenState) {
     val uiState by viewModel.uiState.collectAsState()
     val isUpdating = uiState.subsUpdateProgress.isRunning
 
-    when (uiState.subscriptionMode) {
-        is SubscriptionMode.Selection -> {
+    when (screen.mode) {
+        is SubscriptionUiMode.Selection -> {
             SelectionSubscriptionsFAB(
                 isUpdating = isUpdating,
                 onExport = { viewModel.updateDialog(SubscriptionDialog.Export) }
             )
         }
 
-        is SubscriptionMode.Normal -> {
+        is SubscriptionUiMode.Normal -> {
             NormalSubscriptionsFAB(
                 isUpdating = isUpdating,
                 onImportClipboard = { viewModel.importFromClipboard() },
@@ -224,7 +246,7 @@ private fun NormalSubscriptionsFAB(
 }
 
 @Composable
-fun SubscriptionsScreen(viewModel: MainViewModel) {
+fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenState) {
     val uiState by viewModel.uiState.collectAsState()
     val subscriptions by viewModel.subscriptions.collectAsState()
     val activeDialog = uiState.activeDialog
@@ -258,8 +280,8 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
         items(subscriptions) { sub ->
             SubscriptionItem(
                 subscription = sub,
-                uiMode = uiState.subscriptionMode,
-                isSelected = uiState.selectedSubscriptionIds.contains(sub.id),
+                uiMode = screen.mode,
+                isSelected = screen.selectedIds.contains(sub.id),
                 isUpdating = uiState.updatingSubscriptionsIds.contains(sub.id),
                 isAnyUpdating = uiState.subsUpdateProgress.isRunning,
                 onSelectionChange = { viewModel.toggleSubscriptionSelection(sub.id) },
@@ -368,7 +390,7 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
 @Composable
 private fun SubscriptionItem(
     subscription: Subscription,
-    uiMode: UiMode?,
+    uiMode: ScreenUiMode?,
     isSelected: Boolean,
     isUpdating: Boolean,
     isAnyUpdating: Boolean,
@@ -383,7 +405,7 @@ private fun SubscriptionItem(
         ),
         onClick = {
             when (uiMode) {
-                is SubscriptionMode.Selection -> onSelectionChange()
+                is SubscriptionUiMode.Selection -> onSelectionChange()
                 else -> { /* No-op for now */
                 }
             }
@@ -427,7 +449,7 @@ private fun SubscriptionItem(
             }
 
             when (uiMode) {
-                is SubscriptionMode.Selection -> {
+                is SubscriptionUiMode.Selection -> {
                     Checkbox(
                         checked = isSelected,
                         onCheckedChange = { onSelectionChange() }

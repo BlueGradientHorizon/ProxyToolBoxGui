@@ -31,8 +31,10 @@ import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
 import com.bghorizon.proxytoolboxgui.platform.getPlatform
 import com.bghorizon.proxytoolboxgui.ui.screens.*
 import com.bghorizon.proxytoolboxgui.ui.theme.AppTheme
-import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
-import com.bghorizon.proxytoolboxgui.viewmodel.Screen
+import com.bghorizon.proxytoolboxgui.ui.screens.MainScreenState
+import com.bghorizon.proxytoolboxgui.ui.screens.SettingsScreenState
+import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionsScreenState
+import com.bghorizon.proxytoolboxgui.viewmodel.*
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -59,10 +61,10 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val uiState by viewModel.uiState.collectAsState()
 
     // Autonomous FAB padding calculation:
-    // We use remember(uiState.currentScreen) to reset the padding to 0.dp whenever the screen changes.
+    // We use remember(uiState.screen::class) to reset the padding to 0.dp whenever the screen changes.
     // This prevents "padding leakage" from previous screens. The measurement logic below 
     // will re-calculate the clearance if the new screen contains a FAB.
-    var fabTotalPadding by remember(uiState.currentScreen) { mutableStateOf(0.dp) }
+    var fabTotalPadding by remember(uiState.screen::class) { mutableStateOf(0.dp) }
     var scaffoldCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val density = LocalDensity.current
     val animatedFabPadding by animateDpAsState(fabTotalPadding)
@@ -79,35 +81,29 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                 Scaffold(
                     // Track scaffold coordinates to enable relative measurement of the FAB position
                     modifier = Modifier.onGloballyPositioned { scaffoldCoords = it },
-                    topBar = {
-                        when (uiState.currentScreen) {
-                            Screen.Main -> MainTopBar(viewModel)
-                            Screen.Subscriptions -> SubscriptionsTopBar(viewModel)
-                            Screen.Settings -> SettingsTopBar(viewModel)
-                        }
-                    },
+                    topBar = { uiState.screen.TopBar(viewModel) },
                     bottomBar = {
                         if (!isExpanded) {
                             NavigationBar(modifier = Modifier.height(80.dp)) {
                                 AdaptiveNavigationItem(
                                     label = stringResource(Res.string.home),
                                     icon = Icons.Default.Home,
-                                    selected = uiState.currentScreen == Screen.Main,
-                                    onClick = { viewModel.navigateTo(Screen.Main) },
+                                    selected = uiState.screen is MainScreenState,
+                                    onClick = { viewModel.navigateTo(MainScreenState()) },
                                     isCompact = isCompact
                                 )
                                 AdaptiveNavigationItem(
                                     label = stringResource(Res.string.subscriptions),
                                     icon = Icons.AutoMirrored.Filled.List,
-                                    selected = uiState.currentScreen == Screen.Subscriptions,
-                                    onClick = { viewModel.navigateTo(Screen.Subscriptions) },
+                                    selected = uiState.screen is SubscriptionsScreenState,
+                                    onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
                                     isCompact = isCompact
                                 )
                                 AdaptiveNavigationItem(
                                     label = stringResource(Res.string.title_settings),
                                     icon = Icons.Default.Settings,
-                                    selected = uiState.currentScreen == Screen.Settings,
-                                    onClick = { viewModel.navigateTo(Screen.Settings) },
+                                    selected = uiState.screen is SettingsScreenState,
+                                    onClick = { viewModel.navigateTo(SettingsScreenState()) },
                                     isCompact = isCompact
                                 )
                             }
@@ -134,11 +130,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 }
                             }
                         ) {
-                            when (uiState.currentScreen) {
-                                Screen.Main -> MainFAB(viewModel)
-                                Screen.Subscriptions -> SubscriptionsFAB(viewModel)
-                                else -> {}
-                            }
+                            uiState.screen.FAB(viewModel)
                         }
                     }
                 ) { padding ->
@@ -166,24 +158,24 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(Res.string.home)) },
                                     icon = { Icon(Icons.Default.Home, null) },
-                                    selected = uiState.currentScreen == Screen.Main,
-                                    onClick = { viewModel.navigateTo(Screen.Main) },
+                                    selected = uiState.screen is MainScreenState,
+                                    onClick = { viewModel.navigateTo(MainScreenState()) },
                                     modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
                                 )
                                 navRailSpacer()
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(Res.string.subscriptions)) },
                                     icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
-                                    selected = uiState.currentScreen == Screen.Subscriptions,
-                                    onClick = { viewModel.navigateTo(Screen.Subscriptions) },
+                                    selected = uiState.screen is SubscriptionsScreenState,
+                                    onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
                                     modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
                                 )
                                 navRailSpacer()
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(Res.string.title_settings)) },
                                     icon = { Icon(Icons.Default.Settings, null) },
-                                    selected = uiState.currentScreen == Screen.Settings,
-                                    onClick = { viewModel.navigateTo(Screen.Settings) },
+                                    selected = uiState.screen is SettingsScreenState,
+                                    onClick = { viewModel.navigateTo(SettingsScreenState()) },
                                     modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
                                 )
                             }
@@ -198,7 +190,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 bottom = maxOf(padding.calculateBottomPadding(), animatedFabPadding)
                             )
                             CompositionLocalProvider(LocalScaffoldPadding provides adjustedPadding) {
-                                AppScreenContent(uiState.currentScreen, viewModel)
+                                uiState.screen.Content(viewModel)
                             }
                         }
                     }
@@ -256,11 +248,3 @@ fun RowScope.AdaptiveNavigationItem(
     }
 }
 
-@Composable
-fun AppScreenContent(currentScreen: Screen, viewModel: MainViewModel) {
-    when (currentScreen) {
-        Screen.Main -> MainScreen(viewModel)
-        Screen.Subscriptions -> SubscriptionsScreen(viewModel)
-        Screen.Settings -> SettingsScreen(viewModel)
-    }
-}
