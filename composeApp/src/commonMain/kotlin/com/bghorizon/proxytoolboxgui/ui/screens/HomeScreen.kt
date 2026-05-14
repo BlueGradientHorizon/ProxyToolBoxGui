@@ -72,7 +72,7 @@ data class HomeScreenState(
     override fun FAB(mainVm: MainViewModel) {
         val module = LocalAppModule.current
         val homeVm = viewModel { HomeScreenViewModel(module) }
-        MainFAB(mainVm, homeVm)
+        HomeScreenFAB(mainVm, homeVm)
     }
 }
 
@@ -192,7 +192,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 }
 
 @Composable
-fun MainFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
+fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val mainUiState by mainVm.uiState.collectAsState()
     val homeUiState by homeVm.uiState.collectAsState()
     val module = LocalAppModule.current
@@ -203,9 +203,11 @@ fun MainFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val appStatus = homeUiState.appStatus
     val workers = mainUiState.workers
     val isTesting = appStatus == AppStatus.TESTING
+    val isWebServerRunning = mainUiState.webServerRunning
 
     NormalMainFAB(
         isTesting = isTesting,
+        isWebServerRunning = isWebServerRunning,
         workersNotEmpty = workers.isNotEmpty(),
         totalWorking = totalWorking,
         onToggleWebServer = { mainVm.toggleWebServer() },
@@ -226,6 +228,7 @@ fun MainFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 @Composable
 private fun NormalMainFAB(
     isTesting: Boolean,
+    isWebServerRunning: Boolean,
     workersNotEmpty: Boolean,
     totalWorking: Int,
     onToggleWebServer: () -> Unit,
@@ -266,7 +269,17 @@ private fun NormalMainFAB(
                     expanded = false
                 },
                 icon = { Icon(Icons.Default.Public, null) },
-                text = { Text(stringResource(Res.string.btn_web_server)) }
+                text = { Text(stringResource(Res.string.btn_web_server)) },
+                containerColor = if (isWebServerRunning) {
+                    MaterialTheme.colorScheme.tertiaryContainer
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer
+                },
+                contentColor = if (isWebServerRunning) {
+                    MaterialTheme.colorScheme.onTertiaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                }
             )
             FloatingActionButtonMenuItem(
                 onClick = {
