@@ -1,6 +1,5 @@
 package com.bghorizon.proxytoolboxgui.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,7 +12,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCode
-import com.bghorizon.proxytoolboxgui.ui.components.SubscriptionScannerView
+import com.bghorizon.proxytoolboxgui.ui.components.*
 import androidx.compose.material.icons.filled.QrCodeScanner
 import com.bghorizon.proxytoolboxgui.platform.getPlatform
 import androidx.compose.material.icons.filled.Refresh
@@ -34,8 +33,6 @@ import com.bghorizon.proxytoolboxgui.data.Subscription
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import com.bghorizon.proxytoolboxgui.viewmodel.UiDialog
-import io.github.alexzhirkevich.qrose.options.QrBrush
-import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -262,10 +259,13 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
         }
 
         is SubscriptionDialog.Delete -> {
-            DeleteConfirmationDialog(
-                subscription = dialog.subscription,
+            ConfirmationDialog(
+                title = stringResource(Res.string.dialog_btn_delete),
+                message = stringResource(Res.string.sub_del_confirm, dialog.subscription.note),
                 onDismiss = { viewModel.hideDialog() },
-                onConfirm = { viewModel.confirmDeleteSubscription(dialog.subscription.id) }
+                onConfirm = { viewModel.confirmDeleteSubscription(dialog.subscription.id) },
+                confirmText = stringResource(Res.string.dialog_btn_delete),
+                isDestructive = true
             )
         }
 
@@ -290,21 +290,33 @@ fun SubscriptionsScreen(viewModel: MainViewModel) {
         }
 
         is SubscriptionDialog.UpdateResult -> {
-            UpdateResultDialog(
-                total = dialog.total,
-                succeeded = dialog.succeeded,
-                failed = dialog.failed,
-                onDismiss = { viewModel.hideDialog() }
-            )
+            SimpleAlertDialog(
+                title = stringResource(Res.string.btn_subs_update),
+                onDismiss = { viewModel.hideDialog() },
+                confirmText = stringResource(Res.string.dialog_btn_close),
+            ) {
+                Text(
+                    stringResource(
+                        Res.string.btn_subs_update_result,
+                        dialog.total,
+                        dialog.failed,
+                        dialog.succeeded
+                    )
+                )
+            }
         }
 
         SubscriptionDialog.UpdateConfirm -> {
-            UpdateConfirmationDialog(
+            ConfirmationDialog(
+                title = stringResource(Res.string.btn_subs_update),
+                message = stringResource(Res.string.sub_update_confirm),
                 onDismiss = { viewModel.hideDialog() },
                 onConfirm = {
                     viewModel.hideDialog()
                     viewModel.updateSubscriptions()
-                }
+                },
+                confirmText = stringResource(Res.string.btn_subs_update),
+                isDestructive = true
             )
         }
 
@@ -517,59 +529,6 @@ private fun ExportOptionsDialog(
 }
 
 @Composable
-private fun QrCodeDialog(
-    content: String,
-    onDismiss: () -> Unit
-) {
-    val qrSize = remember(content) { calculateQrSizeDp(content.length) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.title_qr_code)) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (content.isNotBlank()) {
-                    val qrColor = MaterialTheme.colorScheme.onSurface
-                    Image(
-                        painter = rememberQrCodePainter(content) {
-                            colors {
-                                dark = QrBrush.solid(qrColor)
-                            }
-                        },
-                        contentDescription = stringResource(Res.string.title_qr_code),
-                        modifier = Modifier
-                            .widthIn(max = qrSize.dp)
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                    )
-                } else {
-                    Text("No content selected")
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_close))
-            }
-        }
-    )
-}
-
-private fun calculateQrSizeDp(textLength: Int): Int {
-    val minSizeDp = 100
-    val paddingDp = 24
-    val density = 1.5
-    val scale = 10.0
-
-    val calculated = (sqrt(textLength.toDouble() / density) * scale).toInt() + paddingDp
-    return max(minSizeDp, calculated)
-}
-
-@Composable
 private fun AddSubscriptionDialog(
     editingSubscription: Subscription?,
     onDismiss: () -> Unit,
@@ -635,94 +594,6 @@ private fun AddSubscriptionDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.dialog_btn_cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun DeleteConfirmationDialog(
-    subscription: Subscription,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.dialog_btn_delete)) },
-        text = {
-            Text(stringResource(Res.string.sub_del_confirm, subscription.note))
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(stringResource(Res.string.dialog_btn_delete))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun UpdateConfirmationDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.btn_subs_update)) },
-        text = {
-            Text(stringResource(Res.string.sub_update_confirm))
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(stringResource(Res.string.btn_subs_update))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun UpdateResultDialog(
-    total: Int,
-    succeeded: Int,
-    failed: Int,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.btn_subs_update)) },
-        text = {
-            Text(
-                stringResource(
-                    Res.string.btn_subs_update_result,
-                    total,
-                    failed,
-                    succeeded
-                )
-            )
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_close))
             }
         }
     )

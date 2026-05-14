@@ -12,13 +12,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
+import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.data.AppStatus
-import com.bghorizon.proxytoolboxgui.data.BatchProgress
 import com.bghorizon.proxytoolboxgui.data.TestProgress
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -82,13 +81,16 @@ fun MainScreen(viewModel: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
-            StatsCard(
-                found = totalFound,
-                duplicated = totalDuplicate,
-                parseErr = totalParseErr,
-                validErr = totalValidErr,
-                working = totalWorking
-            )
+            StatsCard {
+                StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
+                StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
+                StatLine(stringResource(Res.string.lbl_parsing_errors, totalParseErr))
+                StatLine(stringResource(Res.string.lbl_validation_errors, totalValidErr))
+                StatLine(
+                    stringResource(Res.string.lbl_working_profiles, totalWorking),
+                    isHighlighted = true
+                )
+            }
         }
 
         if (testProgress.isRunning) {
@@ -102,7 +104,26 @@ fun MainScreen(viewModel: MainViewModel) {
                 .sortedBy { it.first }
 
             items(groupedBatches) { (batchNum, rounds) ->
-                BatchTable(batchNum, rounds)
+                BatchTable(
+                    title = stringResource(Res.string.batch_title, batchNum),
+                    headers = listOf(
+                        stringResource(Res.string.column_round),
+                        stringResource(Res.string.column_total),
+                        stringResource(Res.string.column_running),
+                        stringResource(Res.string.column_failed),
+                        stringResource(Res.string.column_succeeded)
+                    ),
+                    headerWeights = listOf(0.7f, 1f, 1f, 1f, 1f),
+                    rows = rounds.sortedBy { it.roundNum }.map { round ->
+                        listOf(
+                            round.roundNum.toString(),
+                            round.total.toString(),
+                            round.running.toString(),
+                            round.failed.toString(),
+                            round.succeeded.toString()
+                        )
+                    }
+                )
             }
         } else {
             item {
@@ -236,115 +257,6 @@ fun MainFAB(viewModel: MainViewModel) {
     }
 }
 
-
-@Composable
-private fun StatsCard(
-    found: Int,
-    duplicated: Int,
-    parseErr: Int,
-    validErr: Int,
-    working: Int
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            StatLine(stringResource(Res.string.lbl_profiles_found, found))
-            StatLine(stringResource(Res.string.lbl_profiles_duplicated, duplicated))
-            StatLine(stringResource(Res.string.lbl_parsing_errors, parseErr))
-            StatLine(stringResource(Res.string.lbl_validation_errors, validErr))
-            StatLine(
-                stringResource(Res.string.lbl_working_profiles, working),
-                isHighlighted = true
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatLine(text: String, isHighlighted: Boolean = false) {
-    Text(
-        text = text,
-        style = if (isHighlighted) {
-            MaterialTheme.typography.bodyLarge.copy(
-                color = MaterialTheme.colorScheme.primary
-            )
-        } else MaterialTheme.typography.bodyMedium,
-        color = if (isHighlighted) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.onSurfaceVariant
-    )
-}
-
-@Composable
-private fun BatchTable(batchNum: Int, rounds: List<BatchProgress>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
-    ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(
-                text = stringResource(Res.string.batch_title, batchNum),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                TableHeaderCell(stringResource(Res.string.column_round), Modifier.weight(0.7f))
-                TableHeaderCell(stringResource(Res.string.column_total), Modifier.weight(1f))
-                TableHeaderCell(stringResource(Res.string.column_running), Modifier.weight(1f))
-                TableHeaderCell(stringResource(Res.string.column_failed), Modifier.weight(1f))
-                TableHeaderCell(stringResource(Res.string.column_succeeded), Modifier.weight(1f))
-            }
-
-            rounds.sortedBy { it.roundNum }.forEach { round ->
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    TableCell(round.roundNum.toString(), Modifier.weight(0.7f))
-                    TableCell(round.total.toString(), Modifier.weight(1f))
-                    TableCell(round.running.toString(), Modifier.weight(1f))
-                    TableCell(round.failed.toString(), Modifier.weight(1f))
-                    TableCell(round.succeeded.toString(), Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TableHeaderCell(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-    )
-}
-
-@Composable
-private fun TableCell(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        textAlign = TextAlign.Center,
-        modifier = modifier
-    )
-}
 
 @Composable
 private fun TestProgressBar(progress: TestProgress) {
