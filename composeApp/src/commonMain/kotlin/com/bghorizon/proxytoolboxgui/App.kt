@@ -31,7 +31,7 @@ import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDatabase
 import com.bghorizon.proxytoolboxgui.di.AppModule
 import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 import com.bghorizon.proxytoolboxgui.platform.getPlatform
-import com.bghorizon.proxytoolboxgui.ui.screens.MainScreenState
+import com.bghorizon.proxytoolboxgui.ui.screens.HomeScreenState
 import com.bghorizon.proxytoolboxgui.ui.screens.SettingsScreenState
 import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionsScreenState
 import com.bghorizon.proxytoolboxgui.ui.theme.AppTheme
@@ -96,8 +96,8 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                     AdaptiveNavigationItem(
                                         label = stringResource(Res.string.home),
                                         icon = Icons.Default.Home,
-                                        selected = uiState.screen is MainScreenState,
-                                        onClick = { viewModel.navigateTo(MainScreenState()) },
+                                        selected = uiState.screen is HomeScreenState,
+                                        onClick = { viewModel.navigateTo(HomeScreenState()) },
                                         isCompact = isCompact
                                     )
                                     AdaptiveNavigationItem(
@@ -166,8 +166,8 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                     NavigationDrawerItem(
                                         label = { Text(stringResource(Res.string.home)) },
                                         icon = { Icon(Icons.Default.Home, null) },
-                                        selected = uiState.screen is MainScreenState,
-                                        onClick = { viewModel.navigateTo(MainScreenState()) },
+                                        selected = uiState.screen is HomeScreenState,
+                                        onClick = { viewModel.navigateTo(HomeScreenState()) },
                                         modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
                                     )
                                     navRailSpacer()

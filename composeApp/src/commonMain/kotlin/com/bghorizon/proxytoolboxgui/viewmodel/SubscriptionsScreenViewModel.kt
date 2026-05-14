@@ -4,15 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.*
 import com.bghorizon.proxytoolboxgui.di.AppModule
-import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionUiMode
+import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionsScreenUiMode
 import com.bghorizon.proxytoolboxgui.utils.ConfigUtils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.jetbrains.compose.resources.getString
 import proxytoolboxgui.composeapp.generated.resources.*
 
-class SubscriptionsViewModel(private val module: AppModule) : ViewModel() {
-    private val _uiState = MutableStateFlow(SubscriptionsUiState())
+class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() {
+    private val _uiState = MutableStateFlow(SubscriptionsScreenUiState())
     val uiState = _uiState.asStateFlow()
 
     private var downloadJob: Job? = null
@@ -20,11 +20,11 @@ class SubscriptionsViewModel(private val module: AppModule) : ViewModel() {
     val subscriptions: StateFlow<List<Subscription>> = module.subscriptionRepository.subscriptions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun updateMode(mode: SubscriptionUiMode) {
+    fun updateMode(mode: SubscriptionsScreenUiMode) {
         _uiState.update { state ->
             state.copy(
                 mode = mode,
-                selectedIds = if (mode is SubscriptionUiMode.Normal) emptySet() else state.selectedIds
+                selectedIds = if (mode is SubscriptionsScreenUiMode.Normal) emptySet() else state.selectedIds
             )
         }
     }
@@ -137,7 +137,7 @@ class SubscriptionsViewModel(private val module: AppModule) : ViewModel() {
             withContext(Dispatchers.Main) {
                 module.platform.copyToClipboard(text, label)
                 module.platform.showToast(msg)
-                updateMode(SubscriptionUiMode.Normal)
+                updateMode(SubscriptionsScreenUiMode.Normal)
             }
         }
     }
@@ -207,8 +207,8 @@ class SubscriptionsViewModel(private val module: AppModule) : ViewModel() {
     }
 }
 
-data class SubscriptionsUiState(
-    val mode: SubscriptionUiMode = SubscriptionUiMode.Normal,
+data class SubscriptionsScreenUiState(
+    val mode: SubscriptionsScreenUiMode = SubscriptionsScreenUiMode.Normal,
     val selectedIds: Set<String> = emptySet(),
     val updatingIds: Set<String> = emptySet(),
     val updateProgress: SubsUpdateProgress = SubsUpdateProgress()

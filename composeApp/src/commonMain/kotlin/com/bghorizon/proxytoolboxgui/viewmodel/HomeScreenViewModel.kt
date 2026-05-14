@@ -13,8 +13,8 @@ import kotlin.time.Clock
 import org.jetbrains.compose.resources.getString
 import proxytoolboxgui.composeapp.generated.resources.*
 
-class HomeViewModel(private val module: AppModule) : ViewModel() {
-    private val _uiState = MutableStateFlow(HomeUiState())
+class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
+    private val _uiState = MutableStateFlow(HomeScreenUiState())
     val uiState = _uiState.asStateFlow()
 
     private var testJob: Job? = null
@@ -167,7 +167,8 @@ class HomeViewModel(private val module: AppModule) : ViewModel() {
                 _uiState.update { state ->
                     val current = state.testProgress
                     val updatedProgresses = current.batchProgresses.toMutableList()
-                    val idx = updatedProgresses.indexOfFirst { it.batchNum == event.batch && it.roundNum == event.round }
+                    val idx =
+                        updatedProgresses.indexOfFirst { it.batchNum == event.batch && it.roundNum == event.round }
                     if (idx >= 0) {
                         updatedProgresses[idx] = updatedProgresses[idx].copy(
                             total = event.total,
@@ -294,7 +295,7 @@ class HomeViewModel(private val module: AppModule) : ViewModel() {
     }
 }
 
-data class HomeUiState(
+data class HomeScreenUiState(
     val testProgress: TestProgress = TestProgress(),
     val appStatus: AppStatus = AppStatus.IDLE,
     val workers: List<WorkerInfo> = emptyList()

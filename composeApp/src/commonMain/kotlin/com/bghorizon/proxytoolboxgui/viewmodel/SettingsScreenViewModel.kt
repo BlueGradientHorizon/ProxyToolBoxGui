@@ -5,18 +5,18 @@ import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.AppSettings
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
 import com.bghorizon.proxytoolboxgui.di.AppModule
-import com.bghorizon.proxytoolboxgui.ui.screens.SettingsUiMode
+import com.bghorizon.proxytoolboxgui.ui.screens.SettingsScreenUiMode
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(private val module: AppModule) : ViewModel() {
-    private val _uiState = MutableStateFlow(SettingsUiState())
+class SettingsScreenViewModel(private val module: AppModule) : ViewModel() {
+    private val _uiState = MutableStateFlow(SettingsScreenUiState())
     val uiState = _uiState.asStateFlow()
 
     val settings: StateFlow<AppSettings> = module.settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
 
-    fun updateMode(mode: SettingsUiMode) {
+    fun updateMode(mode: SettingsScreenUiMode) {
         _uiState.update { it.copy(mode = mode) }
     }
 
@@ -48,6 +48,6 @@ class SettingsViewModel(private val module: AppModule) : ViewModel() {
     }
 }
 
-data class SettingsUiState(
-    val mode: SettingsUiMode = SettingsUiMode.Normal
+data class SettingsScreenUiState(
+    val mode: SettingsScreenUiMode = SettingsScreenUiMode.Normal
 )

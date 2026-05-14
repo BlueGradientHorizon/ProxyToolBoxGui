@@ -49,52 +49,52 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 
-sealed interface MainUiMode : ScreenUiMode {
-    data object Normal : MainUiMode, ScreenUiMode.Normal
+sealed interface HomeScreenUiMode : ScreenUiMode {
+    data object Normal : HomeScreenUiMode, ScreenUiMode.Normal
 }
 
-data class MainScreenState(
-    override val mode: MainUiMode = MainUiMode.Normal
+data class HomeScreenState(
+    override val mode: HomeScreenUiMode = HomeScreenUiMode.Normal
 ) : AppScreen {
     @Composable
     override fun TopBar(mainVm: MainViewModel) {
-        MainTopBar()
+        HomeScreenTopBar()
     }
 
     @Composable
     override fun Content(mainVm: MainViewModel) {
         val module = LocalAppModule.current
-        val homeVm = viewModel { HomeViewModel(module) }
-        MainScreen(mainVm, homeVm)
+        val homeVm = viewModel { HomeScreenViewModel(module) }
+        HomeScreen(mainVm, homeVm)
     }
 
     @Composable
     override fun FAB(mainVm: MainViewModel) {
         val module = LocalAppModule.current
-        val homeVm = viewModel { HomeViewModel(module) }
+        val homeVm = viewModel { HomeScreenViewModel(module) }
         MainFAB(mainVm, homeVm)
     }
 }
 
 @Composable
-fun MainTopBar() {
-    NormalMainTopBar()
+fun HomeScreenTopBar() {
+    NormalHomeScreenTopBar()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NormalMainTopBar() {
+private fun NormalHomeScreenTopBar() {
     TopAppBar(
         title = { Text(stringResource(Res.string.app_name)) }
     )
 }
 
 @Composable
-fun MainScreen(mainVm: MainViewModel, homeVm: HomeViewModel) {
+fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val mainUiState by mainVm.uiState.collectAsState()
     val homeUiState by homeVm.uiState.collectAsState()
     val module = LocalAppModule.current
-    val subVm: SubscriptionsViewModel = viewModel { SubscriptionsViewModel(module) }
+    val subVm: SubscriptionsScreenViewModel = viewModel { SubscriptionsScreenViewModel(module) }
     val subs by subVm.subscriptions.collectAsState()
 
     val testProgress = homeUiState.testProgress
@@ -192,11 +192,11 @@ fun MainScreen(mainVm: MainViewModel, homeVm: HomeViewModel) {
 }
 
 @Composable
-fun MainFAB(mainVm: MainViewModel, homeVm: HomeViewModel) {
+fun MainFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val mainUiState by mainVm.uiState.collectAsState()
     val homeUiState by homeVm.uiState.collectAsState()
     val module = LocalAppModule.current
-    val subVm: SubscriptionsViewModel = viewModel { SubscriptionsViewModel(module) }
+    val subVm: SubscriptionsScreenViewModel = viewModel { SubscriptionsScreenViewModel(module) }
     val subs by subVm.subscriptions.collectAsState()
     val totalWorking = subs.sumOf { it.working }
 

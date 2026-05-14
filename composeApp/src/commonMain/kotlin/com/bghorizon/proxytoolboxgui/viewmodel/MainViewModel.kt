@@ -14,7 +14,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         MainUiState(
-            screen = MainScreenState(),
+            screen = HomeScreenState(),
             isDynamicColorSupported = module.platform.isDynamicColorSupported,
             isQrScannerSupported = module.platform.isQrScannerSupported
         )

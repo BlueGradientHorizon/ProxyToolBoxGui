@@ -27,51 +27,52 @@ sealed interface SettingsDialog : UiDialog {
     data object ParallelDownloads : SettingsDialog
 }
 
-sealed interface SettingsUiMode : ScreenUiMode {
-    data object Normal : SettingsUiMode, ScreenUiMode.Normal
+sealed interface SettingsScreenUiMode : ScreenUiMode {
+    data object Normal : SettingsScreenUiMode, ScreenUiMode.Normal
 }
 
 data class SettingsScreenState(
-    override val mode: SettingsUiMode = SettingsUiMode.Normal
+    override val mode: SettingsScreenUiMode = SettingsScreenUiMode.Normal
 ) : AppScreen {
     @Composable
     override fun TopBar(mainVm: MainViewModel) {
         val module = LocalAppModule.current
-        val settingsVm = viewModel { SettingsViewModel(module) }
-        SettingsTopBar(settingsVm)
+        val settingsVm = viewModel { SettingsScreenViewModel(module) }
+        SettingsScreenTopBar(settingsVm)
     }
 
     @Composable
     override fun Content(mainVm: MainViewModel) {
         val module = LocalAppModule.current
-        val settingsVm: SettingsViewModel = viewModel { SettingsViewModel(module) }
+        val settingsVm: SettingsScreenViewModel = viewModel { SettingsScreenViewModel(module) }
         SettingsScreen(mainVm, settingsVm)
     }
 
     @Composable
-    override fun FAB(mainVm: MainViewModel) {}
+    override fun FAB(mainVm: MainViewModel) {
+    }
 }
 
 @Composable
-fun SettingsTopBar(settingsVm: SettingsViewModel) {
+fun SettingsScreenTopBar(settingsVm: SettingsScreenViewModel) {
     val settingsUiState by settingsVm.uiState.collectAsState()
     when (settingsUiState.mode) {
-        is SettingsUiMode.Normal -> {
-            NormalSettingsTopBar()
+        is SettingsScreenUiMode.Normal -> {
+            NormalSettingsScreenTopBar()
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NormalSettingsTopBar() {
+private fun NormalSettingsScreenTopBar() {
     TopAppBar(
         title = { Text(stringResource(Res.string.title_settings)) }
     )
 }
 
 @Composable
-fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsViewModel) {
+fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
     val mainUiState by mainVm.uiState.collectAsState()
     val settings by settingsVm.settings.collectAsState()
     val activeDialog = mainUiState.activeDialog
