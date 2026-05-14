@@ -3,60 +3,41 @@ package com.bghorizon.proxytoolboxgui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.*
-import com.bghorizon.proxytoolboxgui.data.db.ConfigTestResultUpdate
-import com.bghorizon.proxytoolboxgui.platform.Platform
-import com.bghorizon.proxytoolboxgui.utils.ConfigUtils
+import com.bghorizon.proxytoolboxgui.di.AppModule
+import com.bghorizon.proxytoolboxgui.ui.screens.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlin.time.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 import proxytoolboxgui.composeapp.generated.resources.*
 
-import com.bghorizon.proxytoolboxgui.ui.screens.*
-
-class MainViewModel(
-    private val platform: Platform,
-    private val settingsRepository: SettingsRepository,
-    private val subscriptionRepository: SubscriptionRepository,
-    private val testManager: ProxyTestManager,
-    private val webServer: ProxyWebServer
-) : ViewModel() {
+class MainViewModel(val module: AppModule) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         MainUiState(
             screen = MainScreenState(),
-            isDynamicColorSupported = platform.isDynamicColorSupported,
-            isQrScannerSupported = platform.isQrScannerSupported
+            isDynamicColorSupported = module.platform.isDynamicColorSupported,
+            isQrScannerSupported = module.platform.isQrScannerSupported
         )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
-    val subscriptions: StateFlow<List<Subscription>> = subscriptionRepository.subscriptions
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    private var testJob: Job? = null
-    private var timerJob: Job? = null
-    private var downloadJob: Job? = null
-
     init {
         viewModelScope.launch {
-            settingsRepository.settings.collect { settings ->
+            module.settingsRepository.settings.collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
             }
         }
         viewModelScope.launch {
             try {
-                settingsRepository.loadSettings()
+                module.settingsRepository.loadSettings()
                 // Set completed status if we have configs already
-                if (subscriptionRepository.getWorkingConfigs().isNotEmpty()) {
-                    _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
+                if (module.subscriptionRepository.getWorkingConfigs().isNotEmpty()) {
+                    updateAppStatus(AppStatus.COMPLETED)
                 }
                 discoverWorkers()
             } catch (e: Exception) {
                 e.printStackTrace()
-                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
+                updateAppStatus(AppStatus.ERROR)
             }
         }
     }
@@ -65,15 +46,19 @@ class MainViewModel(
         _uiState.update { it.copy(screen = screen) }
     }
 
+    fun updateAppStatus(status: AppStatus) {
+        _uiState.update { it.copy(appStatus = status) }
+    }
+
     fun discoverWorkers() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val libraryPath = platform.getWorkerLibraryPath()
+                val libraryPath = module.platform.getWorkerLibraryPath()
                 val json = GoBridge.discoverWorkers(libraryPath)
                 val workers = JsonConfig.json.decodeFromString<List<WorkerInfo>>(json)
                 _uiState.update { it.copy(workers = workers) }
 
-                val currentSettings = _uiState.value.settings
+                val currentSettings = module.settingsRepository.settings.value
                 val savedName = currentSettings.selectedWorkerName
                 val savedPath = currentSettings.selectedWorker
 
@@ -83,360 +68,18 @@ class MainViewModel(
                     ?: if (workers.isNotEmpty()) workers[0] else null
 
                 if (matchedWorker != null && (matchedWorker.path != savedPath || savedName.isBlank())) {
-                    selectWorker(matchedWorker)
+                    module.settingsRepository.updateSelectedWorker(
+                        matchedWorker.name,
+                        matchedWorker.path
+                    )
                 }
 
                 if (workers.isEmpty()) {
-                    _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
+                    updateAppStatus(AppStatus.ERROR)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
-            }
-        }
-    }
-
-    fun selectWorker(worker: WorkerInfo) {
-        viewModelScope.launch {
-            settingsRepository.updateSelectedWorker(worker.name, worker.path)
-        }
-    }
-
-    fun startTest() {
-        if (_uiState.value.workers.isEmpty() || testJob?.isActive == true) return
-
-        if (_uiState.value.appStatus == AppStatus.UPDATING_SUBS) {
-            viewModelScope.launch {
-                platform.showToast(getString(Res.string.msg_cannot_test_while_updating))
-            }
-            return
-        }
-
-        testJob = viewModelScope.launch(Dispatchers.IO) {
-            val job = coroutineContext[Job]
-            val currentSettings = _uiState.value.settings
-
-            if (currentSettings.selectedWorker.isBlank()) {
-                val msg = getString(Res.string.msg_select_worker)
-                withContext(Dispatchers.Main) {
-                    platform.showToast(msg)
-                }
-                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
-                return@launch
-            }
-
-            _uiState.update {
-                it.copy(
-                    appStatus = AppStatus.TESTING,
-                    testProgress = it.testProgress.copy(isRunning = true)
-                )
-            }
-
-            try {
-                val setup = testManager.prepareTest(currentSettings, subscriptions.value)
-
-                // Persist the calculated 'duplicated' counts and reset baseline errors in DB
-                setup.updatedSubscriptions.forEach { sub ->
-                    subscriptionRepository.saveSub(sub)
-                }
-
-                if (setup.configs.isEmpty()) {
-                    val msg = getString(Res.string.msg_no_configs_to_test)
-                    withContext(Dispatchers.Main) {
-                        platform.showToast(msg)
-                    }
-                    _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
-                    return@launch
-                }
-
-                _uiState.update {
-                    it.copy(
-                        testProgress = it.testProgress.copy(
-                            totalBatches = setup.totalBatches,
-                            totalRounds = setup.totalRounds,
-                            totalSeconds = setup.totalSeconds,
-                            elapsedSeconds = 0,
-                            currentBatch = 0,
-                            currentRound = 0,
-                            batchProgresses = (1..setup.totalBatches).flatMap { b ->
-                                (1..setup.totalRounds).map { r ->
-                                    BatchProgress(
-                                        batchNum = b,
-                                        roundNum = r
-                                    )
-                                }
-                            }
-                        )
-                    )
-                }
-
-                val resultConfigs = testManager.runLatencyTests(
-                    settings = currentSettings,
-                    configs = setup.configs,
-                    onEvent = { event ->
-                        if (job?.isActive != true) return@runLatencyTests
-                        handleTestEvent(event, setup.configs, currentSettings)
-                    }
-                )
-
-                if (job?.isActive != true) return@launch
-
-                subscriptionRepository.resetWorkingData()
-
-                // Save working configs
-                val updates = resultConfigs.mapNotNull { cfg ->
-                    testManager.extractIds(cfg.tag)?.let { (subId, configId) ->
-                        ConfigTestResultUpdate(
-                            subId = subId,
-                            configId = configId,
-                            working = true,
-                            fixedUri = cfg.connURI
-                        )
-                    }
-                }
-                subscriptionRepository.updateConfigTestResultsBatch(updates)
-
-                if (resultConfigs.isNotEmpty()) {
-                    _uiState.update { it.copy(appStatus = AppStatus.COMPLETED) }
-                } else {
-                    _uiState.update { it.copy(appStatus = AppStatus.IDLE) }
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
-                e.printStackTrace()
-            } finally {
-                withContext(NonCancellable) {
-                    timerJob?.cancel()
-                    _uiState.update {
-                        it.copy(
-                            testProgress = it.testProgress.copy(
-                                isRunning = false,
-                                isRoundActive = false
-                            )
-                        )
-                    }
-                    if (currentSettings.autoStartWebServer) {
-                        startWebServer()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun handleTestEvent(
-        event: TestEvent,
-        configs: List<ProxyConfig>,
-        settings: AppSettings
-    ) {
-        when (event) {
-            is TestEvent.ParseFailed -> {
-                //event.errors.forEach { (tag, error) -> println("$tag $error") }
-                viewModelScope.launch(Dispatchers.IO) {
-                    subscriptionRepository.resetParseErrorData()
-                    val batch = event.errors.keys.mapNotNull { tag ->
-                        testManager.extractIds(tag)
-                    }
-                    subscriptionRepository.markConfigsParseErrBatch(batch)
-                }
-            }
-
-            is TestEvent.ValidateFailed -> {
-                //event.errors.forEach { (tag, error) -> println("$tag $error") }
-                viewModelScope.launch(Dispatchers.IO) {
-                    subscriptionRepository.resetValidErrorData()
-                    val batch = event.errors.keys.mapNotNull { tag ->
-                        testManager.extractIds(tag)
-                    }
-                    subscriptionRepository.markConfigsValidErrBatch(batch)
-                }
-            }
-
-            is TestEvent.RoundStarted -> {
-                val currentRoundAbsolute = (event.batch - 1) * settings.latencyRounds + event.round
-                _uiState.update { state ->
-                    val current = state.testProgress
-                    val updatedProgresses = current.batchProgresses.toMutableList()
-                    val idx =
-                        updatedProgresses.indexOfFirst { it.batchNum == event.batch && it.roundNum == event.round }
-                    if (idx >= 0) {
-                        updatedProgresses[idx] = updatedProgresses[idx].copy(
-                            total = event.total,
-                            running = event.total
-                        )
-                    }
-
-                    state.copy(
-                        testProgress = current.copy(
-                            currentBatch = event.batch,
-                            currentRound = event.round,
-                            elapsedSeconds = (currentRoundAbsolute - 1) * settings.roundTimeout,
-                            isRunning = true,
-                            isRoundActive = true,
-                            batchProgresses = updatedProgresses
-                        )
-                    )
-                }
-
-                timerJob?.cancel()
-                timerJob = viewModelScope.launch {
-                    while (isActive) {
-                        delay(1000)
-                        _uiState.update { it.copy(testProgress = it.testProgress.copy(elapsedSeconds = it.testProgress.elapsedSeconds + 1)) }
-                    }
-                }
-            }
-
-            is TestEvent.Progress -> {
-                _uiState.update { state ->
-                    val current = state.testProgress
-                    val updatedProgresses = current.batchProgresses.toMutableList()
-                    val batchIndex = updatedProgresses.indexOfFirst {
-                        it.batchNum == current.currentBatch && it.roundNum == current.currentRound
-                    }
-
-                    if (batchIndex >= 0) {
-                        val bp = updatedProgresses[batchIndex]
-                        updatedProgresses[batchIndex] = bp.copy(
-                            running = bp.running - 1,
-                            failed = if (event.failed) bp.failed + 1 else bp.failed,
-                            succeeded = if (!event.failed) bp.succeeded + 1 else bp.succeeded
-                        )
-                    }
-
-                    state.copy(testProgress = current.copy(batchProgresses = updatedProgresses))
-                }
-            }
-
-            is TestEvent.RoundEnded -> {
-                timerJob?.cancel()
-                _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }
-            }
-
-            is TestEvent.Error -> {
-                viewModelScope.launch {
-                    val msg = getString(Res.string.msg_test_error, event.message)
-                    platform.showToast(msg)
-                }
-                stopTest(AppStatus.ERROR)
-            }
-        }
-    }
-
-    fun stopTest(newAppStatus: AppStatus = AppStatus.IDLE) {
-        testJob?.cancel()
-        viewModelScope.launch(Dispatchers.IO) {
-            testManager.stopTests()
-            _uiState.update { it.copy(appStatus = newAppStatus) }
-        }
-    }
-
-    fun updateSubscriptions() {
-        if (downloadJob?.isActive == true) return
-
-        downloadJob = viewModelScope.launch(Dispatchers.IO) {
-            val subs = subscriptions.value
-            _uiState.update {
-                it.copy(
-                    appStatus = AppStatus.UPDATING_SUBS,
-                    updatingSubscriptionsIds = subs.map { it.id }.toSet(),
-                    subsUpdateProgress = SubsUpdateProgress(
-                        total = subs.size,
-                        isRunning = true
-                    )
-                )
-            }
-
-            val settings = _uiState.value.settings
-
-            SubscriptionDownloader.downloadParallel(
-                urls = subs,
-                getUrl = { it.url },
-                timeoutSeconds = settings.downloadTimeout,
-                maxParallel = settings.parallelSubscriptionDownloads,
-                onDownloadComplete = { sub, content ->
-                    val lines = content.lines().filter { it.isNotBlank() }
-
-                    // 1. Save metadata
-                    val updatedSub = sub.copy(updatedAt = System.currentTimeMillis())
-                    subscriptionRepository.saveSub(updatedSub)
-
-                    // 2. Save child data (URIs)
-                    subscriptionRepository.setConfigsUris(sub.id, lines)
-
-                    _uiState.update {
-                        it.copy(
-                            updatingSubscriptionsIds = it.updatingSubscriptionsIds - sub.id,
-                            subsUpdateProgress = it.subsUpdateProgress.copy(
-                                succeeded = it.subsUpdateProgress.succeeded + 1
-                            )
-                        )
-                    }
-                },
-                onDownloadError = { sub, e ->
-                    e.printStackTrace()
-                    _uiState.update {
-                        it.copy(
-                            updatingSubscriptionsIds = it.updatingSubscriptionsIds - sub.id,
-                            subsUpdateProgress = it.subsUpdateProgress.copy(
-                                failed = it.subsUpdateProgress.failed + 1
-                            )
-                        )
-                    }
-                }
-            )
-
-            _uiState.update {
-                it.copy(
-                    appStatus = AppStatus.IDLE,
-                    subsUpdateProgress = it.subsUpdateProgress.copy(isRunning = false)
-                )
-            }
-        }
-    }
-
-    fun clearSubsUpdateProgress() {
-        _uiState.update { it.copy(subsUpdateProgress = SubsUpdateProgress()) }
-    }
-
-    private suspend fun getWorkingConfigsString(): String {
-        return subscriptionRepository.getWorkingConfigs().joinToString("\n") { it.connURI }
-    }
-
-    fun copyWorkingConfigs() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val uris = getWorkingConfigsString()
-            val msg = getString(Res.string.msg_copied_to_clipboard)
-            val label = getString(Res.string.label_proxy_configs)
-            withContext(Dispatchers.Main) {
-                platform.copyToClipboard(uris, label)
-                platform.showToast(msg)
-            }
-        }
-    }
-
-    fun exportWorkingConfigs() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val uris = getWorkingConfigsString()
-            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-
-            val day = now.day.toString().padStart(2, '0')
-            val month = now.month.ordinal.toString().padStart(2, '0')
-            val dmy = "${day}${month}${now.year}"
-
-            val hour = now.hour.toString().padStart(2, '0')
-            val minute = now.minute.toString().padStart(2, '0')
-            val second = now.second.toString().padStart(2, '0')
-            val hms = "${hour}${minute}${second}"
-            val filename = "ProxyToolBoxGui_export_${dmy}_${hms}.txt"
-
-            val path = platform.exportToFile(uris, filename)
-            val msg = if (path != null) {
-                getString(Res.string.msg_exported_to, path)
-            } else {
-                getString(Res.string.msg_export_failed)
-            }
-            withContext(Dispatchers.Main) {
-                platform.showToast(msg)
+                updateAppStatus(AppStatus.ERROR)
             }
         }
     }
@@ -449,36 +92,37 @@ class MainViewModel(
         }
     }
 
-    private fun startWebServer() {
+    fun startWebServer() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val settings = _uiState.value.settings
+                val settings = module.settingsRepository.settings.value
                 val port = settings.webServerPort
                 val host = if (settings.webServerLocalhost) "127.0.0.1" else "0.0.0.0"
 
-                webServer.start(
+                module.webServer.start(
                     port = port,
                     host = host,
                     getConfigUris = {
-                        getWorkingConfigsString()
+                        module.subscriptionRepository.getWorkingConfigs()
+                            .joinToString("\n") { it.connURI }
                     }
                 )
 
                 _uiState.update { it.copy(webServerRunning = true) }
                 val msg = getString(Res.string.web_server_started, port)
-                platform.showToast(msg)
+                module.platform.showToast(msg)
             } catch (e: Exception) {
                 e.printStackTrace()
                 val msg = getString(Res.string.web_server_failed, e.message ?: "")
-                platform.showToast(msg)
+                module.platform.showToast(msg)
             }
         }
     }
 
-    private fun stopWebServer() {
+    fun stopWebServer() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                webServer.stop()
+                module.webServer.stop()
                 _uiState.update { it.copy(webServerRunning = false) }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -486,181 +130,16 @@ class MainViewModel(
         }
     }
 
-    fun hideDialog() {
-        updateDialog(null)
-    }
-
-    fun saveSubscription(note: String, url: String, existing: Subscription? = null) {
-        val newSub = existing?.copy(note = note, url = url)
-            ?: Subscription(
-                id = ConfigUtils.generateUUID(),
-                note = note,
-                url = url
-            )
-
-        viewModelScope.launch {
-            subscriptionRepository.saveSub(newSub)
-            hideDialog()
-        }
-    }
-
-    fun importFromClipboard() {
-        val text = platform.getClipboardText() ?: return
-        importFromUrl(text)
-    }
-
-    fun importFromUrl(content: String) {
-        viewModelScope.launch {
-            val unnamedStr = getString(Res.string.sub_unnamed)
-            val subs = content.lines()
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-                .map { line ->
-                    val lastSpaceIndex = line.lastIndexOf(' ')
-                    if (lastSpaceIndex != -1) {
-                        val note = line.substring(0, lastSpaceIndex).trim()
-                        val url = line.substring(lastSpaceIndex + 1).trim()
-                        if (note.isEmpty()) unnamedStr to url else note to url
-                    } else {
-                        unnamedStr to line
-                    }
-                }
-            if (subs.isNotEmpty()) {
-                subs.forEach { (note, url) ->
-                    subscriptionRepository.saveSub(
-                        Subscription(
-                            id = ConfigUtils.generateUUID(),
-                            note = note,
-                            url = url
-                        )
-                    )
-                }
-                platform.showToast(getString(Res.string.msg_imported_subs, subs.size))
-            } else {
-                platform.showToast(getString(Res.string.msg_no_subs_found))
-            }
-        }
-    }
-
-    fun updateMode(mode: ScreenUiMode) {
-        _uiState.update { state ->
-            val screen = state.screen
-            val updatedScreen = when {
-                mode is SubscriptionUiMode && screen is SubscriptionsScreenState -> {
-                    screen.copy(
-                        mode = mode,
-                        selectedIds = if (mode is SubscriptionUiMode.Normal) emptySet() else screen.selectedIds
-                    )
-                }
-
-                mode is MainUiMode && screen is MainScreenState -> {
-                    screen.copy(mode = mode)
-                }
-
-                mode is SettingsUiMode && screen is SettingsScreenState -> {
-                    screen.copy(mode = mode)
-                }
-
-                else -> screen
-            }
-            state.copy(screen = updatedScreen)
-        }
-    }
-
-    fun toggleSubscriptionSelection(id: String) {
-        _uiState.update { state ->
-            val screen = state.screen as? SubscriptionsScreenState ?: return@update state
-            val newSelection = if (screen.selectedIds.contains(id)) {
-                screen.selectedIds - id
-            } else {
-                screen.selectedIds + id
-            }
-            state.copy(screen = screen.copy(selectedIds = newSelection))
-        }
-    }
-
-    fun selectAllSubscriptions() {
-        val ids = subscriptions.value.map { it.id }
-        _uiState.update { state ->
-            val screen = state.screen as? SubscriptionsScreenState ?: return@update state
-            state.copy(screen = screen.copy(selectedIds = ids.toSet()))
-        }
-    }
-
-    fun deselectAllSubscriptions() {
-        _uiState.update { state ->
-            val screen = state.screen as? SubscriptionsScreenState ?: return@update state
-            state.copy(screen = screen.copy(selectedIds = emptySet()))
-        }
-    }
-
-    fun getSelectedExportText(includeNotes: Boolean): String {
-        val screen = _uiState.value.screen as? SubscriptionsScreenState ?: return ""
-        val selectedIds = screen.selectedIds
-        val selected = subscriptions.value.filter { selectedIds.contains(it.id) }
-        return selected.joinToString("\n") {
-            if (includeNotes) "${it.note} ${it.url}" else it.url
-        }
-    }
-
-    fun exportSelectedToClipboard(includeNotes: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val screen = _uiState.value.screen as? SubscriptionsScreenState ?: return@launch
-            val selectedIds = screen.selectedIds
-            val selected = subscriptions.value.filter { selectedIds.contains(it.id) }
-            if (selected.isEmpty()) return@launch
-
-            val text = selected.joinToString("\n") {
-                if (includeNotes) "${it.note} ${it.url}" else it.url
-            }
-
-            val msg = getString(Res.string.msg_copied_to_clipboard)
-            val label = getString(Res.string.label_proxy_configs)
-            withContext(Dispatchers.Main) {
-                platform.copyToClipboard(text, label)
-                platform.showToast(msg)
-                updateMode(SubscriptionUiMode.Normal)
-                hideDialog()
-            }
-        }
-    }
-
-    fun confirmDeleteSubscription(subId: String) {
-        viewModelScope.launch {
-            subscriptionRepository.deleteSub(subId)
-            hideDialog()
-        }
-    }
-
     fun updateDialog(dialog: UiDialog?) {
         _uiState.update { it.copy(activeDialog = dialog) }
     }
 
-    fun savePort(port: Int): Boolean {
-        if (port !in 1024..65535) return false
-        viewModelScope.launch {
-            updateSettings(_uiState.value.settings.copy(webServerPort = port))
-        }
-        return true
-    }
-
-    fun updateTheme(theme: ThemeMode) {
-        viewModelScope.launch {
-            settingsRepository.updateTheme(theme)
-        }
-    }
-
-    fun updateSettings(newSettings: AppSettings) {
-        viewModelScope.launch {
-            settingsRepository.saveSettings(newSettings)
-        }
+    fun hideDialog() {
+        updateDialog(null)
     }
 
     override fun onCleared() {
         super.onCleared()
-        testJob?.cancel()
-        timerJob?.cancel()
-        downloadJob?.cancel()
         stopWebServer()
     }
 }

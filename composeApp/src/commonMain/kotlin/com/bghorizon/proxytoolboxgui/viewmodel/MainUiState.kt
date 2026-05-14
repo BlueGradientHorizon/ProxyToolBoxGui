@@ -18,25 +18,22 @@ interface AppScreen {
     val mode: ScreenUiMode
 
     @Composable
-    fun TopBar(viewModel: MainViewModel)
+    fun TopBar(mainVm: MainViewModel)
 
     @Composable
-    fun Content(viewModel: MainViewModel)
+    fun Content(mainVm: MainViewModel)
 
     @Composable
-    fun FAB(viewModel: MainViewModel)
+    fun FAB(mainVm: MainViewModel)
 }
 
 data class MainUiState(
     val screen: AppScreen,
-    val testProgress: TestProgress = TestProgress(),
-    val subsUpdateProgress: SubsUpdateProgress = SubsUpdateProgress(),
-    val workers: List<WorkerInfo> = emptyList(),
     val appStatus: AppStatus = AppStatus.IDLE,
     val webServerRunning: Boolean = false,
     val settings: AppSettings = AppSettings(),
+    val workers: List<WorkerInfo> = emptyList(),
+    val activeDialog: UiDialog? = null,
     val isDynamicColorSupported: Boolean = false,
     val isQrScannerSupported: Boolean = false,
-    val activeDialog: UiDialog? = null,
-    val updatingSubscriptionsIds: Set<String> = emptySet(),
 )

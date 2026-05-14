@@ -10,6 +10,8 @@ import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 import com.bghorizon.proxytoolboxgui.viewmodel.*
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
@@ -33,22 +35,27 @@ data class SettingsScreenState(
     override val mode: SettingsUiMode = SettingsUiMode.Normal
 ) : AppScreen {
     @Composable
-    override fun TopBar(viewModel: MainViewModel) {
-        SettingsTopBar(viewModel, this)
+    override fun TopBar(mainVm: MainViewModel) {
+        val module = LocalAppModule.current
+        val settingsVm = viewModel { SettingsViewModel(module) }
+        SettingsTopBar(settingsVm)
     }
 
     @Composable
-    override fun Content(viewModel: MainViewModel) {
-        SettingsScreen(viewModel)
+    override fun Content(mainVm: MainViewModel) {
+        val module = LocalAppModule.current
+        val settingsVm: SettingsViewModel = viewModel { SettingsViewModel(module) }
+        SettingsScreen(mainVm, settingsVm)
     }
 
     @Composable
-    override fun FAB(viewModel: MainViewModel) {}
+    override fun FAB(mainVm: MainViewModel) {}
 }
 
 @Composable
-fun SettingsTopBar(viewModel: MainViewModel, screen: SettingsScreenState) {
-    when (screen.mode) {
+fun SettingsTopBar(settingsVm: SettingsViewModel) {
+    val settingsUiState by settingsVm.uiState.collectAsState()
+    when (settingsUiState.mode) {
         is SettingsUiMode.Normal -> {
             NormalSettingsTopBar()
         }
@@ -64,11 +71,10 @@ private fun NormalSettingsTopBar() {
 }
 
 @Composable
-fun SettingsScreen(viewModel: MainViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-    val settings = uiState.settings
-    val workers = uiState.workers
-    val activeDialog = uiState.activeDialog
+fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsViewModel) {
+    val mainUiState by mainVm.uiState.collectAsState()
+    val settings by settingsVm.settings.collectAsState()
+    val activeDialog = mainUiState.activeDialog
 
     val scaffoldPadding = LocalScaffoldPadding.current
 
@@ -91,7 +97,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         ThemeMode.entries.forEachIndexed { index, theme ->
                             SegmentedButton(
                                 selected = settings.theme == theme,
-                                onClick = { viewModel.updateTheme(theme) },
+                                onClick = { settingsVm.updateTheme(theme) },
                                 shape = SegmentedButtonDefaults.itemShape(
                                     index = index,
                                     count = ThemeMode.entries.size
@@ -113,9 +119,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     title = stringResource(Res.string.use_monet),
                     checked = settings.dynamicColor,
                     onCheckedChange = {
-                        viewModel.updateSettings(settings.copy(dynamicColor = it))
+                        settingsVm.updateSettings(settings.copy(dynamicColor = it))
                     },
-                    enabled = uiState.isDynamicColorSupported
+                    enabled = mainUiState.isDynamicColorSupported
                 )
             }
         }
@@ -124,9 +130,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
             SettingsSection(title = stringResource(Res.string.category_worker)) {
                 SettingsItem(
                     title = stringResource(Res.string.current_worker),
-                    subtitle = workers.find { it.path == settings.selectedWorker }?.name
+                    subtitle = mainUiState.workers.find { it.path == settings.selectedWorker }?.name
                         ?: stringResource(Res.string.no_workers_available),
-                    onClick = { viewModel.updateDialog(SettingsDialog.Worker) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.Worker) }
                 )
             }
         }
@@ -139,18 +145,18 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         Res.string.hint_seconds_preview,
                         settings.downloadTimeout
                     ),
-                    onClick = { viewModel.updateDialog(SettingsDialog.DownloadTimeout) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.DownloadTimeout) }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.parallel_sub_downloads),
                     subtitle = settings.parallelSubscriptionDownloads.toString(),
-                    onClick = { viewModel.updateDialog(SettingsDialog.ParallelDownloads) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.ParallelDownloads) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.perform_deduplication),
                     checked = settings.performDedup,
                     onCheckedChange = {
-                        viewModel.updateSettings(settings.copy(performDedup = it))
+                        settingsVm.updateSettings(settings.copy(performDedup = it))
                     }
                 )
             }
@@ -164,7 +170,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         Res.string.hint_rounds_preview,
                         settings.latencyRounds
                     ),
-                    onClick = { viewModel.updateDialog(SettingsDialog.LatencyRounds) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.LatencyRounds) }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.round_timeout),
@@ -172,25 +178,25 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         Res.string.hint_seconds_preview,
                         settings.roundTimeout
                     ),
-                    onClick = { viewModel.updateDialog(SettingsDialog.RoundTimeout) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.RoundTimeout) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.test_by_batches),
                     checked = settings.testByBatches,
                     onCheckedChange = {
-                        viewModel.updateSettings(settings.copy(testByBatches = it))
+                        settingsVm.updateSettings(settings.copy(testByBatches = it))
                     }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.batch_size),
                     subtitle = settings.batchSize.toString(),
                     enabled = settings.testByBatches,
-                    onClick = { viewModel.updateDialog(SettingsDialog.BatchSize) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.BatchSize) }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.latency_test_url),
                     subtitle = settings.testUrl,
-                    onClick = { viewModel.updateDialog(SettingsDialog.TestUrl) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.TestUrl) }
                 )
             }
         }
@@ -201,19 +207,19 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     title = stringResource(Res.string.web_server_auto_start),
                     checked = settings.autoStartWebServer,
                     onCheckedChange = {
-                        viewModel.updateSettings(settings.copy(autoStartWebServer = it))
+                        settingsVm.updateSettings(settings.copy(autoStartWebServer = it))
                     }
                 )
                 SettingsItem(
                     title = stringResource(Res.string.web_server_port),
                     subtitle = settings.webServerPort.toString(),
-                    onClick = { viewModel.updateDialog(SettingsDialog.Port) }
+                    onClick = { mainVm.updateDialog(SettingsDialog.Port) }
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.web_server_localhost),
                     checked = settings.webServerLocalhost,
                     onCheckedChange = {
-                        viewModel.updateSettings(settings.copy(webServerLocalhost = it))
+                        settingsVm.updateSettings(settings.copy(webServerLocalhost = it))
                     }
                 )
             }
@@ -222,12 +228,13 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
     when (activeDialog as? SettingsDialog) {
         SettingsDialog.Worker -> {
+            val workers = mainUiState.workers
             SelectionDialog(
                 title = stringResource(Res.string.current_worker),
                 items = workers,
                 selectedItem = workers.find { it.path == settings.selectedWorker },
-                onDismiss = { viewModel.hideDialog() },
-                onSelect = { viewModel.selectWorker(it) },
+                onDismiss = { mainVm.hideDialog() },
+                onSelect = { settingsVm.selectWorker(it.name, it.path) },
                 emptyText = stringResource(Res.string.no_workers_available),
                 itemLabel = { it.name },
                 itemSecondaryLabel = { it.version }
@@ -239,9 +246,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 title = stringResource(Res.string.sub_download_timeout),
                 initialValue = settings.downloadTimeout,
                 hint = stringResource(Res.string.hint_seconds, settings.downloadTimeout),
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onSave = {
-                    viewModel.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1)))
+                    settingsVm.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1)))
                     true
                 }
             )
@@ -252,9 +259,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 title = stringResource(Res.string.latency_test_rounds),
                 initialValue = settings.latencyRounds,
                 hint = stringResource(Res.string.hint_rounds),
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onSave = {
-                    viewModel.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1)))
+                    settingsVm.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1)))
                     true
                 }
             )
@@ -265,9 +272,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 title = stringResource(Res.string.round_timeout),
                 initialValue = settings.roundTimeout,
                 hint = stringResource(Res.string.hint_seconds, settings.roundTimeout),
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onSave = {
-                    viewModel.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1)))
+                    settingsVm.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1)))
                     true
                 }
             )
@@ -278,9 +285,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 title = stringResource(Res.string.batch_size),
                 initialValue = settings.batchSize,
                 hint = stringResource(Res.string.hint_number),
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onSave = {
-                    viewModel.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1)))
+                    settingsVm.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1)))
                     true
                 }
             )
@@ -294,8 +301,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     Res.string.hint_number_specify,
                     stringResource(Res.string.hint_allowed_ports)
                 ),
-                onDismiss = { viewModel.hideDialog() },
-                onSave = { viewModel.savePort(it) },
+                onDismiss = { mainVm.hideDialog() },
+                onSave = { settingsVm.savePort(it) },
                 isValid = { it in 1024..65535 },
                 errorText = stringResource(Res.string.error_invalid_port)
             )
@@ -305,10 +312,10 @@ fun SettingsScreen(viewModel: MainViewModel) {
             TextInputDialog(
                 title = stringResource(Res.string.latency_test_url),
                 initialValue = settings.testUrl,
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onSave = {
                     if (it.isNotBlank()) {
-                        viewModel.updateSettings(settings.copy(testUrl = it))
+                        settingsVm.updateSettings(settings.copy(testUrl = it))
                         true
                     } else false
                 }
@@ -320,9 +327,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 title = stringResource(Res.string.parallel_sub_downloads),
                 initialValue = settings.parallelSubscriptionDownloads,
                 hint = stringResource(Res.string.hint_number),
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onSave = {
-                    viewModel.updateSettings(
+                    settingsVm.updateSettings(
                         settings.copy(
                             parallelSubscriptionDownloads = it.coerceAtLeast(
                                 1

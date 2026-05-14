@@ -17,9 +17,10 @@ import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.data.Subscription
-import com.bghorizon.proxytoolboxgui.platform.getPlatform
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 import com.bghorizon.proxytoolboxgui.viewmodel.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -50,37 +51,43 @@ data class SubscriptionsScreenState(
     val selectedIds: Set<String> = emptySet()
 ) : AppScreen {
     @Composable
-    override fun TopBar(viewModel: MainViewModel) {
-        SubscriptionsTopBar(viewModel, this)
+    override fun TopBar(mainVm: MainViewModel) {
+        val module = LocalAppModule.current
+        val subVm: SubscriptionsViewModel = viewModel { SubscriptionsViewModel(module) }
+        SubscriptionsTopBar(mainVm, subVm)
     }
 
     @Composable
-    override fun Content(viewModel: MainViewModel) {
-        SubscriptionsScreen(viewModel, this)
+    override fun Content(mainVm: MainViewModel) {
+        val module = LocalAppModule.current
+        val subVm: SubscriptionsViewModel = viewModel { SubscriptionsViewModel(module) }
+        SubscriptionsScreen(mainVm, subVm)
     }
 
     @Composable
-    override fun FAB(viewModel: MainViewModel) {
-        SubscriptionsFAB(viewModel, this)
+    override fun FAB(mainVm: MainViewModel) {
+        val module = LocalAppModule.current
+        val subVm: SubscriptionsViewModel = viewModel { SubscriptionsViewModel(module) }
+        SubscriptionsFAB(mainVm, subVm)
     }
 }
 
 @Composable
-fun SubscriptionsTopBar(viewModel: MainViewModel, screen: SubscriptionsScreenState) {
-    val uiState by viewModel.uiState.collectAsState()
-    val subscriptions by viewModel.subscriptions.collectAsState()
+fun SubscriptionsTopBar(mainVm: MainViewModel, subVm: SubscriptionsViewModel) {
+    val subUiState by subVm.uiState.collectAsState()
+    val subscriptions by subVm.subscriptions.collectAsState()
     val isAllSelected =
-        (screen.selectedIds.size == subscriptions.size) && subscriptions.isNotEmpty()
-    val isUpdating = uiState.subsUpdateProgress.isRunning
+        (subUiState.selectedIds.size == subscriptions.size) && subscriptions.isNotEmpty()
+    val isUpdating = subUiState.updateProgress.isRunning
 
-    when (screen.mode) {
+    when (subUiState.mode) {
         is SubscriptionUiMode.Selection -> {
             SelectionSubscriptionsTopBar(
                 isAllSelected = isAllSelected,
-                onBack = { viewModel.updateMode(SubscriptionUiMode.Normal) },
+                onBack = { subVm.updateMode(SubscriptionUiMode.Normal) },
                 onToggleSelectAll = {
-                    if (isAllSelected) viewModel.deselectAllSubscriptions()
-                    else viewModel.selectAllSubscriptions()
+                    if (isAllSelected) subVm.deselectAll()
+                    else subVm.selectAll()
                 },
             )
         }
@@ -88,8 +95,8 @@ fun SubscriptionsTopBar(viewModel: MainViewModel, screen: SubscriptionsScreenSta
         is SubscriptionUiMode.Normal -> {
             NormalSubscriptionsTopBar(
                 isUpdating = isUpdating,
-                onExportMode = { viewModel.updateMode(SubscriptionUiMode.Selection) },
-                onUpdateConfirm = { viewModel.updateDialog(SubscriptionDialog.UpdateConfirm) }
+                onExportMode = { subVm.updateMode(SubscriptionUiMode.Selection) },
+                onUpdateConfirm = { mainVm.updateDialog(SubscriptionDialog.UpdateConfirm) }
             )
         }
     }
@@ -161,24 +168,24 @@ private fun NormalSubscriptionsTopBar(
 }
 
 @Composable
-fun SubscriptionsFAB(viewModel: MainViewModel, screen: SubscriptionsScreenState) {
-    val uiState by viewModel.uiState.collectAsState()
-    val isUpdating = uiState.subsUpdateProgress.isRunning
+fun SubscriptionsFAB(mainVm: MainViewModel, subVm: SubscriptionsViewModel) {
+    val subUiState by subVm.uiState.collectAsState()
+    val isUpdating = subUiState.updateProgress.isRunning
 
-    when (screen.mode) {
+    when (subUiState.mode) {
         is SubscriptionUiMode.Selection -> {
             SelectionSubscriptionsFAB(
                 isUpdating = isUpdating,
-                onExport = { viewModel.updateDialog(SubscriptionDialog.Export) }
+                onExport = { mainVm.updateDialog(SubscriptionDialog.Export) }
             )
         }
 
         is SubscriptionUiMode.Normal -> {
             NormalSubscriptionsFAB(
                 isUpdating = isUpdating,
-                onImportClipboard = { viewModel.importFromClipboard() },
-                onImportQr = { viewModel.updateDialog(SubscriptionDialog.Scan) },
-                onAddManual = { viewModel.updateDialog(SubscriptionDialog.Add) }
+                onImportClipboard = { subVm.importFromClipboard() },
+                onImportQr = { mainVm.updateDialog(SubscriptionDialog.Scan) },
+                onAddManual = { mainVm.updateDialog(SubscriptionDialog.Add) }
             )
         }
     }
@@ -246,24 +253,25 @@ private fun NormalSubscriptionsFAB(
 }
 
 @Composable
-fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenState) {
-    val uiState by viewModel.uiState.collectAsState()
-    val subscriptions by viewModel.subscriptions.collectAsState()
-    val activeDialog = uiState.activeDialog
+fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsViewModel) {
+    val mainUiState by mainVm.uiState.collectAsState()
+    val subUiState by subVm.uiState.collectAsState()
+    val subscriptions by subVm.subscriptions.collectAsState()
+    val activeDialog = mainUiState.activeDialog
 
     val scaffoldPadding = LocalScaffoldPadding.current
 
-    val updateProgress = uiState.subsUpdateProgress
+    val updateProgress = subUiState.updateProgress
     LaunchedEffect(updateProgress.isRunning) {
         if (!updateProgress.isRunning && (updateProgress.total > 0)) {
-            viewModel.updateDialog(
+            mainVm.updateDialog(
                 SubscriptionDialog.UpdateResult(
                     total = updateProgress.total,
                     succeeded = updateProgress.succeeded,
                     failed = updateProgress.failed
                 )
             )
-            viewModel.clearSubsUpdateProgress()
+            subVm.clearUpdateProgress()
         }
     }
 
@@ -280,13 +288,13 @@ fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenSta
         items(subscriptions) { sub ->
             SubscriptionItem(
                 subscription = sub,
-                uiMode = screen.mode,
-                isSelected = screen.selectedIds.contains(sub.id),
-                isUpdating = uiState.updatingSubscriptionsIds.contains(sub.id),
-                isAnyUpdating = uiState.subsUpdateProgress.isRunning,
-                onSelectionChange = { viewModel.toggleSubscriptionSelection(sub.id) },
-                onEdit = { viewModel.updateDialog(SubscriptionDialog.Edit(sub)) },
-                onDelete = { viewModel.updateDialog(SubscriptionDialog.Delete(sub)) }
+                uiMode = subUiState.mode,
+                isSelected = subUiState.selectedIds.contains(sub.id),
+                isUpdating = subUiState.updatingIds.contains(sub.id),
+                isAnyUpdating = subUiState.updateProgress.isRunning,
+                onSelectionChange = { subVm.toggleSelection(sub.id) },
+                onEdit = { mainVm.updateDialog(SubscriptionDialog.Edit(sub)) },
+                onDelete = { mainVm.updateDialog(SubscriptionDialog.Delete(sub)) }
             )
         }
     }
@@ -295,18 +303,18 @@ fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenSta
         SubscriptionDialog.Add -> {
             AddSubscriptionDialog(
                 editingSubscription = null,
-                onDismiss = { viewModel.hideDialog() },
-                onSave = { note, url -> viewModel.saveSubscription(note, url) }
+                onDismiss = { mainVm.hideDialog() },
+                onSave = { note, url -> subVm.saveSubscription(note, url) }
             )
         }
 
         SubscriptionDialog.Scan -> {
             QrScannerDialog(
-                viewModel = viewModel,
-                onDismiss = { viewModel.hideDialog() },
+                mainVm = mainVm,
+                onDismiss = { mainVm.hideDialog() },
                 onCodeScanned = { result ->
-                    viewModel.hideDialog()
-                    viewModel.importFromUrl(result)
+                    mainVm.hideDialog()
+                    subVm.importFromUrl(result)
                 }
             )
         }
@@ -314,9 +322,9 @@ fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenSta
         is SubscriptionDialog.Edit -> {
             AddSubscriptionDialog(
                 editingSubscription = dialog.subscription,
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onSave = { note, url ->
-                    viewModel.saveSubscription(note, url, dialog.subscription)
+                    subVm.saveSubscription(note, url, dialog.subscription)
                 }
             )
         }
@@ -325,8 +333,8 @@ fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenSta
             ConfirmationDialog(
                 title = stringResource(Res.string.dialog_btn_delete),
                 message = stringResource(Res.string.sub_del_confirm, dialog.subscription.note),
-                onDismiss = { viewModel.hideDialog() },
-                onConfirm = { viewModel.confirmDeleteSubscription(dialog.subscription.id) },
+                onDismiss = { mainVm.hideDialog() },
+                onConfirm = { subVm.confirmDeleteSubscription(dialog.subscription.id) },
                 confirmText = stringResource(Res.string.dialog_btn_delete),
                 isDestructive = true
             )
@@ -334,13 +342,13 @@ fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenSta
 
         SubscriptionDialog.Export -> {
             ExportOptionsDialog(
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onExportToClipboard = { includeNotes ->
-                    viewModel.exportSelectedToClipboard(includeNotes)
+                    subVm.exportSelectedToClipboard(includeNotes)
                 },
                 onShowQrCode = { includeNotes ->
-                    val content = viewModel.getSelectedExportText(includeNotes)
-                    viewModel.updateDialog(SubscriptionDialog.QrCode(content))
+                    val content = subVm.getSelectedExportText(includeNotes)
+                    mainVm.updateDialog(SubscriptionDialog.QrCode(content))
                 }
             )
         }
@@ -348,14 +356,14 @@ fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenSta
         is SubscriptionDialog.QrCode -> {
             QrCodeDialog(
                 content = dialog.content,
-                onDismiss = { viewModel.hideDialog() }
+                onDismiss = { mainVm.hideDialog() }
             )
         }
 
         is SubscriptionDialog.UpdateResult -> {
             SimpleAlertDialog(
                 title = stringResource(Res.string.btn_subs_update),
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 confirmText = stringResource(Res.string.dialog_btn_close),
             ) {
                 Text(
@@ -373,10 +381,10 @@ fun SubscriptionsScreen(viewModel: MainViewModel, screen: SubscriptionsScreenSta
             ConfirmationDialog(
                 title = stringResource(Res.string.btn_subs_update),
                 message = stringResource(Res.string.sub_update_confirm),
-                onDismiss = { viewModel.hideDialog() },
+                onDismiss = { mainVm.hideDialog() },
                 onConfirm = {
-                    viewModel.hideDialog()
-                    viewModel.updateSubscriptions()
+                    mainVm.hideDialog()
+                    subVm.updateSubscriptions(mainVm)
                 },
                 confirmText = stringResource(Res.string.btn_subs_update),
                 isDestructive = true
@@ -486,13 +494,13 @@ private fun SubscriptionItem(
 
 @Composable
 private fun QrScannerDialog(
-    viewModel: MainViewModel,
+    mainVm: MainViewModel,
     onDismiss: () -> Unit,
     onCodeScanned: (String) -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val mainUiState by mainVm.uiState.collectAsState()
     val scope = rememberCoroutineScope()
-    val platform = getPlatform()
+    val platform = mainVm.module.platform
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -502,7 +510,7 @@ private fun QrScannerDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (uiState.isQrScannerSupported) {
+                if (mainUiState.isQrScannerSupported) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

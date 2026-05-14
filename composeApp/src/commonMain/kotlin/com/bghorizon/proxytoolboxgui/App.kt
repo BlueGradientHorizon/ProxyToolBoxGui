@@ -22,19 +22,20 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
-import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDatabase
-import com.bghorizon.proxytoolboxgui.data.SettingsRepository
-import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
 import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
+import com.bghorizon.proxytoolboxgui.data.SettingsRepository
+import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
+import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
+import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDatabase
+import com.bghorizon.proxytoolboxgui.di.AppModule
+import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 import com.bghorizon.proxytoolboxgui.platform.getPlatform
-import com.bghorizon.proxytoolboxgui.ui.screens.*
-import com.bghorizon.proxytoolboxgui.ui.theme.AppTheme
 import com.bghorizon.proxytoolboxgui.ui.screens.MainScreenState
 import com.bghorizon.proxytoolboxgui.ui.screens.SettingsScreenState
 import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionsScreenState
-import com.bghorizon.proxytoolboxgui.viewmodel.*
+import com.bghorizon.proxytoolboxgui.ui.theme.AppTheme
+import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -50,12 +51,18 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val testManager = remember { ProxyTestManager(subscriptionRepository) }
     val webServer = remember { ProxyWebServer() }
 
-    LaunchedEffect(Unit) {
-        settingsRepository.loadSettings()
+    val appModule = remember {
+        AppModule(
+            settingsRepository = settingsRepository,
+            subscriptionRepository = subscriptionRepository,
+            testManager = testManager,
+            webServer = webServer,
+            platform = platform
+        )
     }
 
     val viewModel: MainViewModel = viewModel {
-        MainViewModel(platform, settingsRepository, subscriptionRepository, testManager, webServer)
+        MainViewModel(appModule)
     }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -73,124 +80,129 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
         themeMode = uiState.settings.theme,
         dynamicColor = uiState.settings.dynamicColor
     ) {
-        Surface {
-            BoxWithConstraints {
-                val isCompact = maxWidth < 600.dp
-                val isExpanded = maxWidth >= 900.dp
+        CompositionLocalProvider(LocalAppModule provides appModule) {
+            Surface {
+                BoxWithConstraints {
+                    val isCompact = maxWidth < 600.dp
+                    val isExpanded = maxWidth >= 900.dp
 
-                Scaffold(
-                    // Track scaffold coordinates to enable relative measurement of the FAB position
-                    modifier = Modifier.onGloballyPositioned { scaffoldCoords = it },
-                    topBar = { uiState.screen.TopBar(viewModel) },
-                    bottomBar = {
-                        if (!isExpanded) {
-                            NavigationBar(modifier = Modifier.height(80.dp)) {
-                                AdaptiveNavigationItem(
-                                    label = stringResource(Res.string.home),
-                                    icon = Icons.Default.Home,
-                                    selected = uiState.screen is MainScreenState,
-                                    onClick = { viewModel.navigateTo(MainScreenState()) },
-                                    isCompact = isCompact
-                                )
-                                AdaptiveNavigationItem(
-                                    label = stringResource(Res.string.subscriptions),
-                                    icon = Icons.AutoMirrored.Filled.List,
-                                    selected = uiState.screen is SubscriptionsScreenState,
-                                    onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
-                                    isCompact = isCompact
-                                )
-                                AdaptiveNavigationItem(
-                                    label = stringResource(Res.string.title_settings),
-                                    icon = Icons.Default.Settings,
-                                    selected = uiState.screen is SettingsScreenState,
-                                    onClick = { viewModel.navigateTo(SettingsScreenState()) },
-                                    isCompact = isCompact
-                                )
+                    Scaffold(
+                        // Track scaffold coordinates to enable relative measurement of the FAB position
+                        modifier = Modifier.onGloballyPositioned { scaffoldCoords = it },
+                        topBar = { uiState.screen.TopBar(viewModel) },
+                        bottomBar = {
+                            if (!isExpanded) {
+                                NavigationBar(modifier = Modifier.height(80.dp)) {
+                                    AdaptiveNavigationItem(
+                                        label = stringResource(Res.string.home),
+                                        icon = Icons.Default.Home,
+                                        selected = uiState.screen is MainScreenState,
+                                        onClick = { viewModel.navigateTo(MainScreenState()) },
+                                        isCompact = isCompact
+                                    )
+                                    AdaptiveNavigationItem(
+                                        label = stringResource(Res.string.subscriptions),
+                                        icon = Icons.AutoMirrored.Filled.List,
+                                        selected = uiState.screen is SubscriptionsScreenState,
+                                        onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
+                                        isCompact = isCompact
+                                    )
+                                    AdaptiveNavigationItem(
+                                        label = stringResource(Res.string.title_settings),
+                                        icon = Icons.Default.Settings,
+                                        selected = uiState.screen is SettingsScreenState,
+                                        onClick = { viewModel.navigateTo(SettingsScreenState()) },
+                                        isCompact = isCompact
+                                    )
+                                }
                             }
-                        }
-                    },
-                    floatingActionButton = {
-                        // Use a container Box to autonomously measure FAB clearance without screen-specific knowledge.
-                        // If no FAB is rendered, size becomes 0 and padding resets.
-                        Box(
-                            modifier = Modifier.onGloballyPositioned { fabCoords ->
-                                scaffoldCoords?.let { sc ->
-                                    if (sc.isAttached && fabCoords.isAttached) {
-                                        if (fabCoords.size.height > 0) {
-                                            // Calculate clearance: Distance from FAB top to Scaffold bottom.
-                                            // This includes FAB height, margins, and bottom bar height.
-                                            val fabTopInScaffold =
-                                                sc.localPositionOf(fabCoords, Offset.Zero).y
-                                            fabTotalPadding =
-                                                with(density) { (sc.size.height - fabTopInScaffold).toDp() }
-                                        } else {
-                                            fabTotalPadding = 0.dp
+                        },
+                        floatingActionButton = {
+                            // Use a container Box to autonomously measure FAB clearance without screen-specific knowledge.
+                            // If no FAB is rendered, size becomes 0 and padding resets.
+                            Box(
+                                modifier = Modifier.onGloballyPositioned { fabCoords ->
+                                    scaffoldCoords?.let { sc ->
+                                        if (sc.isAttached && fabCoords.isAttached) {
+                                            if (fabCoords.size.height > 0) {
+                                                // Calculate clearance: Distance from FAB top to Scaffold bottom.
+                                                // This includes FAB height, margins, and bottom bar height.
+                                                val fabTopInScaffold =
+                                                    sc.localPositionOf(fabCoords, Offset.Zero).y
+                                                fabTotalPadding =
+                                                    with(density) { (sc.size.height - fabTopInScaffold).toDp() }
+                                            } else {
+                                                fabTotalPadding = 0.dp
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        ) {
-                            uiState.screen.FAB(viewModel)
-                        }
-                    }
-                ) { padding ->
-                    val layoutDirection = LocalLayoutDirection.current
-                    Row(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                start = padding.calculateStartPadding(layoutDirection),
-                                end = padding.calculateEndPadding(layoutDirection)
-                            )
-                    ) {
-                        if (isExpanded) {
-                            val navDrawItemHorizontalPadding = 12.dp
-                            val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
-                            val navRailSpacer: @Composable () -> Unit = {
-                                Spacer(Modifier.height(navRailItemsSpacerHeight))
-                            }
-                            NavigationRail(
-                                modifier = Modifier.width(IntrinsicSize.Max),
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                windowInsets = WindowInsets(0, 0, 0, 0)
                             ) {
-                                Spacer(Modifier.height(padding.calculateTopPadding()))
-                                NavigationDrawerItem(
-                                    label = { Text(stringResource(Res.string.home)) },
-                                    icon = { Icon(Icons.Default.Home, null) },
-                                    selected = uiState.screen is MainScreenState,
-                                    onClick = { viewModel.navigateTo(MainScreenState()) },
-                                    modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                                )
-                                navRailSpacer()
-                                NavigationDrawerItem(
-                                    label = { Text(stringResource(Res.string.subscriptions)) },
-                                    icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
-                                    selected = uiState.screen is SubscriptionsScreenState,
-                                    onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
-                                    modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                                )
-                                navRailSpacer()
-                                NavigationDrawerItem(
-                                    label = { Text(stringResource(Res.string.title_settings)) },
-                                    icon = { Icon(Icons.Default.Settings, null) },
-                                    selected = uiState.screen is SettingsScreenState,
-                                    onClick = { viewModel.navigateTo(SettingsScreenState()) },
-                                    modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                                )
+                                uiState.screen.FAB(viewModel)
                             }
                         }
-                        Box(Modifier.fillMaxSize().weight(1f)) {
-                            // Inject adjusted padding into LocalScaffoldPadding.
-                            // All screens use this to ensure content clears both the bottom bar and the FAB.
-                            val adjustedPadding = PaddingValues(
-                                start = padding.calculateStartPadding(layoutDirection),
-                                top = padding.calculateTopPadding(),
-                                end = padding.calculateEndPadding(layoutDirection),
-                                bottom = maxOf(padding.calculateBottomPadding(), animatedFabPadding)
-                            )
-                            CompositionLocalProvider(LocalScaffoldPadding provides adjustedPadding) {
-                                uiState.screen.Content(viewModel)
+                    ) { padding ->
+                        val layoutDirection = LocalLayoutDirection.current
+                        Row(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(
+                                    start = padding.calculateStartPadding(layoutDirection),
+                                    end = padding.calculateEndPadding(layoutDirection)
+                                )
+                        ) {
+                            if (isExpanded) {
+                                val navDrawItemHorizontalPadding = 12.dp
+                                val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
+                                val navRailSpacer: @Composable () -> Unit = {
+                                    Spacer(Modifier.height(navRailItemsSpacerHeight))
+                                }
+                                NavigationRail(
+                                    modifier = Modifier.width(IntrinsicSize.Max),
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    windowInsets = WindowInsets(0, 0, 0, 0)
+                                ) {
+                                    Spacer(Modifier.height(padding.calculateTopPadding()))
+                                    NavigationDrawerItem(
+                                        label = { Text(stringResource(Res.string.home)) },
+                                        icon = { Icon(Icons.Default.Home, null) },
+                                        selected = uiState.screen is MainScreenState,
+                                        onClick = { viewModel.navigateTo(MainScreenState()) },
+                                        modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                    )
+                                    navRailSpacer()
+                                    NavigationDrawerItem(
+                                        label = { Text(stringResource(Res.string.subscriptions)) },
+                                        icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
+                                        selected = uiState.screen is SubscriptionsScreenState,
+                                        onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
+                                        modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                    )
+                                    navRailSpacer()
+                                    NavigationDrawerItem(
+                                        label = { Text(stringResource(Res.string.title_settings)) },
+                                        icon = { Icon(Icons.Default.Settings, null) },
+                                        selected = uiState.screen is SettingsScreenState,
+                                        onClick = { viewModel.navigateTo(SettingsScreenState()) },
+                                        modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                    )
+                                }
+                            }
+                            Box(Modifier.fillMaxSize().weight(1f)) {
+                                // Inject adjusted padding into LocalScaffoldPadding.
+                                // All screens use this to ensure content clears both the bottom bar and the FAB.
+                                val adjustedPadding = PaddingValues(
+                                    start = padding.calculateStartPadding(layoutDirection),
+                                    top = padding.calculateTopPadding(),
+                                    end = padding.calculateEndPadding(layoutDirection),
+                                    bottom = maxOf(
+                                        padding.calculateBottomPadding(),
+                                        animatedFabPadding
+                                    )
+                                )
+                                CompositionLocalProvider(LocalScaffoldPadding provides adjustedPadding) {
+                                    uiState.screen.Content(viewModel)
+                                }
                             }
                         }
                     }
@@ -247,4 +259,3 @@ fun RowScope.AdaptiveNavigationItem(
         }
     }
 }
-

@@ -46,6 +46,9 @@ import proxytoolboxgui.composeapp.generated.resources.lbl_validation_errors
 import proxytoolboxgui.composeapp.generated.resources.btn_web_server
 import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
 
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bghorizon.proxytoolboxgui.di.LocalAppModule
+
 sealed interface MainUiMode : ScreenUiMode {
     data object Normal : MainUiMode, ScreenUiMode.Normal
 }
@@ -54,31 +57,28 @@ data class MainScreenState(
     override val mode: MainUiMode = MainUiMode.Normal
 ) : AppScreen {
     @Composable
-    override fun TopBar(viewModel: MainViewModel) {
-        MainTopBar(viewModel)
+    override fun TopBar(mainVm: MainViewModel) {
+        MainTopBar()
     }
 
     @Composable
-    override fun Content(viewModel: MainViewModel) {
-        MainScreen(viewModel)
+    override fun Content(mainVm: MainViewModel) {
+        val module = LocalAppModule.current
+        val homeVm = viewModel { HomeViewModel(module) }
+        MainScreen(mainVm, homeVm)
     }
 
     @Composable
-    override fun FAB(viewModel: MainViewModel) {
-        MainFAB(viewModel)
+    override fun FAB(mainVm: MainViewModel) {
+        val module = LocalAppModule.current
+        val homeVm = viewModel { HomeViewModel(module) }
+        MainFAB(mainVm, homeVm)
     }
 }
 
 @Composable
-fun MainTopBar(viewModel: MainViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-    val screen = uiState.screen as? MainScreenState ?: return
-
-    when (screen.mode) {
-        is MainUiMode.Normal -> {
-            NormalMainTopBar()
-        }
-    }
+fun MainTopBar() {
+    NormalMainTopBar()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,12 +90,19 @@ private fun NormalMainTopBar() {
 }
 
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-    val subs by viewModel.subscriptions.collectAsState()
+fun MainScreen(mainVm: MainViewModel, homeVm: HomeViewModel) {
+    val mainUiState by mainVm.uiState.collectAsState()
+    val homeUiState by homeVm.uiState.collectAsState()
+    val module = LocalAppModule.current
+    val subVm: SubscriptionsViewModel = viewModel { SubscriptionsViewModel(module) }
+    val subs by subVm.subscriptions.collectAsState()
 
-    val testProgress = uiState.testProgress
-    val appStatus = uiState.appStatus
+    val testProgress = homeUiState.testProgress
+    val appStatus = homeUiState.appStatus
+
+    LaunchedEffect(mainUiState.workers) {
+        homeVm.setWorkers(mainUiState.workers)
+    }
 
     val totalFound = subs.sumOf { it.total }
     val totalDuplicate = subs.sumOf { it.duplicated }
@@ -185,30 +192,34 @@ fun MainScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-fun MainFAB(viewModel: MainViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-    val screen = uiState.screen as? MainScreenState ?: return
-    val subs by viewModel.subscriptions.collectAsState()
+fun MainFAB(mainVm: MainViewModel, homeVm: HomeViewModel) {
+    val mainUiState by mainVm.uiState.collectAsState()
+    val homeUiState by homeVm.uiState.collectAsState()
+    val module = LocalAppModule.current
+    val subVm: SubscriptionsViewModel = viewModel { SubscriptionsViewModel(module) }
+    val subs by subVm.subscriptions.collectAsState()
     val totalWorking = subs.sumOf { it.working }
 
-    val appStatus = uiState.appStatus
-    val workers = uiState.workers
+    val appStatus = homeUiState.appStatus
+    val workers = mainUiState.workers
     val isTesting = appStatus == AppStatus.TESTING
 
-    when (screen.mode) {
-        is MainUiMode.Normal -> {
-            NormalMainFAB(
-                isTesting = isTesting,
-                workersNotEmpty = workers.isNotEmpty(),
-                totalWorking = totalWorking,
-                onToggleWebServer = { viewModel.toggleWebServer() },
-                onExportWorkingConfigs = { viewModel.exportWorkingConfigs() },
-                onCopyWorkingConfigs = { viewModel.copyWorkingConfigs() },
-                onStopTest = { viewModel.stopTest() },
-                onStartTest = { viewModel.startTest() }
-            )
+    NormalMainFAB(
+        isTesting = isTesting,
+        workersNotEmpty = workers.isNotEmpty(),
+        totalWorking = totalWorking,
+        onToggleWebServer = { mainVm.toggleWebServer() },
+        onExportWorkingConfigs = { homeVm.exportWorkingConfigs() },
+        onCopyWorkingConfigs = { homeVm.copyWorkingConfigs() },
+        onStopTest = { homeVm.stopTest() },
+        onStartTest = {
+            homeVm.startTest(mainUiState.appStatus, subs) {
+                if (mainUiState.settings.autoStartWebServer) {
+                    mainVm.startWebServer()
+                }
+            }
         }
-    }
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
