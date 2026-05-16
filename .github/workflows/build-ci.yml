@@ -136,11 +136,11 @@ jobs:
           restore-keys: gradle-android-
 
       - name: Build Android APK (Debug)
-        run: ./gradlew :composeApp:assembleDebug --no-daemon
+        run: ./gradlew :androidApp:assembleDebug --no-daemon
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
           name: proxytoolboxgui-android
-          path: composeApp/build/outputs/apk/debug/*.apk
+          path: androidApp/build/outputs/apk/debug/*.apk
           if-no-files-found: error
