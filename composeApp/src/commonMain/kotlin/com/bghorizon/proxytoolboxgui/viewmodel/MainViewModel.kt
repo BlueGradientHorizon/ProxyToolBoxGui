@@ -16,7 +16,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         MainUiState(
             screen = HomeScreenState(),
             isDynamicColorSupported = module.platform.isDynamicColorSupported,
-            isQrScannerSupported = module.platform.isQrScannerSupported
+            isQrScannerSupported = module.platform.isQrScannerSupported,
         )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -29,7 +29,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         }
         viewModelScope.launch {
             try {
-                module.settingsRepository.loadSettings()
+                module.settingsRepository.loadSettings(module.platform)
                 // Set completed status if we have configs already
                 if (module.subscriptionRepository.getWorkingConfigs().isNotEmpty()) {
                     updateAppStatus(AppStatus.COMPLETED)
@@ -67,7 +67,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                     ?: workers.find { it.name == savedName }
                     ?: if (workers.isNotEmpty()) workers[0] else null
 
-                if (matchedWorker != null && (matchedWorker.path != savedPath || savedName.isBlank())) {
+                if ((matchedWorker != null) && (matchedWorker.path != savedPath || savedName.isBlank())) {
                     module.settingsRepository.updateSelectedWorker(
                         matchedWorker.name,
                         matchedWorker.path

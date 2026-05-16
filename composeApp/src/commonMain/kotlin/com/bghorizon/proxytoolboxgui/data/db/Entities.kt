@@ -8,7 +8,7 @@ import androidx.room.ForeignKey
 data class AppSettingsEntity(
     @PrimaryKey val id: Int = 0,
     val theme: Int,
-    val dynamicColor: Boolean = true,
+    val dynamicColor: Boolean = false,
     val selectedWorker: String,
     val selectedWorkerName: String,
     val downloadTimeout: Int,

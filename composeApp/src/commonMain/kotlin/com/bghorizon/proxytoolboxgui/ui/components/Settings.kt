@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SettingsSection(
     title: String,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     SettingsCategory(title = title)
     Column(
@@ -44,7 +44,7 @@ fun SettingsItem(
     Card(
         onClick = onClick ?: {},
         modifier = modifier.fillMaxWidth(),
-        enabled = enabled && onClick != null,
+        enabled = (enabled && onClick != null),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -82,9 +82,7 @@ fun SettingsItem(
                         )
                     }
                 }
-                if (trailingContent != null) {
-                    trailingContent()
-                }
+                trailingContent?.invoke()
             }
             content?.invoke()
         }
@@ -96,10 +94,12 @@ fun SettingsSwitchItem(
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    subtitle: String? = null
 ) {
     SettingsItem(
         title = title,
+        subtitle = subtitle,
         onClick = { onCheckedChange(!checked) },
         enabled = enabled,
         trailingContent = {

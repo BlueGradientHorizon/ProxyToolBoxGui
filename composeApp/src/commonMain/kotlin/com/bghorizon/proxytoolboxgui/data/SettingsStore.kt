@@ -2,6 +2,7 @@ package com.bghorizon.proxytoolboxgui.data
 
 import com.bghorizon.proxytoolboxgui.data.db.AppSettingsEntity
 import com.bghorizon.proxytoolboxgui.data.db.SettingsDao
+import com.bghorizon.proxytoolboxgui.platform.Platform
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,17 +11,25 @@ class SettingsRepository(private val dao: SettingsDao) {
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
-    suspend fun loadSettings() {
+    suspend fun loadSettings(platform: Platform) {
         val entity = dao.getSettings()
-        if (entity == null) {
-            // Save defaults first
-            dao.saveSettings(AppSettings().toEntity())
-            // Then re-read from database
-            val reReadEntity = dao.getSettings()
-            _settings.value = reReadEntity?.toModel() ?: AppSettings()
+        val loadedSettings = if (entity == null) {
+            // Initial defaults based on platform
+            val defaults = AppSettings(dynamicColor = platform.isDynamicColorSupported)
+            dao.saveSettings(defaults.toEntity())
+            defaults
         } else {
-            _settings.value = entity.toModel()
+            val model = entity.toModel()
+            // Sanitize persisted settings against current platform capabilities
+            if (model.dynamicColor && !platform.isDynamicColorSupported) {
+                val sanitized = model.copy(dynamicColor = false)
+                dao.saveSettings(sanitized.toEntity())
+                sanitized
+            } else {
+                model
+            }
         }
+        _settings.value = loadedSettings
     }
 
     suspend fun saveSettings(settings: AppSettings) {
@@ -53,7 +62,7 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
     webServerLocalhost = webServerLocalhost,
     testUrl = testUrl,
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
-    sortProfilesByDelay = sortProfilesByDelay
+    sortProfilesByDelay = sortProfilesByDelay,
 )
 
 private fun AppSettingsEntity.toModel() = AppSettings(
@@ -72,5 +81,5 @@ private fun AppSettingsEntity.toModel() = AppSettings(
     webServerLocalhost = webServerLocalhost,
     testUrl = testUrl,
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
-    sortProfilesByDelay = sortProfilesByDelay
+    sortProfilesByDelay = sortProfilesByDelay,
 )

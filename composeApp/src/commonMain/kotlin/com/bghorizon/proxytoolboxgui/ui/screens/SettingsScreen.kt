@@ -122,7 +122,8 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                     onCheckedChange = {
                         settingsVm.updateSettings(settings.copy(dynamicColor = it))
                     },
-                    enabled = mainUiState.isDynamicColorSupported
+                    enabled = mainUiState.isDynamicColorSupported,
+                    subtitle = if (!mainUiState.isDynamicColorSupported) stringResource(Res.string.monet_not_supported) else null
                 )
             }
         }
