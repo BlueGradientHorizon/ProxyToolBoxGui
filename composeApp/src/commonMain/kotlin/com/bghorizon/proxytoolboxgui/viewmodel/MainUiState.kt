@@ -30,6 +30,7 @@ interface AppScreen {
 data class MainUiState(
     val screen: AppScreen,
     val appStatus: AppStatus = AppStatus.IDLE,
+    val statusDescription: String? = null,
     val webServerRunning: Boolean = false,
     val settings: AppSettings = AppSettings(),
     val workers: List<WorkerInfo> = emptyList(),

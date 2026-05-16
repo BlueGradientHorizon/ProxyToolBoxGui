@@ -16,7 +16,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         MainUiState(
             screen = HomeScreenState(),
             isDynamicColorSupported = module.platform.isDynamicColorSupported,
-            isQrScannerSupported = module.platform.isQrScannerSupported,
+            isQrScannerSupported = module.platform.isQrScannerSupported
         )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -30,10 +30,6 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         viewModelScope.launch {
             try {
                 module.settingsRepository.loadSettings(module.platform)
-                // Set completed status if we have configs already
-                if (module.subscriptionRepository.getWorkingConfigs().isNotEmpty()) {
-                    updateAppStatus(AppStatus.COMPLETED)
-                }
                 discoverWorkers()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -46,8 +42,8 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         _uiState.update { it.copy(screen = screen) }
     }
 
-    fun updateAppStatus(status: AppStatus) {
-        _uiState.update { it.copy(appStatus = status) }
+    fun updateAppStatus(status: AppStatus, description: String? = null) {
+        _uiState.update { it.copy(appStatus = status, statusDescription = description) }
     }
 
     fun discoverWorkers() {
@@ -56,30 +52,46 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                 val libraryPath = module.platform.getWorkerLibraryPath()
                 val json = GoBridge.discoverWorkers(libraryPath)
                 val workers = JsonConfig.json.decodeFromString<List<WorkerInfo>>(json)
-                _uiState.update { it.copy(workers = workers) }
+
+                _uiState.update { state ->
+                    val hasWorkers = workers.isNotEmpty()
+                    
+                    // If we were in an error state because of missing workers, and now we have them, reset to IDLE.
+                    // If we still have no workers, stay/enter ERROR state.
+                    val newStatus = if (!hasWorkers) {
+                        AppStatus.ERROR
+                    } else if (state.appStatus == AppStatus.ERROR) {
+                        AppStatus.IDLE
+                    } else {
+                        state.appStatus
+                    }
+
+                    state.copy(
+                        workers = workers,
+                        appStatus = newStatus,
+                        statusDescription = if (!hasWorkers) getString(Res.string.no_workers_found) else null
+                    )
+                }
 
                 val currentSettings = module.settingsRepository.settings.value
                 val savedName = currentSettings.selectedWorkerName
                 val savedPath = currentSettings.selectedWorker
 
+                val workersList = _uiState.value.workers
                 // Find matching worker by path first, then by name
-                val matchedWorker = workers.find { it.path == savedPath }
-                    ?: workers.find { it.name == savedName }
-                    ?: if (workers.isNotEmpty()) workers[0] else null
+                val matchedWorker = workersList.find { it.path == savedPath }
+                    ?: workersList.find { it.name == savedName }
+                    ?: if (workersList.isNotEmpty()) workersList[0] else null
 
-                if ((matchedWorker != null) && (matchedWorker.path != savedPath || savedName.isBlank())) {
+                if (matchedWorker != null && (matchedWorker.path != savedPath || savedName.isBlank())) {
                     module.settingsRepository.updateSelectedWorker(
                         matchedWorker.name,
                         matchedWorker.path
                     )
                 }
-
-                if (workers.isEmpty()) {
-                    updateAppStatus(AppStatus.ERROR)
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
-                updateAppStatus(AppStatus.ERROR)
+                updateAppStatus(AppStatus.ERROR, e.message)
             }
         }
     }
@@ -99,14 +111,13 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                 val port = settings.webServerPort
                 val host = if (settings.webServerLocalhost) "127.0.0.1" else "0.0.0.0"
 
-                module.webServer.start(
-                    port = port,
-                    host = host,
-                    getConfigUris = {
-                        module.subscriptionRepository.getWorkingConfigs()
-                            .joinToString("\n") { it.connURI }
-                    }
-                )
+        module.webServer.start(
+            port = port,
+            host = host
+        ) {
+            module.subscriptionRepository.getWorkingConfigs()
+                .joinToString("\n") { it.connURI }
+        }
 
                 _uiState.update { it.copy(webServerRunning = true) }
                 val msg = getString(Res.string.web_server_started, port)

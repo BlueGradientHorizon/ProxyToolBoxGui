@@ -49,7 +49,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 
             _uiState.update {
                 it.copy(
-                    appStatus = AppStatus.TESTING,
+                    appStatus = AppStatus.PARSING,
                     testProgress = it.testProgress.copy(isRunning = true)
                 )
             }
@@ -120,8 +120,12 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     it.copy(appStatus = if (resultConfigs.isNotEmpty()) AppStatus.COMPLETED else AppStatus.IDLE)
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
-                e.printStackTrace()
+                if (e is CancellationException) {
+                    _uiState.update { it.copy(appStatus = AppStatus.STOPPED) }
+                } else {
+                    _uiState.update { it.copy(appStatus = AppStatus.ERROR) }
+                    e.printStackTrace()
+                }
             } finally {
                 withContext(NonCancellable) {
                     timerJob?.cancel()
@@ -142,6 +146,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
     private fun handleTestEvent(event: TestEvent, settings: AppSettings) {
         when (event) {
             is TestEvent.ParseFailed -> {
+                _uiState.update { it.copy(appStatus = AppStatus.PARSING) }
                 //event.errors.forEach { (tag, error) -> println("$tag $error") }
                 viewModelScope.launch(Dispatchers.IO) {
                     module.subscriptionRepository.resetParseErrorData()
@@ -153,6 +158,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
             }
 
             is TestEvent.ValidateFailed -> {
+                _uiState.update { it.copy(appStatus = AppStatus.VALIDATING) }
                 //event.errors.forEach { (tag, error) -> println("$tag $error") }
                 viewModelScope.launch(Dispatchers.IO) {
                     module.subscriptionRepository.resetValidErrorData()
@@ -178,6 +184,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     }
 
                     state.copy(
+                        appStatus = AppStatus.TESTING,
                         testProgress = current.copy(
                             currentBatch = event.batch,
                             currentRound = event.round,
@@ -229,16 +236,16 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     val msg = getString(Res.string.msg_test_error, event.message)
                     module.platform.showToast(msg)
                 }
-                stopTest(AppStatus.ERROR)
+                stopTest(AppStatus.ERROR, event.message)
             }
         }
     }
 
-    fun stopTest(newAppStatus: AppStatus = AppStatus.IDLE) {
+    fun stopTest(newAppStatus: AppStatus = AppStatus.STOPPED, description: String? = null) {
         testJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
             module.testManager.stopTests()
-            _uiState.update { it.copy(appStatus = newAppStatus) }
+            _uiState.update { it.copy(appStatus = newAppStatus, statusDescription = description) }
         }
     }
 
@@ -306,5 +313,6 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 data class HomeScreenUiState(
     val testProgress: TestProgress = TestProgress(),
     val appStatus: AppStatus = AppStatus.IDLE,
+    val statusDescription: String? = null,
     val workers: List<WorkerInfo> = emptyList()
 )

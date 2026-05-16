@@ -24,8 +24,12 @@
     <string name="btn_test_stop">STOP</string>
     <string name="no_workers_found">No workers were found</string>
     <string name="ready">Ready</string>
+    <string name="updating_subs">Updating...</string>
+    <string name="parsing">Parsing...</string>
+    <string name="validating">Validating...</string>
     <string name="testing">Testing...</string>
     <string name="completed">Completed</string>
+    <string name="stopped">Stopped</string>
     <string name="error">Error</string>
     <string name="test_progress_status">Remaining: %1$d s • Batch %2$d/%3$d • Round %4$d/%5$d</string>
 

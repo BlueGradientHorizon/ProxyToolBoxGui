@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
@@ -33,15 +34,18 @@ import proxytoolboxgui.composeapp.generated.resources.completed
 import proxytoolboxgui.composeapp.generated.resources.btn_copy
 import proxytoolboxgui.composeapp.generated.resources.error
 import proxytoolboxgui.composeapp.generated.resources.btn_export
-import proxytoolboxgui.composeapp.generated.resources.no_workers_found
 import proxytoolboxgui.composeapp.generated.resources.lbl_parsing_errors
 import proxytoolboxgui.composeapp.generated.resources.lbl_profiles_duplicated
 import proxytoolboxgui.composeapp.generated.resources.lbl_profiles_found
+import proxytoolboxgui.composeapp.generated.resources.parsing
 import proxytoolboxgui.composeapp.generated.resources.ready
+import proxytoolboxgui.composeapp.generated.resources.stopped
 import proxytoolboxgui.composeapp.generated.resources.btn_test_stop
 import proxytoolboxgui.composeapp.generated.resources.btn_test
 import proxytoolboxgui.composeapp.generated.resources.test_progress_status
 import proxytoolboxgui.composeapp.generated.resources.testing
+import proxytoolboxgui.composeapp.generated.resources.updating_subs
+import proxytoolboxgui.composeapp.generated.resources.validating
 import proxytoolboxgui.composeapp.generated.resources.lbl_validation_errors
 import proxytoolboxgui.composeapp.generated.resources.btn_web_server
 import proxytoolboxgui.composeapp.generated.resources.lbl_working_profiles
@@ -98,7 +102,9 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val subs by subVm.subscriptions.collectAsState()
 
     val testProgress = homeUiState.testProgress
-    val appStatus = homeUiState.appStatus
+    val isHomeIdle = homeUiState.appStatus == AppStatus.IDLE
+    val appStatus = if (isHomeIdle) mainUiState.appStatus else homeUiState.appStatus
+    val statusDescription = if (isHomeIdle) mainUiState.statusDescription else homeUiState.statusDescription
 
     LaunchedEffect(mainUiState.workers) {
         homeVm.setWorkers(mainUiState.workers)
@@ -122,6 +128,44 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                 .padding(horizontal = ScreenPadding)
                 .padding(top = ScreenPadding, bottom = 8.dp)
         ) {
+            Text(
+                text = when (appStatus) {
+                    AppStatus.IDLE -> stringResource(Res.string.ready)
+                    AppStatus.COMPLETED -> stringResource(Res.string.completed)
+                    AppStatus.STOPPED -> stringResource(Res.string.stopped)
+                    AppStatus.UPDATING_SUBS -> stringResource(Res.string.updating_subs)
+                    AppStatus.PARSING -> stringResource(Res.string.parsing)
+                    AppStatus.VALIDATING -> stringResource(Res.string.validating)
+                    AppStatus.ERROR -> stringResource(Res.string.error)
+                    else -> stringResource(Res.string.testing)
+                },
+                style = MaterialTheme.typography.titleMedium,
+                color = when (appStatus) {
+                    AppStatus.ERROR -> MaterialTheme.colorScheme.error
+                    AppStatus.STOPPED -> MaterialTheme.colorScheme.outline
+                    AppStatus.TESTING, AppStatus.PARSING, AppStatus.VALIDATING, AppStatus.UPDATING_SUBS -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
+            )
+
+            statusDescription?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (appStatus == AppStatus.ERROR) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (testProgress.isRunning) {
+                TestProgressBar(testProgress)
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
             StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
             StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
             StatLine(stringResource(Res.string.lbl_parsing_errors, totalParseErr))
@@ -143,12 +187,6 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (testProgress.isRunning) {
-                item {
-                    TestProgressBar(testProgress)
-                }
-            }
-
             if (testProgress.batchProgresses.isNotEmpty()) {
                 val groupedBatches = testProgress.batchProgresses.groupBy { it.batchNum }.toList()
                     .sortedBy { it.first }
@@ -175,26 +213,6 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                         }
                     )
                 }
-            } else {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = when (appStatus) {
-                                AppStatus.IDLE -> stringResource(Res.string.ready)
-                                AppStatus.COMPLETED -> stringResource(Res.string.completed)
-                                AppStatus.ERROR -> stringResource(Res.string.error)
-                                else -> stringResource(Res.string.testing)
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
         }
     }
@@ -211,7 +229,8 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 
     val appStatus = homeUiState.appStatus
     val workers = mainUiState.workers
-    val isTesting = appStatus == AppStatus.TESTING
+    val isTesting =
+        (appStatus == AppStatus.TESTING || appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
     val isWebServerRunning = mainUiState.webServerRunning
 
     NormalMainFAB(
@@ -333,7 +352,6 @@ private fun NormalMainFAB(
                 Text(
                     text = when {
                         isTesting -> stringResource(Res.string.btn_test_stop)
-                        !workersNotEmpty -> stringResource(Res.string.no_workers_found)
                         else -> stringResource(Res.string.btn_test)
                     }
                 )
@@ -366,10 +384,14 @@ private fun TestProgressBar(progress: TestProgress) {
     }
     val fraction =
         if (progress.totalSeconds > 0) 1f - (remaining.toFloat() / progress.totalSeconds.toFloat()) else 0f
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         LinearProgressIndicator(
             progress = { fraction.coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth(),
+            strokeCap = StrokeCap.Round
         )
         Text(
             text = stringResource(
@@ -381,8 +403,7 @@ private fun TestProgressBar(progress: TestProgress) {
                 progress.totalRounds
             ),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
