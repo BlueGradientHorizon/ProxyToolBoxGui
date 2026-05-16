@@ -19,8 +19,11 @@ fun main() {
             createAppDatabase(getAppDatabaseBuilder(object : PlatformContext() {}))
         }
         val subDb = remember {
-            createSubscriptionDatabase(getSubscriptionDatabaseBuilder(object :
-                PlatformContext() {}))
+            createSubscriptionDatabase(
+                getSubscriptionDatabaseBuilder(
+                    object : PlatformContext() {},
+                ),
+            )
         }
 
         Window(

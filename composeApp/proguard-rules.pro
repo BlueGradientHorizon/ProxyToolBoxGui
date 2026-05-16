@@ -1,7 +1,2 @@
--keep class com.bghorizon.proxytoolboxgui.data.GoLibrary { *; }
--keep interface com.bghorizon.proxytoolboxgui.data.GoLibrary { *; }
--keep class com.bghorizon.proxytoolboxgui.data.CbParseFailed { *; }
--keep class com.bghorizon.proxytoolboxgui.data.CbValidateFailed { *; }
--keep class com.bghorizon.proxytoolboxgui.data.CbRoundStarted { *; }
--keep class com.bghorizon.proxytoolboxgui.data.CbProgress { *; }
--keep class com.bghorizon.proxytoolboxgui.data.CbRoundEnded { *; }
+-keep class com.bghorizon.proxytoolboxgui.data.GoBridge { *; }
+-keep interface com.bghorizon.proxytoolboxgui.data.GoTestCallback { *; }

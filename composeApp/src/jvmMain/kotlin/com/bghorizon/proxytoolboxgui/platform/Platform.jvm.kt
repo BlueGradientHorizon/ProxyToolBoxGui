@@ -32,7 +32,7 @@ class JVMPlatform : Platform {
                 val bitmap = BinaryBitmap(HybridBinarizer(source))
                 val result = MultiFormatReader().decode(bitmap)
                 return@withContext result.text
-            } catch (e: NotFoundException) {
+            } catch (_: NotFoundException) {
                 return@withContext null
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -61,7 +61,7 @@ class JVMPlatform : Platform {
         return try {
             val clipboard = Toolkit.getDefaultToolkit().systemClipboard
             val contents = clipboard.getContents(null)
-            if (contents != null && contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+            if (contents != null && (contents.isDataFlavorSupported(DataFlavor.stringFlavor))) {
                 contents.getTransferData(DataFlavor.stringFlavor) as String
             } else {
                 null

@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 @Composable
 actual fun SubscriptionScannerView(
     modifier: Modifier,
-    onCodeScanned: (String) -> Unit
+    onCodeScanned: (String) -> Unit,
 ) {
     // Unimplemented on this platform
 }
