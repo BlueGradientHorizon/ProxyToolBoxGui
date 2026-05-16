@@ -1,0 +1,127 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "6f05b35c463ed774cf5e7e6de907fe64",
+    "entities": [
+      {
+        "tableName": "app_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `theme` INTEGER NOT NULL, `dynamicColor` INTEGER NOT NULL, `selectedWorker` TEXT NOT NULL, `selectedWorkerName` TEXT NOT NULL, `downloadTimeout` INTEGER NOT NULL, `performDedup` INTEGER NOT NULL, `latencyRounds` INTEGER NOT NULL, `roundTimeout` INTEGER NOT NULL, `testByBatches` INTEGER NOT NULL, `batchSize` INTEGER NOT NULL, `autoStartWebServer` INTEGER NOT NULL, `webServerPort` INTEGER NOT NULL, `webServerLocalhost` INTEGER NOT NULL, `testUrl` TEXT NOT NULL, `parallelSubscriptionDownloads` INTEGER NOT NULL, `sortProfilesByDelay` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "theme",
+            "columnName": "theme",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dynamicColor",
+            "columnName": "dynamicColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "selectedWorker",
+            "columnName": "selectedWorker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "selectedWorkerName",
+            "columnName": "selectedWorkerName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "downloadTimeout",
+            "columnName": "downloadTimeout",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "performDedup",
+            "columnName": "performDedup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latencyRounds",
+            "columnName": "latencyRounds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roundTimeout",
+            "columnName": "roundTimeout",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "testByBatches",
+            "columnName": "testByBatches",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "batchSize",
+            "columnName": "batchSize",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoStartWebServer",
+            "columnName": "autoStartWebServer",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "webServerPort",
+            "columnName": "webServerPort",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "webServerLocalhost",
+            "columnName": "webServerLocalhost",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "testUrl",
+            "columnName": "testUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parallelSubscriptionDownloads",
+            "columnName": "parallelSubscriptionDownloads",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortProfilesByDelay",
+            "columnName": "sortProfilesByDelay",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6f05b35c463ed774cf5e7e6de907fe64')"
+    ]
+  }
+}
