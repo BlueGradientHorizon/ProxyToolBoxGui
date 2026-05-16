@@ -21,7 +21,8 @@ data class AppSettingsEntity(
     val webServerPort: Int,
     val webServerLocalhost: Boolean,
     val testUrl: String,
-    val parallelSubscriptionDownloads: Int
+    val parallelSubscriptionDownloads: Int,
+    val sortProfilesByDelay: Boolean = false
 )
 
 @Entity(tableName = "subscriptions")
@@ -50,5 +51,6 @@ data class SubscriptionDataEntity(
     val parseErr: Boolean = false,
     val validErr: Boolean = false,
     val fixedConnURI: String? = null,
-    val working: Boolean = false
+    val working: Boolean = false,
+    val delay: Long = -1
 )

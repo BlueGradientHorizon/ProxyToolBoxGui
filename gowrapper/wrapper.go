@@ -22,6 +22,7 @@ type WorkerInfo struct {
 type ProxyConfig struct {
 	Tag     string `json:"tag"`
 	ConnURI string `json:"conn_uri"`
+	Delay   int64  `json:"delay"`
 }
 
 type TestCallbacks struct {
@@ -299,19 +300,20 @@ func RunLatencyTests(
 	}
 
 	// 4. Wrap up working configs
-	passedTags := make(map[string]struct{})
+	passedTags := make(map[string]int64)
 	for _, result := range allResults {
 		if result.Error == nil {
-			passedTags[result.Tag] = struct{}{}
+			passedTags[result.Tag] = result.Delay
 		}
 	}
 
 	workingConfigs := []ProxyConfig{}
 	for _, cfg := range validConfigs {
-		if _, ok := passedTags[cfg.Config.Tag]; ok {
+		if delay, ok := passedTags[cfg.Config.Tag]; ok {
 			workingConfigs = append(workingConfigs, ProxyConfig{
 				Tag:     cfg.Config.Tag,
 				ConnURI: cfg.ConnURI,
+				Delay:   delay,
 			})
 		}
 	}

@@ -60,7 +60,8 @@ data class SubsUpdateProgress(
 @Serializable
 data class ProxyConfig(
     val tag: String,
-    val connURI: String
+    val connURI: String,
+    val delay: Long = -1
 )
 
 @Serializable
@@ -79,7 +80,8 @@ data class AppSettings(
     val webServerPort: Int = 35240,
     val webServerLocalhost: Boolean = true,
     val testUrl: String = "https://www.google.com/generate_204",
-    val parallelSubscriptionDownloads: Int = 5
+    val parallelSubscriptionDownloads: Int = 5,
+    val sortProfilesByDelay: Boolean = false
 )
 
 enum class ThemeMode {

@@ -109,7 +109,8 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                             subId = subId,
                             configId = configId,
                             working = true,
-                            fixedUri = cfg.connURI
+                            fixedUri = cfg.connURI,
+                            delay = cfg.delay
                         )
                     }
                 }
@@ -246,7 +247,14 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
     }
 
     private suspend fun getWorkingConfigsString(): String {
-        return module.subscriptionRepository.getWorkingConfigs().joinToString("\n") { it.connURI }
+        val settings = module.settingsRepository.settings.value
+        var configs = module.subscriptionRepository.getWorkingConfigs()
+
+        if (settings.sortProfilesByDelay) {
+            configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
+        }
+
+        return configs.joinToString("\n") { it.connURI }
     }
 
     fun copyWorkingConfigs() {

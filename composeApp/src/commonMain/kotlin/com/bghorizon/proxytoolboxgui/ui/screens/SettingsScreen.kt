@@ -199,6 +199,13 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                     subtitle = settings.testUrl,
                     onClick = { mainVm.updateDialog(SettingsDialog.TestUrl) }
                 )
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.sort_by_delay),
+                    checked = settings.sortProfilesByDelay,
+                    onCheckedChange = {
+                        settingsVm.updateSettings(settings.copy(sortProfilesByDelay = it))
+                    }
+                )
             }
         }
 

@@ -56,17 +56,18 @@ interface SubscriptionDao {
     suspend fun deleteConfigsBySubId(subId: String)
 
 
-    @Query("UPDATE subscriptions_data SET working = :working, fixedConnURI = :fixedUri WHERE subId = :subId AND configId = :configId")
+    @Query("UPDATE subscriptions_data SET working = :working, fixedConnURI = :fixedUri, delay = :delay WHERE subId = :subId AND configId = :configId")
     suspend fun updateConfigTestResult(
         subId: String,
         configId: Int,
         working: Boolean,
-        fixedUri: String?
+        fixedUri: String?,
+        delay: Long
     )
 
     @Transaction
     suspend fun updateConfigTestResultsBatch(results: List<ConfigTestResultUpdate>) {
-        results.forEach { updateConfigTestResult(it.subId, it.configId, it.working, it.fixedUri) }
+        results.forEach { updateConfigTestResult(it.subId, it.configId, it.working, it.fixedUri, it.delay) }
     }
 
     @Query("UPDATE subscriptions_data SET parseErr = 1 WHERE subId = :subId AND configId = :configId")
@@ -99,5 +100,6 @@ data class ConfigTestResultUpdate(
     val subId: String,
     val configId: Int,
     val working: Boolean,
-    val fixedUri: String?
+    val fixedUri: String?,
+    val delay: Long
 )

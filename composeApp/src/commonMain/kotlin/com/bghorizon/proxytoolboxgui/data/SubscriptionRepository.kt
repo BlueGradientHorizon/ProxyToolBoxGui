@@ -46,7 +46,8 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         return dao.getAllConfigs().filter { it.working }.map { data ->
             ProxyConfig(
                 tag = "sub-${data.subId}-${data.configId}",
-                connURI = data.fixedConnURI ?: data.connURI
+                connURI = data.fixedConnURI ?: data.connURI,
+                delay = data.delay
             )
         }
     }

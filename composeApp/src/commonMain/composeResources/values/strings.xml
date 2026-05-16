@@ -96,6 +96,7 @@
     <string name="test_by_batches">Test by batches</string>
     <string name="batch_size">Batch size</string>
     <string name="latency_test_url">Latency test URL</string>
+    <string name="sort_by_delay">Sort profiles by delay before sharing</string>
     <string name="web_server_auto_start">Auto-start web-server after test</string>
     <string name="web_server_port">Web-server port</string>
     <string name="web_server_localhost">Web-server listens only localhost</string>
