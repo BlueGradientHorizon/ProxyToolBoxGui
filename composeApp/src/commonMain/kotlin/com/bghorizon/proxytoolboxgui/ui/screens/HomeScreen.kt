@@ -112,79 +112,88 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 
     val scaffoldPadding = LocalScaffoldPadding.current
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = ScreenPadding),
-        contentPadding = PaddingValues(
-            top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
-            bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
-        ),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(top = scaffoldPadding.calculateTopPadding())
     ) {
-        item {
-            StatsCard {
-                StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
-                StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
-                StatLine(stringResource(Res.string.lbl_parsing_errors, totalParseErr))
-                StatLine(stringResource(Res.string.lbl_validation_errors, totalValidErr))
-                StatLine(
-                    stringResource(Res.string.lbl_working_profiles, totalWorking),
-                    isHighlighted = true
-                )
-            }
+        StatsCard(
+            modifier = Modifier
+                .padding(horizontal = ScreenPadding)
+                .padding(top = ScreenPadding, bottom = 8.dp)
+        ) {
+            StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
+            StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
+            StatLine(stringResource(Res.string.lbl_parsing_errors, totalParseErr))
+            StatLine(stringResource(Res.string.lbl_validation_errors, totalValidErr))
+            StatLine(
+                stringResource(Res.string.lbl_working_profiles, totalWorking),
+                isHighlighted = true
+            )
         }
 
-        if (testProgress.isRunning) {
-            item {
-                TestProgressBar(testProgress)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(
+                start = ScreenPadding,
+                end = ScreenPadding,
+                bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (testProgress.isRunning) {
+                item {
+                    TestProgressBar(testProgress)
+                }
             }
-        }
 
-        if (testProgress.batchProgresses.isNotEmpty()) {
-            val groupedBatches = testProgress.batchProgresses.groupBy { it.batchNum }.toList()
-                .sortedBy { it.first }
+            if (testProgress.batchProgresses.isNotEmpty()) {
+                val groupedBatches = testProgress.batchProgresses.groupBy { it.batchNum }.toList()
+                    .sortedBy { it.first }
 
-            items(groupedBatches) { (batchNum, rounds) ->
-                BatchTable(
-                    title = stringResource(Res.string.batch_title, batchNum),
-                    headers = listOf(
-                        stringResource(Res.string.column_round),
-                        stringResource(Res.string.column_total),
-                        stringResource(Res.string.column_running),
-                        stringResource(Res.string.column_failed),
-                        stringResource(Res.string.column_succeeded)
-                    ),
-                    headerWeights = listOf(0.7f, 1f, 1f, 1f, 1f),
-                    rows = rounds.sortedBy { it.roundNum }.map { round ->
-                        listOf(
-                            round.roundNum.toString(),
-                            round.total.toString(),
-                            round.running.toString(),
-                            round.failed.toString(),
-                            round.succeeded.toString()
+                items(groupedBatches) { (batchNum, rounds) ->
+                    BatchTable(
+                        title = stringResource(Res.string.batch_title, batchNum),
+                        headers = listOf(
+                            stringResource(Res.string.column_round),
+                            stringResource(Res.string.column_total),
+                            stringResource(Res.string.column_running),
+                            stringResource(Res.string.column_failed),
+                            stringResource(Res.string.column_succeeded)
+                        ),
+                        headerWeights = listOf(0.7f, 1f, 1f, 1f, 1f),
+                        rows = rounds.sortedBy { it.roundNum }.map { round ->
+                            listOf(
+                                round.roundNum.toString(),
+                                round.total.toString(),
+                                round.running.toString(),
+                                round.failed.toString(),
+                                round.succeeded.toString()
+                            )
+                        }
+                    )
+                }
+            } else {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = when (appStatus) {
+                                AppStatus.IDLE -> stringResource(Res.string.ready)
+                                AppStatus.COMPLETED -> stringResource(Res.string.completed)
+                                AppStatus.ERROR -> stringResource(Res.string.error)
+                                else -> stringResource(Res.string.testing)
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                )
-            }
-        } else {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = when (appStatus) {
-                            AppStatus.IDLE -> stringResource(Res.string.ready)
-                            AppStatus.COMPLETED -> stringResource(Res.string.completed)
-                            AppStatus.ERROR -> stringResource(Res.string.error)
-                            else -> stringResource(Res.string.testing)
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
         }

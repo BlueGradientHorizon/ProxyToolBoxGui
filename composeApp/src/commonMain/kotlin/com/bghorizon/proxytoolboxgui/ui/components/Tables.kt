@@ -23,19 +23,18 @@ fun BatchTable(
     rows: List<List<String>>,
     modifier: Modifier = Modifier
 ) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
