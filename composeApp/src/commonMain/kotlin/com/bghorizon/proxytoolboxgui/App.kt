@@ -1,6 +1,8 @@
 package com.bghorizon.proxytoolboxgui
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -71,13 +73,19 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val uiState by viewModel.uiState.collectAsState()
 
     // Autonomous FAB padding calculation:
-    // We use remember(uiState.screen::class) to reset the padding to 0.dp whenever the screen changes.
-    // This prevents "padding leakage" from previous screens. The measurement logic below 
-    // will re-calculate the clearance if the new screen contains a FAB.
+    // We track whether we just navigated to a new screen type.
+    // While navigating, we reset padding to 0 and use snap() to instantly 
+    // update it once measured, avoiding "padding leakage" and animation lag.
     var fabTotalPadding by remember(uiState.screen::class) { mutableStateOf(0.dp) }
+    var isNavigating by remember(uiState.screen::class) { mutableStateOf(true) }
     var scaffoldCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val density = LocalDensity.current
-    val animatedFabPadding by animateDpAsState(fabTotalPadding)
+    
+    val animatedFabPadding by animateDpAsState(
+        targetValue = fabTotalPadding,
+        animationSpec = if (isNavigating) snap() else spring(),
+        label = "FabPaddingAnimation"
+    )
 
     AppTheme(
         themeMode = uiState.settings.theme,
@@ -125,17 +133,20 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                             // If no FAB is rendered, size becomes 0 and padding resets.
                             Box(
                                 modifier = Modifier.onGloballyPositioned { fabCoords ->
+                                    isNavigating = false
                                     scaffoldCoords?.let { sc ->
                                         if (sc.isAttached && fabCoords.isAttached) {
-                                            if (fabCoords.size.height > 0) {
+                                            val newPadding = if (fabCoords.size.height > 0) {
                                                 // Calculate clearance: Distance from FAB top to Scaffold bottom.
-                                                // This includes FAB height, margins, and bottom bar height.
-                                                val fabTopInScaffold =
-                                                    sc.localPositionOf(fabCoords, Offset.Zero).y
-                                                fabTotalPadding =
-                                                    with(density) { (sc.size.height - fabTopInScaffold).toDp() }
+                                                val fabTopInScaffold = sc.localPositionOf(fabCoords, Offset.Zero).y
+                                                with(density) { (sc.size.height - fabTopInScaffold).toDp() }
                                             } else {
-                                                fabTotalPadding = 0.dp
+                                                0.dp
+                                            }
+                                            
+                                            // Only update if the difference is significant to avoid jitter
+                                            if (kotlin.math.abs(fabTotalPadding.value - newPadding.value) > 0.5f) {
+                                                fabTotalPadding = newPadding
                                             }
                                         }
                                     }

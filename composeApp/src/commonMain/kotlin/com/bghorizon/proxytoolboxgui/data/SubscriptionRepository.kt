@@ -4,31 +4,30 @@ import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDao
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDataEntity
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionEntity
 import com.bghorizon.proxytoolboxgui.data.db.ConfigTestResultUpdate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 
 class SubscriptionRepository(private val dao: SubscriptionDao) {
 
-    val subscriptions: Flow<List<Subscription>> = combine(
-        dao.getAllSubsFlow(),
-        dao.getAllConfigsFlow()
-    ) { entities, allConfigs ->
-        val dataBySubId = allConfigs.groupBy { it.subId }
-        entities.map { entity ->
-            val subData = dataBySubId[entity.id] ?: emptyList()
-            Subscription(
-                id = entity.id,
-                note = entity.note,
-                url = entity.url,
-                total = subData.size,
-                working = subData.count { it.working },
-                updatedAt = entity.updatedAt,
-                duplicated = entity.duplicated,
-                parseErr = subData.count { it.parseErr },
-                validErr = subData.count { it.validErr }
-            )
+    val subscriptions: Flow<List<Subscription>> = dao.getSubscriptionsWithStatsFlow()
+        .map { list ->
+            list.map { stats ->
+                Subscription(
+                    id = stats.id,
+                    note = stats.note,
+                    url = stats.url,
+                    total = stats.total,
+                    working = stats.working,
+                    updatedAt = stats.updatedAt,
+                    duplicated = stats.duplicated,
+                    parseErr = stats.parseErr,
+                    validErr = stats.validErr,
+                )
+            }
         }
-    }
+        .flowOn(Dispatchers.Default)
 
     suspend fun saveSub(subscription: Subscription) {
         dao.upsertSubscription(subscription.toEntity())

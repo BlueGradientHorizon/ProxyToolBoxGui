@@ -62,7 +62,7 @@ interface SubscriptionDao {
         configId: Int,
         working: Boolean,
         fixedUri: String?,
-        delay: Long
+        delay: Long,
     )
 
     @Transaction
@@ -94,7 +94,32 @@ interface SubscriptionDao {
 
     @Query("UPDATE subscriptions_data SET working = 0, fixedConnURI = NULL")
     suspend fun resetWorkingData()
+
+    @Query(
+        """
+        SELECT s.*, 
+               COUNT(d.configId) as total,
+               SUM(CASE WHEN d.working = 1 THEN 1 ELSE 0 END) as working,
+               SUM(CASE WHEN d.parseErr = 1 THEN 1 ELSE 0 END) as parseErr,
+               SUM(CASE WHEN d.validErr = 1 THEN 1 ELSE 0 END) as validErr
+        FROM subscriptions s 
+        LEFT JOIN subscriptions_data d ON s.id = d.subId
+        GROUP BY s.id
+    """)
+    fun getSubscriptionsWithStatsFlow(): kotlinx.coroutines.flow.Flow<List<SubscriptionWithStats>>
 }
+
+data class SubscriptionWithStats(
+    val id: String,
+    val note: String,
+    val url: String,
+    val updatedAt: Long,
+    val duplicated: Int,
+    val total: Int,
+    val working: Int,
+    val parseErr: Int,
+    val validErr: Int
+)
 
 data class ConfigTestResultUpdate(
     val subId: String,
