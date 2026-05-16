@@ -5,10 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +18,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.rounded.Home
+import com.composables.icons.materialsymbols.rounded.List
+import com.composables.icons.materialsymbols.rounded.Settings
 import com.bghorizon.proxytoolboxgui.data.AppStatusManager
 import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
@@ -98,21 +98,21 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 NavigationBar(modifier = Modifier.height(80.dp)) {
                                     AdaptiveNavigationItem(
                                         label = stringResource(Res.string.home),
-                                        icon = Icons.Default.Home,
+                                        icon = MaterialSymbols.Rounded.Home,
                                         selected = uiState.screen is HomeScreenState,
                                         onClick = { viewModel.navigateTo(HomeScreenState()) },
                                         isCompact = isCompact
                                     )
                                     AdaptiveNavigationItem(
                                         label = stringResource(Res.string.subscriptions),
-                                        icon = Icons.AutoMirrored.Filled.List,
+                                        icon = MaterialSymbols.Rounded.List,
                                         selected = uiState.screen is SubscriptionsScreenState,
                                         onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
                                         isCompact = isCompact
                                     )
                                     AdaptiveNavigationItem(
                                         label = stringResource(Res.string.title_settings),
-                                        icon = Icons.Default.Settings,
+                                        icon = MaterialSymbols.Rounded.Settings,
                                         selected = uiState.screen is SettingsScreenState,
                                         onClick = { viewModel.navigateTo(SettingsScreenState()) },
                                         isCompact = isCompact
@@ -168,7 +168,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                     Spacer(Modifier.height(padding.calculateTopPadding()))
                                     NavigationDrawerItem(
                                         label = { Text(stringResource(Res.string.home)) },
-                                        icon = { Icon(Icons.Default.Home, null) },
+                                        icon = { Icon(MaterialSymbols.Rounded.Home, null) },
                                         selected = uiState.screen is HomeScreenState,
                                         onClick = { viewModel.navigateTo(HomeScreenState()) },
                                         modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
@@ -176,7 +176,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                     navRailSpacer()
                                     NavigationDrawerItem(
                                         label = { Text(stringResource(Res.string.subscriptions)) },
-                                        icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
+                                        icon = { Icon(MaterialSymbols.Rounded.List, null) },
                                         selected = uiState.screen is SubscriptionsScreenState,
                                         onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
                                         modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
@@ -184,7 +184,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                     navRailSpacer()
                                     NavigationDrawerItem(
                                         label = { Text(stringResource(Res.string.title_settings)) },
-                                        icon = { Icon(Icons.Default.Settings, null) },
+                                        icon = { Icon(MaterialSymbols.Rounded.Settings, null) },
                                         selected = uiState.screen is SettingsScreenState,
                                         onClick = { viewModel.navigateTo(SettingsScreenState()) },
                                         modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)

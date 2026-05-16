@@ -22,6 +22,7 @@ room = "2.8.4"
 sqlite = "2.6.2"
 ksp = "2.3.7"
 qrose = "1.1.2"
+material-symbols = "2.2.1"
 androidx-camerax = "1.6.1"
 google-mlkit-barcode = "17.3.0"
 zxing = "3.5.4"
@@ -65,6 +66,7 @@ androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "
 google-mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "google-mlkit-barcode" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 zxing-javase = { module = "com.google.zxing:javase", version.ref = "zxing" }
+material-symbols-rounded = { module = "com.composables:icons-material-symbols-rounded-cmp", version.ref = "material-symbols" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

@@ -7,9 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.*
@@ -18,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.rounded.*
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.data.Subscription
@@ -128,7 +127,7 @@ private fun SelectionSubscriptionsTopBar(
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = MaterialSymbols.Rounded.Arrow_back,
                     contentDescription = stringResource(Res.string.back)
                 )
             }
@@ -139,13 +138,13 @@ private fun SelectionSubscriptionsTopBar(
                 enabled = selectedCount > 0
             ) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
+                    imageVector = MaterialSymbols.Rounded.Delete,
                     contentDescription = stringResource(Res.string.dialog_btn_delete)
                 )
             }
             IconButton(onClick = onToggleSelectAll) {
                 Icon(
-                    imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                    imageVector = if (isAllSelected) MaterialSymbols.Rounded.Deselect else MaterialSymbols.Rounded.Select_all,
                     contentDescription = stringResource(
                         if (isAllSelected) Res.string.sub_deselect_all else Res.string.sub_select_all
                     )
@@ -170,7 +169,7 @@ private fun NormalSubscriptionsTopBar(
                 enabled = !isUpdating
             ) {
                 Icon(
-                    imageVector = Icons.Default.LibraryAddCheck,
+                    imageVector = MaterialSymbols.Rounded.Library_add_check,
                     contentDescription = stringResource(Res.string.sub_select_mode)
                 )
             }
@@ -179,7 +178,7 @@ private fun NormalSubscriptionsTopBar(
                 enabled = !isUpdating
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,
+                    imageVector = MaterialSymbols.Rounded.Refresh,
                     contentDescription = stringResource(Res.string.btn_subs_update)
                 )
             }
@@ -218,7 +217,7 @@ private fun SelectionSubscriptionsFAB(
 ) {
     ExtendedFloatingActionButton(
         onClick = { if (!isUpdating) onExport() },
-        icon = { Icon(Icons.Default.Share, null) },
+        icon = { Icon(MaterialSymbols.Rounded.Share, null) },
         text = { Text(stringResource(Res.string.btn_export_options)) }
     )
 }
@@ -243,7 +242,7 @@ private fun NormalSubscriptionsFAB(
             ) {
                 val imageVector by remember {
                     derivedStateOf {
-                        if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Add
+                        if (checkedProgress > 0.5f) MaterialSymbols.Rounded.Close else MaterialSymbols.Rounded.Add
                     }
                 }
                 Icon(
@@ -256,17 +255,17 @@ private fun NormalSubscriptionsFAB(
     ) {
         FloatingActionButtonMenuItem(
             onClick = onImportClipboard,
-            icon = { Icon(Icons.Default.ContentPaste, null) },
+            icon = { Icon(MaterialSymbols.Rounded.Content_paste, null) },
             text = { Text(stringResource(Res.string.sub_add_clipboard)) }
         )
         FloatingActionButtonMenuItem(
             onClick = onImportQr,
-            icon = { Icon(Icons.Default.QrCodeScanner, null) },
+            icon = { Icon(MaterialSymbols.Rounded.Qr_code_scanner, null) },
             text = { Text(stringResource(Res.string.sub_add_qr)) }
         )
         FloatingActionButtonMenuItem(
             onClick = onAddManual,
-            icon = { Icon(Icons.Default.Edit, null) },
+            icon = { Icon(MaterialSymbols.Rounded.Edit, null) },
             text = { Text(stringResource(Res.string.sub_add_manual)) }
         )
     }
@@ -524,13 +523,13 @@ private fun SubscriptionItem(
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             IconButton(onClick = onEdit, enabled = !isAnyUpdating) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = MaterialSymbols.Rounded.Edit,
                                     contentDescription = stringResource(Res.string.sub_edit)
                                 )
                             }
                             IconButton(onClick = onDelete, enabled = !isAnyUpdating) {
                                 Icon(
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = MaterialSymbols.Rounded.Delete,
                                     contentDescription = stringResource(Res.string.dialog_btn_delete)
                                 )
                             }
@@ -586,7 +585,7 @@ private fun QrScannerDialog(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.PhotoLibrary, null)
+                    Icon(MaterialSymbols.Rounded.Photo_library, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(Res.string.sub_add_qr_file))
                 }
@@ -621,7 +620,7 @@ private fun ExportOptionsDialog(
                     onClick = { onShowQrCode(includeNotes) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.QrCode, null)
+                    Icon(MaterialSymbols.Rounded.Qr_code, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(Res.string.export_show_qr))
                 }
@@ -629,7 +628,7 @@ private fun ExportOptionsDialog(
                     onClick = { onExportToClipboard(includeNotes) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.ContentPaste, null)
+                    Icon(MaterialSymbols.Rounded.Content_paste, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(Res.string.export_to_clipboard))
                 }

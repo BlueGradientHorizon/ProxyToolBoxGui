@@ -3,8 +3,6 @@ package com.bghorizon.proxytoolboxgui.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import kotlinx.coroutines.delay
 import androidx.compose.material3.*
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
@@ -14,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
+import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.rounded.*
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.components.*
@@ -277,7 +277,7 @@ private fun NormalMainFAB(
                 ) {
                     val imageVector by remember {
                         derivedStateOf {
-                            if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.Share
+                            if (checkedProgress > 0.5f) MaterialSymbols.Rounded.Close else MaterialSymbols.Rounded.Share
                         }
                     }
                     Icon(
@@ -293,7 +293,7 @@ private fun NormalMainFAB(
                     onToggleWebServer()
                     expanded = false
                 },
-                icon = { Icon(Icons.Default.Public, null) },
+                icon = { Icon(MaterialSymbols.Rounded.Public, null) },
                 text = { Text(stringResource(Res.string.btn_web_server)) },
                 containerColor = if (isWebServerRunning) {
                     MaterialTheme.colorScheme.tertiaryContainer
@@ -313,7 +313,7 @@ private fun NormalMainFAB(
                         expanded = false
                     }
                 },
-                icon = { Icon(Icons.Default.Download, null) },
+                icon = { Icon(MaterialSymbols.Rounded.Download, null) },
                 text = { Text(stringResource(Res.string.btn_export)) }
             )
             FloatingActionButtonMenuItem(
@@ -323,7 +323,7 @@ private fun NormalMainFAB(
                         expanded = false
                     }
                 },
-                icon = { Icon(Icons.Default.ContentCopy, null) },
+                icon = { Icon(MaterialSymbols.Rounded.Content_copy, null) },
                 text = { Text(stringResource(Res.string.btn_copy)) }
             )
         }
@@ -341,7 +341,7 @@ private fun NormalMainFAB(
             },
             icon = {
                 Icon(
-                    imageVector = if (isTesting) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    imageVector = if (isTesting) MaterialSymbols.Rounded.Stop else MaterialSymbols.Rounded.Play_arrow,
                     contentDescription = null
                 )
             },
