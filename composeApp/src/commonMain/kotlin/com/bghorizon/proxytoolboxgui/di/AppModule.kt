@@ -1,6 +1,7 @@
 package com.bghorizon.proxytoolboxgui.di
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.bghorizon.proxytoolboxgui.data.AppStatusManager
 import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
@@ -12,6 +13,7 @@ class AppModule(
     val subscriptionRepository: SubscriptionRepository,
     val testManager: ProxyTestManager,
     val webServer: ProxyWebServer,
+    val appStatusManager: AppStatusManager,
     val platform: Platform
 )
 

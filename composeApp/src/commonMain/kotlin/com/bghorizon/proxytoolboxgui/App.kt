@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bghorizon.proxytoolboxgui.data.AppStatusManager
 import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
@@ -50,6 +51,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val subscriptionRepository = remember { SubscriptionRepository(subDb.subscriptionDao()) }
     val testManager = remember { ProxyTestManager(subscriptionRepository) }
     val webServer = remember { ProxyWebServer() }
+    val appStatusManager = remember { AppStatusManager() }
 
     val appModule = remember {
         AppModule(
@@ -57,6 +59,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
             subscriptionRepository = subscriptionRepository,
             testManager = testManager,
             webServer = webServer,
+            appStatusManager = appStatusManager,
             platform = platform
         )
     }

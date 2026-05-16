@@ -424,7 +424,7 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
                 onDismiss = { mainVm.hideDialog() },
                 onConfirm = {
                     mainVm.hideDialog()
-                    subVm.updateSubscriptions(mainVm)
+                    subVm.updateSubscriptions()
                 },
                 confirmText = stringResource(Res.string.btn_subs_update),
                 isDestructive = true

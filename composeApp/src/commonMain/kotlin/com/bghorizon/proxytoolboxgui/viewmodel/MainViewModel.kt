@@ -23,6 +23,11 @@ class MainViewModel(val module: AppModule) : ViewModel() {
 
     init {
         viewModelScope.launch {
+            module.appStatusManager.statusInfo.collect { info ->
+                _uiState.update { it.copy(appStatus = info.status, statusDescription = info.description) }
+            }
+        }
+        viewModelScope.launch {
             module.settingsRepository.settings.collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
             }
@@ -43,7 +48,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
     }
 
     fun updateAppStatus(status: AppStatus, description: String? = null) {
-        _uiState.update { it.copy(appStatus = status, statusDescription = description) }
+        module.appStatusManager.updateStatus(status, description)
     }
 
     fun discoverWorkers() {
@@ -111,13 +116,13 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                 val port = settings.webServerPort
                 val host = if (settings.webServerLocalhost) "127.0.0.1" else "0.0.0.0"
 
-        module.webServer.start(
-            port = port,
-            host = host
-        ) {
-            module.subscriptionRepository.getWorkingConfigs()
-                .joinToString("\n") { it.connURI }
-        }
+                module.webServer.start(
+                    port = port,
+                    host = host
+                ) {
+                    module.subscriptionRepository.getWorkingConfigs()
+                        .joinToString("\n") { it.connURI }
+                }
 
                 _uiState.update { it.copy(webServerRunning = true) }
                 val msg = getString(Res.string.web_server_started, port)

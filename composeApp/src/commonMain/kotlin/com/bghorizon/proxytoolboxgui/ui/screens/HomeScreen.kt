@@ -102,9 +102,8 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val subs by subVm.subscriptions.collectAsState()
 
     val testProgress = homeUiState.testProgress
-    val isHomeIdle = homeUiState.appStatus == AppStatus.IDLE
-    val appStatus = if (isHomeIdle) mainUiState.appStatus else homeUiState.appStatus
-    val statusDescription = if (isHomeIdle) mainUiState.statusDescription else homeUiState.statusDescription
+    val appStatus = mainUiState.appStatus
+    val statusDescription = mainUiState.statusDescription
 
     LaunchedEffect(mainUiState.workers) {
         homeVm.setWorkers(mainUiState.workers)
@@ -221,16 +220,14 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 @Composable
 fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val mainUiState by mainVm.uiState.collectAsState()
-    val homeUiState by homeVm.uiState.collectAsState()
     val module = LocalAppModule.current
     val subVm: SubscriptionsScreenViewModel = viewModel { SubscriptionsScreenViewModel(module) }
     val subs by subVm.subscriptions.collectAsState()
     val totalWorking = subs.sumOf { it.working }
 
-    val appStatus = homeUiState.appStatus
+    val appStatus = mainUiState.appStatus
     val workers = mainUiState.workers
-    val isTesting =
-        (appStatus == AppStatus.TESTING || appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
+    val isTesting = (appStatus == AppStatus.TESTING || appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
     val isWebServerRunning = mainUiState.webServerRunning
 
     NormalMainFAB(

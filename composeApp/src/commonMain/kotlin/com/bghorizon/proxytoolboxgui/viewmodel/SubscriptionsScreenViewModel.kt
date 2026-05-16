@@ -49,11 +49,11 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
         _uiState.update { it.copy(selectedIds = emptySet()) }
     }
 
-    fun updateSubscriptions(mainVm: MainViewModel) {
+    fun updateSubscriptions() {
         if (downloadJob?.isActive == true) return
 
         downloadJob = viewModelScope.launch(Dispatchers.IO) {
-            mainVm.updateAppStatus(AppStatus.UPDATING_SUBS)
+            module.appStatusManager.updateStatus(AppStatus.UPDATING_SUBS)
             val subs = subscriptions.value
             _uiState.update { state ->
                 state.copy(
@@ -108,7 +108,7 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                 _uiState.update {
                     it.copy(updateProgress = it.updateProgress.copy(isRunning = false))
                 }
-                mainVm.updateAppStatus(AppStatus.IDLE)
+                module.appStatusManager.updateStatus(AppStatus.IDLE)
             }
         }
     }
