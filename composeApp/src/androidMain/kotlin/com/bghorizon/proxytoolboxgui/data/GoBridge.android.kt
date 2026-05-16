@@ -1,8 +1,7 @@
 package com.bghorizon.proxytoolboxgui.data
 
 import android.util.Log
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
+import com.bghorizon.proxytoolboxgui.AppContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -63,7 +62,7 @@ actual object GoBridge {
         Log.d(TAG, "Loading wrapper library...")
         try {
             val libDir =
-                com.bghorizon.proxytoolboxgui.ProxyToolBoxApplication.appContext.applicationInfo.nativeLibraryDir
+                AppContext.context.applicationInfo.nativeLibraryDir
             val libName = System.mapLibraryName("wrapper")
             val absolutePath = java.io.File(libDir, libName).absolutePath
             Log.d(TAG, "Absolute path to library: $absolutePath")

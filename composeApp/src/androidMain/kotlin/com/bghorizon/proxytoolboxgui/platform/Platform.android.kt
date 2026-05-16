@@ -12,7 +12,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import com.bghorizon.proxytoolboxgui.ProxyToolBoxApplication
+import com.bghorizon.proxytoolboxgui.AppContext
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -29,7 +29,7 @@ class AndroidPlatform(private val context: Context) : Platform {
 
     override suspend fun pickImageAndScanQr(): String? = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { continuation ->
-            val activity = ProxyToolBoxApplication.currentActivity as? ComponentActivity
+            val activity = AppContext.currentActivity as? ComponentActivity
             if (activity == null) {
                 continuation.resume(null)
                 return@suspendCancellableCoroutine
@@ -107,7 +107,7 @@ class AndroidPlatform(private val context: Context) : Platform {
 
     override suspend fun exportToFile(text: String, filename: String): String? = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { continuation ->
-            val activity = ProxyToolBoxApplication.currentActivity as? ComponentActivity
+            val activity = AppContext.currentActivity as? ComponentActivity
             if (activity == null) {
                 continuation.resume(null)
                 return@suspendCancellableCoroutine
@@ -168,4 +168,4 @@ class AndroidPlatform(private val context: Context) : Platform {
     }
 }
 
-actual fun getPlatform(): Platform = AndroidPlatform(ProxyToolBoxApplication.appContext)
+actual fun getPlatform(): Platform = AndroidPlatform(AppContext.context)

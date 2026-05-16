@@ -23,31 +23,44 @@ class ProxyToolBoxApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = applicationContext
+        AppContext.context = applicationContext
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
                 currentActivity = activity
+                AppContext.currentActivity = activity
             }
 
             override fun onActivityStarted(activity: Activity) {
                 currentActivity = activity
+                AppContext.currentActivity = activity
             }
 
             override fun onActivityResumed(activity: Activity) {
                 currentActivity = activity
+                AppContext.currentActivity = activity
             }
 
             override fun onActivityPaused(activity: Activity) {
-                if (currentActivity === activity) currentActivity = null
+                if (currentActivity === activity) {
+                    currentActivity = null
+                    AppContext.currentActivity = null
+                }
             }
 
             override fun onActivityStopped(activity: Activity) {
-                if (currentActivity === activity) currentActivity = null
+                if (currentActivity === activity) {
+                    currentActivity = null
+                    AppContext.currentActivity = null
+                }
             }
 
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
 
             override fun onActivityDestroyed(activity: Activity) {
-                if (currentActivity === activity) currentActivity = null
+                if (currentActivity === activity) {
+                    currentActivity = null
+                    AppContext.currentActivity = null
+                }
             }
         })
     }
