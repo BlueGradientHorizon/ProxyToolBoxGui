@@ -1,10 +1,5 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.file.Files
 
@@ -56,55 +51,6 @@ object NativeLoader {
     }
 }
 
-private class JniCallbackWrapper(val delegate: GoTestCallback) {
-    fun onParseFailedJson(json: String) {
-        val errors = parseErrorsJson(json)
-        CoroutineScope(Dispatchers.Main).launch {
-            delegate.onParseFailed(errors)
-        }
-    }
-
-    fun onValidateFailedJson(json: String) {
-        val errors = parseErrorsJson(json)
-        CoroutineScope(Dispatchers.Main).launch {
-            delegate.onValidateFailed(errors)
-        }
-    }
-
-    fun onRoundStarted(batch: Long, round: Long, total: Long) {
-        CoroutineScope(Dispatchers.Main).launch {
-            delegate.onRoundStarted(batch, round, total)
-        }
-    }
-
-    fun onProgress(tag: String, delay: Long, failed: Boolean) {
-        CoroutineScope(Dispatchers.Main).launch {
-            delegate.onProgress(tag, delay, failed)
-        }
-    }
-
-    fun onRoundEnded(batch: Long, round: Long) {
-        CoroutineScope(Dispatchers.Main).launch {
-            delegate.onRoundEnded(batch, round)
-        }
-    }
-
-    fun onError(message: String) {
-        CoroutineScope(Dispatchers.Main).launch {
-            delegate.onError(message)
-        }
-    }
-
-    private fun parseErrorsJson(json: String): Map<String, String> {
-        if (json.isBlank()) return emptyMap()
-        return try {
-            JsonConfig.json.decodeFromString<Map<String, String>>(json)
-        } catch (e: Exception) {
-            emptyMap()
-        }
-    }
-}
-
 actual object GoBridge {
     init {
         NativeLoader.init()
@@ -122,7 +68,7 @@ actual object GoBridge {
         roundTimeout: Int,
         testByBatches: Boolean,
         batchSize: Int,
-        callback: JniCallbackWrapper
+        callback: JniCallbackWrapper,
     ): String
 
     @JvmStatic
@@ -155,7 +101,7 @@ actual object GoBridge {
 
         return try {
             JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
