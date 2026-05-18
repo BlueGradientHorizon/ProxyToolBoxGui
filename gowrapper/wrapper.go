@@ -25,19 +25,35 @@ type ProxyConfig struct {
 	Delay   int64  `json:"delay"`
 }
 
-type TestCallbacks struct {
-	OnParseFailed    func(errors map[string]string)
+type ErrorCallback struct {
+	OnError func(msg string)
+}
+
+type ParseCallback struct {
+	OnParseFailed func(errors map[string]string)
+	OnError       func(msg string)
+}
+
+type ValidateCallback struct {
 	OnValidateFailed func(errors map[string]string)
-	OnRoundStarted   func(batch int, round int, total int)
-	OnProgress       func(tag string, delay int64, failed bool)
-	OnRoundEnded     func(batch int, round int)
 	OnError          func(msg string)
+}
+
+type TestCallbacks struct {
+	OnRoundStarted func(batch int, round int, total int)
+	OnProgress     func(tag string, delay int64, failed bool)
+	OnRoundEnded   func(batch int, round int)
+	OnError        func(msg string)
 }
 
 var (
 	testMu     sync.Mutex
 	testCancel context.CancelFunc
 	testRunner *runner.TestRunner
+
+	currentWorkerPath    string
+	currentParsedConfigs []parsers.ProxyConfig
+	currentValidConfigs  []parsers.ProxyConfig
 )
 
 func DiscoverWorkers(libraryPath string) []WorkerInfo {
@@ -69,22 +85,34 @@ func StopTests() {
 	}
 }
 
-func RunLatencyTests(
-	workerPath string,
-	testUrl string,
-	connUrisJson string,
-	latencyRounds int,
-	roundTimeout int,
-	testByBatches bool,
-	batchSize int,
-	callbacks TestCallbacks,
-) []ProxyConfig {
+func InitializeRunner(workerPath string, callbacks ErrorCallback) {
+	testMu.Lock()
+	defer testMu.Unlock()
+	currentWorkerPath = workerPath
+
+	// Verify if we can create a runner
+	tr, err := runner.NewTestRunner(runner.RunnerSettings{
+		WorkerPath: currentWorkerPath,
+	})
+	if err != nil {
+		if callbacks.OnError != nil {
+			callbacks.OnError(fmt.Sprintf("Failed to initialize test runner: %v", err))
+		}
+		return
+	}
+	tr.Close()
+}
+
+func ParseConfigs(connUrisJson string, callbacks ParseCallback) {
+	testMu.Lock()
+	defer testMu.Unlock()
+
 	var inputConfigs []ProxyConfig
 	if err := json.Unmarshal([]byte(connUrisJson), &inputConfigs); err != nil {
 		if callbacks.OnError != nil {
 			callbacks.OnError(fmt.Sprintf("Unmarshal input error: %v", err))
 		}
-		return []ProxyConfig{}
+		return
 	}
 
 	for _, c := range inputConfigs {
@@ -92,11 +120,10 @@ func RunLatencyTests(
 			if callbacks.OnError != nil {
 				callbacks.OnError("Empty tag found in config")
 			}
-			return []ProxyConfig{}
+			return
 		}
 	}
 
-	// 1. Parse configs
 	var parsedConfigs []parsers.ProxyConfig
 	parseErrors := make(map[string]string)
 
@@ -130,48 +157,43 @@ func RunLatencyTests(
 		if callbacks.OnError != nil {
 			callbacks.OnError("No valid configs after parsing")
 		}
-		return []ProxyConfig{}
+		return
+	}
+
+	currentParsedConfigs = parsedConfigs
+}
+
+func ValidateConfigs(callbacks ValidateCallback) {
+	testMu.Lock()
+	defer testMu.Unlock()
+
+	if len(currentParsedConfigs) == 0 {
+		if callbacks.OnError != nil {
+			callbacks.OnError("No configs to validate")
+		}
+		return
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	testMu.Lock()
-	testCancel = cancel
-	testMu.Unlock()
-	defer func() {
-		testMu.Lock()
-		testCancel = nil
-		testRunner = nil
-		testMu.Unlock()
-		cancel()
-	}()
+	defer cancel()
 
-	// 2. Initial Validation
 	tr, err := runner.NewTestRunner(runner.RunnerSettings{
-		WorkerPath: workerPath,
+		WorkerPath: currentWorkerPath,
 	})
 	if err != nil {
 		if callbacks.OnError != nil {
-			callbacks.OnError(fmt.Sprintf("Failed to create test runner: %v", err))
+			callbacks.OnError(fmt.Sprintf("Failed to create test runner for validation: %v", err))
 		}
-		return []ProxyConfig{}
+		return
 	}
+	defer tr.Close()
 
-	testMu.Lock()
-	testRunner = tr
-	testMu.Unlock()
-
-	taggedConfigs, validationErrors, err := tr.Validate(ctx, parsedConfigs, runner.DefaultConfigTaggerFunc)
-
-	tr.Close()
-	testMu.Lock()
-	testRunner = nil
-	testMu.Unlock()
-
+	taggedConfigs, validationErrors, err := tr.Validate(ctx, currentParsedConfigs, runner.DefaultConfigTaggerFunc)
 	if err != nil {
 		if callbacks.OnError != nil {
 			callbacks.OnError(fmt.Sprintf("Validation error: %v", err))
 		}
-		return []ProxyConfig{}
+		return
 	}
 
 	validateErrors := make(map[string]string)
@@ -196,10 +218,45 @@ func RunLatencyTests(
 		if callbacks.OnError != nil {
 			callbacks.OnError("No valid configs after validation")
 		}
+		return
+	}
+
+	currentValidConfigs = validConfigs
+}
+
+func RunLatencyTests(
+	testUrl string,
+	latencyRounds int,
+	roundTimeout int,
+	testByBatches bool,
+	batchSize int,
+	callbacks TestCallbacks,
+) []ProxyConfig {
+	testMu.Lock()
+	validConfigs := currentValidConfigs
+	workerPath := currentWorkerPath
+	testMu.Unlock()
+
+	if len(validConfigs) == 0 {
+		if callbacks.OnError != nil {
+			callbacks.OnError("No valid configs to test")
+		}
 		return []ProxyConfig{}
 	}
 
-	// 3. Batched Latency Tests
+	ctx, cancel := context.WithCancel(context.Background())
+	testMu.Lock()
+	testCancel = cancel
+	testMu.Unlock()
+	defer func() {
+		testMu.Lock()
+		testCancel = nil
+		testRunner = nil
+		testMu.Unlock()
+		cancel()
+	}()
+
+	// Batched Latency Tests
 	goBatchSize := batchSize
 	if !testByBatches || goBatchSize <= 0 {
 		goBatchSize = len(validConfigs)
@@ -299,7 +356,7 @@ func RunLatencyTests(
 		}
 	}
 
-	// 4. Wrap up working configs
+	// Wrap up working configs
 	passedTags := make(map[string]int64)
 	for _, result := range allResults {
 		if result.Error == nil {

@@ -16,7 +16,7 @@ REPOS := proxytoolbox
 
 proxytoolbox_URL     := https://github.com/bluegradienthorizon/proxytoolbox
 #proxytoolbox_BRANCH  := v0.0.1
-proxytoolbox_COMMIT  := d7c91930d4aec32f658b6ec3f2b7d7165dd1afca
+proxytoolbox_COMMIT  := 5ad35a4e60c87d0a18f3d73f7e060443e501be75
 proxytoolbox_WORKERS := internal/workers/xraycore internal/workers/singbox
 
 # REPOS += otherrepo

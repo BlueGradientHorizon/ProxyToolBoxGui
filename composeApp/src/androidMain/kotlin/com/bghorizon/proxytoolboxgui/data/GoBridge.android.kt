@@ -26,15 +26,30 @@ actual object GoBridge {
     private external fun nativeDiscoverWorkers(libraryPath: String): String
 
     @JvmStatic
-    private external fun nativeRunLatencyTests(
+    private external fun nativeInitializeRunner(
         workerPath: String,
-        testUrl: String,
+        callback: JniErrorCallbackWrapper
+    )
+
+    @JvmStatic
+    private external fun nativeParseConfigs(
         connUrisJson: String,
+        callback: JniParseCallbackWrapper
+    )
+
+    @JvmStatic
+    private external fun nativeValidateConfigs(
+        callback: JniValidateCallbackWrapper,
+    )
+
+    @JvmStatic
+    private external fun nativeRunLatencyTests(
+        testUrl: String,
         latencyRounds: Int,
         roundTimeout: Int,
         testByBatches: Boolean,
         batchSize: Int,
-        callback: JniCallbackWrapper,
+        callback: JniTestCallbackWrapper,
     ): String
 
     @JvmStatic
@@ -58,20 +73,27 @@ actual object GoBridge {
         return result
     }
 
+    actual fun initializeRunner(workerPath: String, callback: GoErrorCallback) {
+        nativeInitializeRunner(workerPath, JniErrorCallbackWrapper(callback))
+    }
+
+    actual fun parseConfigs(connUrisJson: String, callback: GoParseCallback) {
+        nativeParseConfigs(connUrisJson, JniParseCallbackWrapper(callback))
+    }
+
+    actual fun validateConfigs(callback: GoValidateCallback) {
+        nativeValidateConfigs(JniValidateCallbackWrapper(callback))
+    }
+
     actual fun runLatencyTests(
-        workerPath: String,
         testUrl: String,
         settings: AppSettings,
-        callback: GoTestCallback,
-        connUris: List<ProxyConfig>
+        callback: GoTestCallback
     ): List<ProxyConfig> {
-        val connUrisJson = JsonConfig.json.encodeToString(connUris)
-        val wrapper = JniCallbackWrapper(callback)
+        val wrapper = JniTestCallbackWrapper(callback)
 
         val resultJson = nativeRunLatencyTests(
-            workerPath,
             testUrl,
-            connUrisJson,
             settings.latencyRounds,
             settings.roundTimeout,
             settings.testByBatches,

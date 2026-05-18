@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ProxyTestManager(
-    private val subscriptionRepository: SubscriptionRepository
+    private val subscriptionRepository: SubscriptionRepository,
 ) {
     suspend fun prepareTest(
         settings: AppSettings,
@@ -34,12 +34,12 @@ class ProxyTestManager(
                 subs[i] = subs[i].copy(duplicated = uris.size - uniqueUris.size)
             }
             for ((uriIndex, uri) in uniqueUris.withIndex()) {
-                val tag = "sub-${sub.id}-${uriIndex}"
+                val tag = "sub-${sub.id}-$uriIndex"
                 configs.add(ProxyConfig(tag = tag, connURI = uri))
             }
         }
 
-        val totalBatches = if (settings.testByBatches && settings.batchSize > 0) {
+        val totalBatches = if (settings.testByBatches && (settings.batchSize > 0)) {
             (configs.size + settings.batchSize - 1) / settings.batchSize
         } else {
             1
@@ -56,19 +56,45 @@ class ProxyTestManager(
         configs: List<ProxyConfig>,
         onEvent: (TestEvent) -> Unit
     ): List<ProxyConfig> = withContext(Dispatchers.IO) {
-        GoBridge.runLatencyTests(
+        GoBridge.initializeRunner(
             workerPath = settings.selectedWorker,
-            testUrl = settings.testUrl,
-            settings = settings,
-            callback = object : GoTestCallback {
+            callback = object : GoErrorCallback {
+                override fun onError(message: String) {
+                    onEvent(TestEvent.Error(message))
+                }
+            }
+        )
+
+        val connUrisJson = JsonConfig.json.encodeToString(configs)
+        GoBridge.parseConfigs(
+            connUrisJson = connUrisJson,
+            callback = object : GoParseCallback {
                 override fun onParseFailed(errors: Map<String, String>) {
                     onEvent(TestEvent.ParseFailed(errors))
                 }
 
+                override fun onError(message: String) {
+                    onEvent(TestEvent.Error(message))
+                }
+            }
+        )
+
+        GoBridge.validateConfigs(
+            callback = object : GoValidateCallback {
                 override fun onValidateFailed(errors: Map<String, String>) {
                     onEvent(TestEvent.ValidateFailed(errors))
                 }
 
+                override fun onError(message: String) {
+                    onEvent(TestEvent.Error(message))
+                }
+            }
+        )
+
+        GoBridge.runLatencyTests(
+            testUrl = settings.testUrl,
+            settings = settings,
+            callback = object : GoTestCallback {
                 override fun onRoundStarted(batch: Long, round: Long, total: Long) {
                     onEvent(TestEvent.RoundStarted(batch.toInt(), round.toInt(), total.toInt()))
                 }
@@ -84,8 +110,7 @@ class ProxyTestManager(
                 override fun onError(message: String) {
                     onEvent(TestEvent.Error(message))
                 }
-            },
-            connUris = configs
+            }
         )
     }
 

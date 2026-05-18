@@ -111,29 +111,136 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeStopTests(env *C.JNI
 	StopTests()
 }
 
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeInitializeRunner
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeInitializeRunner(
+	env *C.JNIEnv,
+	clazz C.jclass,
+	workerPath C.jstring,
+	callback C.jobject,
+) {
+	goWorkerPath := JStringToString(env, workerPath)
+
+	cbClass := C.GetObjectClass(env, callback)
+	defer C.DeleteLocalRef(env, C.jobject(cbClass))
+
+	cOnError := C.CString("onError")
+	cSigVString := C.CString("(Ljava/lang/String;)V")
+	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
+
+	defer func() {
+		C.free(unsafe.Pointer(cOnError))
+		C.free(unsafe.Pointer(cSigVString))
+	}()
+
+	callbacks := ErrorCallback{
+		OnError: func(msg string) {
+			jMsg := StringToJString(env, msg)
+			C.callOnError(env, callback, midError, jMsg)
+			C.DeleteLocalRef(env, C.jobject(jMsg))
+		},
+	}
+
+	InitializeRunner(goWorkerPath, callbacks)
+}
+
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs(
+	env *C.JNIEnv,
+	clazz C.jclass,
+	connUrisJson C.jstring,
+	callback C.jobject,
+) {
+	goConnUrisJson := JStringToString(env, connUrisJson)
+
+	cbClass := C.GetObjectClass(env, callback)
+	defer C.DeleteLocalRef(env, C.jobject(cbClass))
+
+	cOnParseFailedJson := C.CString("onParseFailedJson")
+	cOnError := C.CString("onError")
+	cSigVString := C.CString("(Ljava/lang/String;)V")
+
+	midParseFailed := C.GetMethodID(env, cbClass, cOnParseFailedJson, cSigVString)
+	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
+
+	defer func() {
+		C.free(unsafe.Pointer(cOnParseFailedJson))
+		C.free(unsafe.Pointer(cOnError))
+		C.free(unsafe.Pointer(cSigVString))
+	}()
+
+	callbacks := ParseCallback{
+		OnParseFailed: func(errors map[string]string) {
+			b, _ := json.Marshal(errors)
+			jErrorsJson := StringToJString(env, string(b))
+			C.callOnParseFailed(env, callback, midParseFailed, jErrorsJson)
+			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
+		},
+		OnError: func(msg string) {
+			jMsg := StringToJString(env, msg)
+			C.callOnError(env, callback, midError, jMsg)
+			C.DeleteLocalRef(env, C.jobject(jMsg))
+		},
+	}
+
+	ParseConfigs(goConnUrisJson, callbacks)
+}
+
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs(
+	env *C.JNIEnv,
+	clazz C.jclass,
+	callback C.jobject,
+) {
+	cbClass := C.GetObjectClass(env, callback)
+	defer C.DeleteLocalRef(env, C.jobject(cbClass))
+
+	cOnValidateFailedJson := C.CString("onValidateFailedJson")
+	cOnError := C.CString("onError")
+	cSigVString := C.CString("(Ljava/lang/String;)V")
+
+	midValidateFailed := C.GetMethodID(env, cbClass, cOnValidateFailedJson, cSigVString)
+	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
+
+	defer func() {
+		C.free(unsafe.Pointer(cOnValidateFailedJson))
+		C.free(unsafe.Pointer(cOnError))
+		C.free(unsafe.Pointer(cSigVString))
+	}()
+
+	callbacks := ValidateCallback{
+		OnValidateFailed: func(errors map[string]string) {
+			b, _ := json.Marshal(errors)
+			jErrorsJson := StringToJString(env, string(b))
+			C.callOnValidateFailed(env, callback, midValidateFailed, jErrorsJson)
+			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
+		},
+		OnError: func(msg string) {
+			jMsg := StringToJString(env, msg)
+			C.callOnError(env, callback, midError, jMsg)
+			C.DeleteLocalRef(env, C.jobject(jMsg))
+		},
+	}
+
+	ValidateConfigs(callbacks)
+}
+
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	env *C.JNIEnv,
 	clazz C.jclass,
-	workerPath C.jstring,
 	testUrl C.jstring,
-	connUrisJson C.jstring,
 	latencyRounds C.jint,
 	roundTimeout C.jint,
 	testByBatches C.jboolean,
 	batchSize C.jint,
 	callback C.jobject,
 ) C.jstring {
-	goWorkerPath := JStringToString(env, workerPath)
 	goTestUrl := JStringToString(env, testUrl)
-	goConnUrisJson := JStringToString(env, connUrisJson)
 	goTestByBatches := testByBatches != 0
 
 	cbClass := C.GetObjectClass(env, callback)
 	defer C.DeleteLocalRef(env, C.jobject(cbClass))
 
-	cOnParseFailedJson := C.CString("onParseFailedJson")
-	cOnValidateFailedJson := C.CString("onValidateFailedJson")
 	cOnRoundStarted := C.CString("onRoundStarted")
 	cOnProgress := C.CString("onProgress")
 	cOnRoundEnded := C.CString("onRoundEnded")
@@ -144,16 +251,12 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	cSigVSJZ := C.CString("(Ljava/lang/String;JZ)V")
 	cSigVJJ := C.CString("(JJ)V")
 
-	midParseFailed := C.GetMethodID(env, cbClass, cOnParseFailedJson, cSigVString)
-	midValidateFailed := C.GetMethodID(env, cbClass, cOnValidateFailedJson, cSigVString)
 	midRoundStarted := C.GetMethodID(env, cbClass, cOnRoundStarted, cSigVJJJ)
 	midProgress := C.GetMethodID(env, cbClass, cOnProgress, cSigVSJZ)
 	midRoundEnded := C.GetMethodID(env, cbClass, cOnRoundEnded, cSigVJJ)
 	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
 
 	defer func() {
-		C.free(unsafe.Pointer(cOnParseFailedJson))
-		C.free(unsafe.Pointer(cOnValidateFailedJson))
 		C.free(unsafe.Pointer(cOnRoundStarted))
 		C.free(unsafe.Pointer(cOnProgress))
 		C.free(unsafe.Pointer(cOnRoundEnded))
@@ -165,18 +268,6 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	}()
 
 	callbacks := TestCallbacks{
-		OnParseFailed: func(errors map[string]string) {
-			b, _ := json.Marshal(errors)
-			jErrorsJson := StringToJString(env, string(b))
-			C.callOnParseFailed(env, callback, midParseFailed, jErrorsJson)
-			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
-		},
-		OnValidateFailed: func(errors map[string]string) {
-			b, _ := json.Marshal(errors)
-			jErrorsJson := StringToJString(env, string(b))
-			C.callOnValidateFailed(env, callback, midValidateFailed, jErrorsJson)
-			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
-		},
 		OnRoundStarted: func(batch int, round int, total int) {
 			C.callOnRoundStarted(env, callback, midRoundStarted, C.jlong(batch), C.jlong(round), C.jlong(total))
 		},
@@ -200,9 +291,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	}
 
 	workingConfigs := RunLatencyTests(
-		goWorkerPath,
 		goTestUrl,
-		goConnUrisJson,
 		int(latencyRounds),
 		int(roundTimeout),
 		goTestByBatches,
