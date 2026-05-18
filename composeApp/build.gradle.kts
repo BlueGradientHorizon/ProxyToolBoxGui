@@ -105,6 +105,16 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "com.bghorizon.proxytoolboxgui"
             packageVersion = "1.0.0"
+
+            linux {
+                iconFile.set(project.file("src/jvmMain/resources/icon.png"))
+            }
+            windows {
+                iconFile.set(project.file("src/jvmMain/resources/icon.ico"))
+            }
+            // macOS {
+            //     iconFile.set(project.file("src/jvmMain/resources/icon.icns"))
+            // }
         }
     }
 }

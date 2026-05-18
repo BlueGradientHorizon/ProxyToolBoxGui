@@ -11,6 +11,9 @@ import com.bghorizon.proxytoolboxgui.data.db.createAppDatabase
 import com.bghorizon.proxytoolboxgui.data.db.createSubscriptionDatabase
 import com.bghorizon.proxytoolboxgui.data.db.getAppDatabaseBuilder
 import com.bghorizon.proxytoolboxgui.data.db.getSubscriptionDatabaseBuilder
+import org.jetbrains.compose.resources.painterResource
+import proxytoolboxgui.composeapp.generated.resources.Res
+import proxytoolboxgui.composeapp.generated.resources.ic_launcher_playstore
 
 fun main() {
     NativeLoader.init()
@@ -29,6 +32,7 @@ fun main() {
         Window(
             onCloseRequest = ::exitApplication,
             title = "ProxyToolBoxGui",
+            icon = painterResource(Res.drawable.ic_launcher_playstore),
             state = rememberWindowState(
                 width = 480.dp,
                 height = 800.dp
