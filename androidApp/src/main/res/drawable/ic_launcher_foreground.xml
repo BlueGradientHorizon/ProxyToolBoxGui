@@ -1,19 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  ~ Copyright (C) 2026 The Android Open Source Project
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License");
-  ~ you may not use this file except in compliance with the License.
-  ~ You may obtain a copy of the License at
-  ~
-  ~      http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
-  -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -40,21 +25,21 @@
 
                     <!-- Top Key -->
                     <path
-                        android:fillColor="#e3e3e3"
+                        android:fillColor="#3de83d"
                         android:pathData="M42.75,54q-5.625,0-9.5625-3.9375T29.25,40.5q0-5.625,3.9375-9.5625t9.5625-3.9375q3.7125,0,6.80625,1.85625t4.89375,4.89375h24.3v13.5h-4.5v6.75H60.75v-6.75H54.45q-1.8,3.0375-4.89375,4.89375t-6.80625,1.85625Zm0-4.5q3.7125,0,5.9625-2.27813t2.7-4.47187v6.75h22.8375v-11.25H51.4125q-0.45-2.19375-2.7-4.47187T42.75,31.5q-3.7125,0-6.35625,2.64375t-2.64375,6.35625q0,3.7125,2.64375,6.35625t6.35625,2.64375Z" />
                 </group>
 
                 <!-- Bottom Key -->
                 <group>
                     <path
-                        android:fillColor="#e3e3e3"
+                        android:fillColor="#3de83d"
                         android:pathData="M42.75,67.5q-5.625,0-9.5625-3.9375T29.25,54q0-5.625,3.9375-9.5625t9.5625-3.9375q3.7125,0,6.80625,1.85625t4.89375,4.89375h24.3v13.5h-4.5v6.75H60.75v-6.75H54.45q-1.8,3.0375-4.89375,4.89375t-6.80625,1.85625Zm0-4.5q3.7125,0,5.9625-2.27813t2.7-4.47187h13.8375v6.75h4.5v-6.75h4.5v-4.5H51.4125q-0.45-2.19375-2.7-4.47187T42.75,45q-3.7125,0-6.35625,2.64375t-2.64375,6.35625q0,3.7125,2.64375,6.35625t6.35625,2.64375Zm0-4.5q1.85625,0,3.17813-1.32188T47.25,54q0-1.85625-1.32188-3.17813T42.75,49.5q-1.85625,0-3.17813,1.32188T38.25,54q0,1.85625,1.32188,3.17813T42.75,58.5Zm0-4.5Z" />
                 </group>
             </group>
 
             <!-- Magnifying glass (Drawn visibly on top of the clipped layers) -->
             <path
-                android:fillColor="#e3e3e3"
+                android:fillColor="#3de83d"
                 android:pathData="M68.11875,68.11875q1.63125-1.63125,1.63125-3.99375t-1.63125-3.99375q-1.63125-1.63125-3.99375-1.63125t-3.99375,1.63125q-1.63125,1.63125-1.63125,3.99375t1.63125,3.99375q1.63125,1.63125,3.99375,1.63125t3.99375-1.63125ZM75.6,78.75L69.525,72.675q-1.18125,0.7875-2.55938,1.18125t-2.84063,0.39375q-4.21875,0-7.17188-2.95312T54,64.125q0-4.21875,2.95312-7.17188T64.125,54q4.21875,0,7.17188,2.95312T74.25,64.125q0,1.4625-0.39375,2.84063T72.675,69.525L78.75,75.6l-3.15,3.15Z" />
         </group>
     </group>
