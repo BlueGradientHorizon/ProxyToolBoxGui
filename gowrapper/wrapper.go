@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -103,17 +102,9 @@ func InitializeRunner(workerPath string, callbacks ErrorCallback) {
 	tr.Close()
 }
 
-func ParseConfigs(connUrisJson string, callbacks ParseCallback) {
+func ParseConfigs(inputConfigs []ProxyConfig, callbacks ParseCallback) {
 	testMu.Lock()
 	defer testMu.Unlock()
-
-	var inputConfigs []ProxyConfig
-	if err := json.Unmarshal([]byte(connUrisJson), &inputConfigs); err != nil {
-		if callbacks.OnError != nil {
-			callbacks.OnError(fmt.Sprintf("Unmarshal input error: %v", err))
-		}
-		return
-	}
 
 	for _, c := range inputConfigs {
 		if strings.TrimSpace(c.Tag) == "" {

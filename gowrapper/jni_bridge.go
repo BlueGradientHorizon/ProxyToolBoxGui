@@ -60,6 +60,7 @@ static void DeleteLocalRef(JNIEnv *env, jobject obj) {
 import "C"
 import (
 	"encoding/json"
+	"fmt"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -182,7 +183,15 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs(
 		},
 	}
 
-	ParseConfigs(goConnUrisJson, callbacks)
+	var inputConfigs []ProxyConfig
+	if err := json.Unmarshal([]byte(goConnUrisJson), &inputConfigs); err != nil {
+		if callbacks.OnError != nil {
+			callbacks.OnError(fmt.Sprintf("Unmarshal input error: %v", err))
+		}
+		return
+	}
+
+	ParseConfigs(inputConfigs, callbacks)
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs
