@@ -193,15 +193,14 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                     }
                 }
             if (subs.isNotEmpty()) {
-                subs.forEach { (note, url) ->
-                    module.subscriptionRepository.saveSub(
-                        Subscription(
-                            id = ConfigUtils.generateUUID(),
-                            note = note,
-                            url = url
-                        )
+                val subscriptionEntities = subs.map { (note, url) ->
+                    Subscription(
+                        id = ConfigUtils.generateUUID(),
+                        note = note,
+                        url = url
                     )
                 }
+                module.subscriptionRepository.saveSubs(subscriptionEntities)
                 module.platform.showToast(getString(Res.string.msg_imported_subs, subs.size))
             } else {
                 module.platform.showToast(getString(Res.string.msg_no_subs_found))

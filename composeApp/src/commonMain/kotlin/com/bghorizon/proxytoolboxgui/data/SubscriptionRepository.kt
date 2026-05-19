@@ -33,6 +33,10 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.upsertSubscription(subscription.toEntity())
     }
 
+    suspend fun saveSubs(subscriptions: List<Subscription>) {
+        dao.upsertSubscriptions(subscriptions.map { it.toEntity() })
+    }
+
     suspend fun deleteSub(id: String) {
         dao.deleteSubscription(id)
     }

@@ -18,14 +18,18 @@ interface SettingsDao {
 
 @Dao
 interface SubscriptionDao {
-    @Query("SELECT * FROM subscriptions")
+    @Query("SELECT * FROM subscriptions ORDER BY rowid ASC")
     fun getAllSubsFlow(): kotlinx.coroutines.flow.Flow<List<SubscriptionEntity>>
 
-    @Query("SELECT * FROM subscriptions")
+    @Query("SELECT * FROM subscriptions ORDER BY rowid ASC")
     suspend fun getAllSubs(): List<SubscriptionEntity>
 
     @Upsert
     suspend fun upsertSubscription(subscription: SubscriptionEntity)
+
+    @Transaction
+    @Upsert
+    suspend fun upsertSubscriptions(subscriptions: List<SubscriptionEntity>)
 
     @Query("DELETE FROM subscriptions WHERE id = :id")
     suspend fun deleteSubscription(id: String)
@@ -105,6 +109,7 @@ interface SubscriptionDao {
         FROM subscriptions s 
         LEFT JOIN subscriptions_data d ON s.id = d.subId
         GROUP BY s.id
+        ORDER BY s.rowid ASC
     """)
     fun getSubscriptionsWithStatsFlow(): kotlinx.coroutines.flow.Flow<List<SubscriptionWithStats>>
 }
