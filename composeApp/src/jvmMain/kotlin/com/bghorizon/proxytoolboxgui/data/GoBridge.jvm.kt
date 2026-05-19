@@ -2,6 +2,8 @@ package com.bghorizon.proxytoolboxgui.data
 
 import java.io.File
 import java.nio.file.Files
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 object NativeLoader {
     private var isLoaded = false
@@ -60,21 +62,13 @@ actual object GoBridge {
     private external fun nativeDiscoverWorkers(libraryPath: String): String
 
     @JvmStatic
-    private external fun nativeInitializeRunner(
-        workerPath: String,
-        callback: JniErrorCallbackWrapper,
-    )
+    private external fun nativeInitializeRunner(workerPath: String): String
 
     @JvmStatic
-    private external fun nativeParseConfigs(
-        connUrisJson: String,
-        callback: JniParseCallbackWrapper,
-    )
+    private external fun nativeParseConfigs(connUrisJson: String): String
 
     @JvmStatic
-    private external fun nativeValidateConfigs(
-        callback: JniValidateCallbackWrapper,
-    )
+    private external fun nativeValidateConfigs(): String
 
     @JvmStatic
     private external fun nativeRunLatencyTests(
@@ -89,20 +83,41 @@ actual object GoBridge {
     @JvmStatic
     private external fun nativeStopTests()
 
-    actual fun discoverWorkers(libraryPath: String): String {
-        return nativeDiscoverWorkers(libraryPath)
+    @Serializable
+    private data class NativeResponse(
+        @SerialName("data") val data: String = "",
+        @SerialName("error") val error: String? = null
+    )
+
+    private fun parseNativeResponse(json: String): NativeResponse {
+        return JsonConfig.json.decodeFromString(json)
     }
 
-    actual fun initializeRunner(workerPath: String, callback: GoErrorCallback) {
-        nativeInitializeRunner(workerPath, JniErrorCallbackWrapper(callback))
+    actual fun discoverWorkers(libraryPath: String): List<WorkerInfo> {
+        val responseJson = nativeDiscoverWorkers(libraryPath)
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
     }
 
-    actual fun parseConfigs(connUrisJson: String, callback: GoParseCallback) {
-        nativeParseConfigs(connUrisJson, JniParseCallbackWrapper(callback))
+    actual fun initializeRunner(workerPath: String) {
+        val responseJson = nativeInitializeRunner(workerPath)
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
     }
 
-    actual fun validateConfigs(callback: GoValidateCallback) {
-        nativeValidateConfigs(JniValidateCallbackWrapper(callback))
+    actual fun parseConfigs(connUrisJson: String): Map<String, String> {
+        val responseJson = nativeParseConfigs(connUrisJson)
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
+    }
+
+    actual fun validateConfigs(): Map<String, String> {
+        val responseJson = nativeValidateConfigs()
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
     }
 
     actual fun runLatencyTests(
@@ -112,7 +127,7 @@ actual object GoBridge {
     ): List<ProxyConfig> {
         val wrapper = JniTestCallbackWrapper(callback)
 
-        val resultJson = nativeRunLatencyTests(
+        val responseJson = nativeRunLatencyTests(
             testUrl,
             settings.latencyRounds,
             settings.roundTimeout,
@@ -121,11 +136,9 @@ actual object GoBridge {
             wrapper
         )
 
-        return try {
-            JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
-        } catch (_: Exception) {
-            emptyList()
-        }
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
     }
 
     actual fun stopTests() {

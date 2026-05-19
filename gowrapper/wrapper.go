@@ -24,25 +24,10 @@ type ProxyConfig struct {
 	Delay   int64  `json:"delay"`
 }
 
-type ErrorCallback struct {
-	OnError func(msg string)
-}
-
-type ParseCallback struct {
-	OnParseFailed func(errors map[string]string)
-	OnError       func(msg string)
-}
-
-type ValidateCallback struct {
-	OnValidateFailed func(errors map[string]string)
-	OnError          func(msg string)
-}
-
 type TestCallbacks struct {
 	OnRoundStarted func(batch int, round int, total int)
 	OnProgress     func(tag string, delay int64, failed bool)
 	OnRoundEnded   func(batch int, round int)
-	OnError        func(msg string)
 }
 
 var (
@@ -55,7 +40,7 @@ var (
 	currentValidConfigs  []parsers.ProxyConfig
 )
 
-func DiscoverWorkers(libraryPath string) []WorkerInfo {
+func DiscoverWorkers(libraryPath string) ([]WorkerInfo, error) {
 	reg := registry.NewRegistry()
 	reg.Discover(libraryPath)
 
@@ -70,7 +55,7 @@ func DiscoverWorkers(libraryPath string) []WorkerInfo {
 			})
 		}
 	}
-	return workers
+	return workers, nil
 }
 
 func StopTests() {
@@ -84,7 +69,7 @@ func StopTests() {
 	}
 }
 
-func InitializeRunner(workerPath string, callbacks ErrorCallback) {
+func InitializeRunner(workerPath string) error {
 	testMu.Lock()
 	defer testMu.Unlock()
 	currentWorkerPath = workerPath
@@ -94,24 +79,19 @@ func InitializeRunner(workerPath string, callbacks ErrorCallback) {
 		WorkerPath: currentWorkerPath,
 	})
 	if err != nil {
-		if callbacks.OnError != nil {
-			callbacks.OnError(fmt.Sprintf("Failed to initialize test runner: %v", err))
-		}
-		return
+		return fmt.Errorf("Failed to initialize test runner: %v", err)
 	}
 	tr.Close()
+	return nil
 }
 
-func ParseConfigs(inputConfigs []ProxyConfig, callbacks ParseCallback) {
+func ParseConfigs(inputConfigs []ProxyConfig) (map[string]string, error) {
 	testMu.Lock()
 	defer testMu.Unlock()
 
 	for _, c := range inputConfigs {
 		if strings.TrimSpace(c.Tag) == "" {
-			if callbacks.OnError != nil {
-				callbacks.OnError("Empty tag found in config")
-			}
-			return
+			return nil, fmt.Errorf("Empty tag found in config")
 		}
 	}
 
@@ -140,29 +120,20 @@ func ParseConfigs(inputConfigs []ProxyConfig, callbacks ParseCallback) {
 		parsedConfigs = append(parsedConfigs, *p)
 	}
 
-	if callbacks.OnParseFailed != nil {
-		callbacks.OnParseFailed(parseErrors)
-	}
-
 	if len(parsedConfigs) == 0 {
-		if callbacks.OnError != nil {
-			callbacks.OnError("No valid configs after parsing")
-		}
-		return
+		return nil, fmt.Errorf("No valid configs after parsing")
 	}
 
 	currentParsedConfigs = parsedConfigs
+	return parseErrors, nil
 }
 
-func ValidateConfigs(callbacks ValidateCallback) {
+func ValidateConfigs() (map[string]string, error) {
 	testMu.Lock()
 	defer testMu.Unlock()
 
 	if len(currentParsedConfigs) == 0 {
-		if callbacks.OnError != nil {
-			callbacks.OnError("No configs to validate")
-		}
-		return
+		return nil, fmt.Errorf("No configs to validate")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -172,19 +143,13 @@ func ValidateConfigs(callbacks ValidateCallback) {
 		WorkerPath: currentWorkerPath,
 	})
 	if err != nil {
-		if callbacks.OnError != nil {
-			callbacks.OnError(fmt.Sprintf("Failed to create test runner for validation: %v", err))
-		}
-		return
+		return nil, fmt.Errorf("Failed to create test runner for validation: %v", err)
 	}
 	defer tr.Close()
 
 	taggedConfigs, validationErrors, err := tr.Validate(ctx, currentParsedConfigs, runner.DefaultConfigTaggerFunc)
 	if err != nil {
-		if callbacks.OnError != nil {
-			callbacks.OnError(fmt.Sprintf("Validation error: %v", err))
-		}
-		return
+		return nil, fmt.Errorf("Validation error: %v", err)
 	}
 
 	validateErrors := make(map[string]string)
@@ -192,10 +157,6 @@ func ValidateConfigs(callbacks ValidateCallback) {
 	for _, ve := range validationErrors {
 		validateErrors[ve.Tag] = ve.Error
 		errMap[ve.Tag] = true
-	}
-
-	if callbacks.OnValidateFailed != nil {
-		callbacks.OnValidateFailed(validateErrors)
 	}
 
 	validConfigs := make([]parsers.ProxyConfig, 0)
@@ -206,13 +167,11 @@ func ValidateConfigs(callbacks ValidateCallback) {
 	}
 
 	if len(validConfigs) == 0 {
-		if callbacks.OnError != nil {
-			callbacks.OnError("No valid configs after validation")
-		}
-		return
+		return nil, fmt.Errorf("No valid configs after validation")
 	}
 
 	currentValidConfigs = validConfigs
+	return validateErrors, nil
 }
 
 func RunLatencyTests(
@@ -222,17 +181,14 @@ func RunLatencyTests(
 	testByBatches bool,
 	batchSize int,
 	callbacks TestCallbacks,
-) []ProxyConfig {
+) ([]ProxyConfig, error) {
 	testMu.Lock()
 	validConfigs := currentValidConfigs
 	workerPath := currentWorkerPath
 	testMu.Unlock()
 
 	if len(validConfigs) == 0 {
-		if callbacks.OnError != nil {
-			callbacks.OnError("No valid configs to test")
-		}
-		return []ProxyConfig{}
+		return nil, fmt.Errorf("No valid configs to test")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -366,5 +322,5 @@ func RunLatencyTests(
 		}
 	}
 
-	return workingConfigs
+	return workingConfigs, nil
 }

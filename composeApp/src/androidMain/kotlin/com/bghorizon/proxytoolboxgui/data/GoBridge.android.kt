@@ -2,6 +2,8 @@ package com.bghorizon.proxytoolboxgui.data
 
 import android.util.Log
 import com.bghorizon.proxytoolboxgui.AppContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 actual object GoBridge {
     private const val TAG = "GoBridge"
@@ -26,21 +28,13 @@ actual object GoBridge {
     private external fun nativeDiscoverWorkers(libraryPath: String): String
 
     @JvmStatic
-    private external fun nativeInitializeRunner(
-        workerPath: String,
-        callback: JniErrorCallbackWrapper
-    )
+    private external fun nativeInitializeRunner(workerPath: String): String
 
     @JvmStatic
-    private external fun nativeParseConfigs(
-        connUrisJson: String,
-        callback: JniParseCallbackWrapper
-    )
+    private external fun nativeParseConfigs(connUrisJson: String): String
 
     @JvmStatic
-    private external fun nativeValidateConfigs(
-        callback: JniValidateCallbackWrapper,
-    )
+    private external fun nativeValidateConfigs(): String
 
     @JvmStatic
     private external fun nativeRunLatencyTests(
@@ -55,7 +49,17 @@ actual object GoBridge {
     @JvmStatic
     private external fun nativeStopTests()
 
-    actual fun discoverWorkers(libraryPath: String): String {
+    @Serializable
+    private data class NativeResponse(
+        @SerialName("data") val data: String = "",
+        @SerialName("error") val error: String? = null
+    )
+
+    private fun parseNativeResponse(json: String): NativeResponse {
+        return JsonConfig.json.decodeFromString(json)
+    }
+
+    actual fun discoverWorkers(libraryPath: String): List<WorkerInfo> {
         Log.d(TAG, "discoverWorkers: libraryPath=$libraryPath")
         try {
             val dir = java.io.File(libraryPath)
@@ -68,21 +72,31 @@ actual object GoBridge {
         } catch (e: Exception) {
             Log.e(TAG, "Error listing files in libraryPath", e)
         }
-        val result = nativeDiscoverWorkers(libraryPath)
-        Log.d(TAG, "discoverWorkers: result length=${result.length}")
-        return result
+        val responseJson = nativeDiscoverWorkers(libraryPath)
+        Log.d(TAG, "discoverWorkers: result length=${responseJson.length}")
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
     }
 
-    actual fun initializeRunner(workerPath: String, callback: GoErrorCallback) {
-        nativeInitializeRunner(workerPath, JniErrorCallbackWrapper(callback))
+    actual fun initializeRunner(workerPath: String) {
+        val responseJson = nativeInitializeRunner(workerPath)
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
     }
 
-    actual fun parseConfigs(connUrisJson: String, callback: GoParseCallback) {
-        nativeParseConfigs(connUrisJson, JniParseCallbackWrapper(callback))
+    actual fun parseConfigs(connUrisJson: String): Map<String, String> {
+        val responseJson = nativeParseConfigs(connUrisJson)
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
     }
 
-    actual fun validateConfigs(callback: GoValidateCallback) {
-        nativeValidateConfigs(JniValidateCallbackWrapper(callback))
+    actual fun validateConfigs(): Map<String, String> {
+        val responseJson = nativeValidateConfigs()
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
     }
 
     actual fun runLatencyTests(
@@ -92,7 +106,7 @@ actual object GoBridge {
     ): List<ProxyConfig> {
         val wrapper = JniTestCallbackWrapper(callback)
 
-        val resultJson = nativeRunLatencyTests(
+        val responseJson = nativeRunLatencyTests(
             testUrl,
             settings.latencyRounds,
             settings.roundTimeout,
@@ -101,11 +115,9 @@ actual object GoBridge {
             wrapper
         )
 
-        return try {
-            JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
-        } catch (_: Exception) {
-            emptyList()
-        }
+        val response = parseNativeResponse(responseJson)
+        if (response.error != "") throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
     }
 
     actual fun stopTests() {

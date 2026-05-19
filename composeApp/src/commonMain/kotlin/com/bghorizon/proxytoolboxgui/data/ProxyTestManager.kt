@@ -56,62 +56,56 @@ class ProxyTestManager(
         configs: List<ProxyConfig>,
         onEvent: (TestEvent) -> Unit
     ): List<ProxyConfig> = withContext(Dispatchers.IO) {
-        GoBridge.initializeRunner(
-            workerPath = settings.selectedWorker,
-            callback = object : GoErrorCallback {
-                override fun onError(message: String) {
-                    onEvent(TestEvent.Error(message))
-                }
-            }
-        )
+        try {
+            GoBridge.initializeRunner(settings.selectedWorker)
+        } catch (e: Exception) {
+            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
+            return@withContext emptyList()
+        }
 
         val connUrisJson = JsonConfig.json.encodeToString(configs)
-        GoBridge.parseConfigs(
-            connUrisJson = connUrisJson,
-            callback = object : GoParseCallback {
-                override fun onParseFailed(errors: Map<String, String>) {
-                    onEvent(TestEvent.ParseFailed(errors))
-                }
-
-                override fun onError(message: String) {
-                    onEvent(TestEvent.Error(message))
-                }
+        try {
+            val errors = GoBridge.parseConfigs(connUrisJson)
+            if (errors.isNotEmpty()) {
+                onEvent(TestEvent.ParseFailed(errors))
             }
-        )
+        } catch (e: Exception) {
+            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
+            return@withContext emptyList()
+        }
 
-        GoBridge.validateConfigs(
-            callback = object : GoValidateCallback {
-                override fun onValidateFailed(errors: Map<String, String>) {
-                    onEvent(TestEvent.ValidateFailed(errors))
-                }
-
-                override fun onError(message: String) {
-                    onEvent(TestEvent.Error(message))
-                }
+        try {
+            val errors = GoBridge.validateConfigs()
+            if (errors.isNotEmpty()) {
+                onEvent(TestEvent.ValidateFailed(errors))
             }
-        )
+        } catch (e: Exception) {
+            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
+            return@withContext emptyList()
+        }
 
-        GoBridge.runLatencyTests(
-            testUrl = settings.testUrl,
-            settings = settings,
-            callback = object : GoTestCallback {
-                override fun onRoundStarted(batch: Long, round: Long, total: Long) {
-                    onEvent(TestEvent.RoundStarted(batch.toInt(), round.toInt(), total.toInt()))
-                }
+        try {
+            GoBridge.runLatencyTests(
+                testUrl = settings.testUrl,
+                settings = settings,
+                callback = object : GoTestCallback {
+                    override fun onRoundStarted(batch: Long, round: Long, total: Long) {
+                        onEvent(TestEvent.RoundStarted(batch.toInt(), round.toInt(), total.toInt()))
+                    }
 
-                override fun onProgress(tag: String, delay: Long, failed: Boolean) {
-                    onEvent(TestEvent.Progress(tag, delay, failed))
-                }
+                    override fun onProgress(tag: String, delay: Long, failed: Boolean) {
+                        onEvent(TestEvent.Progress(tag, delay, failed))
+                    }
 
-                override fun onRoundEnded(batch: Long, round: Long) {
-                    onEvent(TestEvent.RoundEnded(batch.toInt(), round.toInt()))
+                    override fun onRoundEnded(batch: Long, round: Long) {
+                        onEvent(TestEvent.RoundEnded(batch.toInt(), round.toInt()))
+                    }
                 }
-
-                override fun onError(message: String) {
-                    onEvent(TestEvent.Error(message))
-                }
-            }
-        )
+            )
+        } catch (e: Exception) {
+            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
+            emptyList()
+        }
     }
 
     fun stopTests() {

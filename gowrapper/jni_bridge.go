@@ -29,14 +29,6 @@ static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const 
     return (*env)->GetMethodID(env, clazz, name, sig);
 }
 
-static void callOnParseFailed(JNIEnv *env, jobject cb, jmethodID mid, jstring json) {
-    (*env)->CallVoidMethod(env, cb, mid, json);
-}
-
-static void callOnValidateFailed(JNIEnv *env, jobject cb, jmethodID mid, jstring json) {
-    (*env)->CallVoidMethod(env, cb, mid, json);
-}
-
 static void callOnRoundStarted(JNIEnv *env, jobject cb, jmethodID mid, jlong batch, jlong round, jlong total) {
     (*env)->CallVoidMethod(env, cb, mid, batch, round, total);
 }
@@ -47,10 +39,6 @@ static void callOnProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, 
 
 static void callOnRoundEnded(JNIEnv *env, jobject cb, jmethodID mid, jlong batch, jlong round) {
     (*env)->CallVoidMethod(env, cb, mid, batch, round);
-}
-
-static void callOnError(JNIEnv *env, jobject cb, jmethodID mid, jstring msg) {
-    (*env)->CallVoidMethod(env, cb, mid, msg);
 }
 
 static void DeleteLocalRef(JNIEnv *env, jobject obj) {
@@ -64,6 +52,11 @@ import (
 	"unicode/utf16"
 	"unsafe"
 )
+
+type NativeResponse struct {
+	Data  string `json:"data"`
+	Error string `json:"error"`
+}
 
 func JStringToString(env *C.JNIEnv, s C.jstring) string {
 	if s == 0 {
@@ -102,8 +95,15 @@ func StringToJString(env *C.JNIEnv, s string) C.jstring {
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeDiscoverWorkers
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, libraryPath C.jstring) C.jstring {
 	goLibraryPath := JStringToString(env, libraryPath)
-	workers := DiscoverWorkers(goLibraryPath)
-	b, _ := json.Marshal(workers)
+	workers, err := DiscoverWorkers(goLibraryPath)
+	var resp NativeResponse
+	if err != nil {
+		resp = NativeResponse{Error: err.Error()}
+	} else {
+		b, _ := json.Marshal(workers)
+		resp = NativeResponse{Data: string(b)}
+	}
+	b, _ := json.Marshal(resp)
 	return StringToJString(env, string(b))
 }
 
@@ -117,31 +117,17 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeInitializeRunner(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	workerPath C.jstring,
-	callback C.jobject,
-) {
+) C.jstring {
 	goWorkerPath := JStringToString(env, workerPath)
-
-	cbClass := C.GetObjectClass(env, callback)
-	defer C.DeleteLocalRef(env, C.jobject(cbClass))
-
-	cOnError := C.CString("onError")
-	cSigVString := C.CString("(Ljava/lang/String;)V")
-	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
-
-	defer func() {
-		C.free(unsafe.Pointer(cOnError))
-		C.free(unsafe.Pointer(cSigVString))
-	}()
-
-	callbacks := ErrorCallback{
-		OnError: func(msg string) {
-			jMsg := StringToJString(env, msg)
-			C.callOnError(env, callback, midError, jMsg)
-			C.DeleteLocalRef(env, C.jobject(jMsg))
-		},
+	err := InitializeRunner(goWorkerPath)
+	var resp NativeResponse
+	if err != nil {
+		resp = NativeResponse{Error: err.Error()}
+	} else {
+		resp = NativeResponse{Data: "{}"}
 	}
-
-	InitializeRunner(goWorkerPath, callbacks)
+	b, _ := json.Marshal(resp)
+	return StringToJString(env, string(b))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs
@@ -149,88 +135,43 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	connUrisJson C.jstring,
-	callback C.jobject,
-) {
+) C.jstring {
 	goConnUrisJson := JStringToString(env, connUrisJson)
-
-	cbClass := C.GetObjectClass(env, callback)
-	defer C.DeleteLocalRef(env, C.jobject(cbClass))
-
-	cOnParseFailedJson := C.CString("onParseFailedJson")
-	cOnError := C.CString("onError")
-	cSigVString := C.CString("(Ljava/lang/String;)V")
-
-	midParseFailed := C.GetMethodID(env, cbClass, cOnParseFailedJson, cSigVString)
-	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
-
-	defer func() {
-		C.free(unsafe.Pointer(cOnParseFailedJson))
-		C.free(unsafe.Pointer(cOnError))
-		C.free(unsafe.Pointer(cSigVString))
-	}()
-
-	callbacks := ParseCallback{
-		OnParseFailed: func(errors map[string]string) {
-			b, _ := json.Marshal(errors)
-			jErrorsJson := StringToJString(env, string(b))
-			C.callOnParseFailed(env, callback, midParseFailed, jErrorsJson)
-			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
-		},
-		OnError: func(msg string) {
-			jMsg := StringToJString(env, msg)
-			C.callOnError(env, callback, midError, jMsg)
-			C.DeleteLocalRef(env, C.jobject(jMsg))
-		},
-	}
 
 	var inputConfigs []ProxyConfig
 	if err := json.Unmarshal([]byte(goConnUrisJson), &inputConfigs); err != nil {
-		if callbacks.OnError != nil {
-			callbacks.OnError(fmt.Sprintf("Unmarshal input error: %v", err))
-		}
-		return
+		resp := NativeResponse{Error: fmt.Sprintf("Unmarshal input error: %v", err)}
+		b, _ := json.Marshal(resp)
+		return StringToJString(env, string(b))
 	}
 
-	ParseConfigs(inputConfigs, callbacks)
+	parseErrors, err := ParseConfigs(inputConfigs)
+	var resp NativeResponse
+	if err != nil {
+		resp = NativeResponse{Error: err.Error()}
+	} else {
+		b, _ := json.Marshal(parseErrors)
+		resp = NativeResponse{Data: string(b)}
+	}
+	b, _ := json.Marshal(resp)
+	return StringToJString(env, string(b))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs(
 	env *C.JNIEnv,
 	clazz C.jclass,
-	callback C.jobject,
-) {
-	cbClass := C.GetObjectClass(env, callback)
-	defer C.DeleteLocalRef(env, C.jobject(cbClass))
-
-	cOnValidateFailedJson := C.CString("onValidateFailedJson")
-	cOnError := C.CString("onError")
-	cSigVString := C.CString("(Ljava/lang/String;)V")
-
-	midValidateFailed := C.GetMethodID(env, cbClass, cOnValidateFailedJson, cSigVString)
-	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
-
-	defer func() {
-		C.free(unsafe.Pointer(cOnValidateFailedJson))
-		C.free(unsafe.Pointer(cOnError))
-		C.free(unsafe.Pointer(cSigVString))
-	}()
-
-	callbacks := ValidateCallback{
-		OnValidateFailed: func(errors map[string]string) {
-			b, _ := json.Marshal(errors)
-			jErrorsJson := StringToJString(env, string(b))
-			C.callOnValidateFailed(env, callback, midValidateFailed, jErrorsJson)
-			C.DeleteLocalRef(env, C.jobject(jErrorsJson))
-		},
-		OnError: func(msg string) {
-			jMsg := StringToJString(env, msg)
-			C.callOnError(env, callback, midError, jMsg)
-			C.DeleteLocalRef(env, C.jobject(jMsg))
-		},
+) C.jstring {
+	validateErrors, err := ValidateConfigs()
+	var resp NativeResponse
+	if err != nil {
+		resp = NativeResponse{Error: err.Error()}
+	} else {
+		b, _ := json.Marshal(validateErrors)
+		resp = NativeResponse{Data: string(b)}
 	}
-
-	ValidateConfigs(callbacks)
+	b, _ := json.Marshal(resp)
+	return StringToJString(env, string(b))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests
@@ -253,9 +194,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	cOnRoundStarted := C.CString("onRoundStarted")
 	cOnProgress := C.CString("onProgress")
 	cOnRoundEnded := C.CString("onRoundEnded")
-	cOnError := C.CString("onError")
 
-	cSigVString := C.CString("(Ljava/lang/String;)V")
 	cSigVJJJ := C.CString("(JJJ)V")
 	cSigVSJZ := C.CString("(Ljava/lang/String;JZ)V")
 	cSigVJJ := C.CString("(JJ)V")
@@ -263,14 +202,11 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 	midRoundStarted := C.GetMethodID(env, cbClass, cOnRoundStarted, cSigVJJJ)
 	midProgress := C.GetMethodID(env, cbClass, cOnProgress, cSigVSJZ)
 	midRoundEnded := C.GetMethodID(env, cbClass, cOnRoundEnded, cSigVJJ)
-	midError := C.GetMethodID(env, cbClass, cOnError, cSigVString)
 
 	defer func() {
 		C.free(unsafe.Pointer(cOnRoundStarted))
 		C.free(unsafe.Pointer(cOnProgress))
 		C.free(unsafe.Pointer(cOnRoundEnded))
-		C.free(unsafe.Pointer(cOnError))
-		C.free(unsafe.Pointer(cSigVString))
 		C.free(unsafe.Pointer(cSigVJJJ))
 		C.free(unsafe.Pointer(cSigVSJZ))
 		C.free(unsafe.Pointer(cSigVJJ))
@@ -292,14 +228,9 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 		OnRoundEnded: func(batch int, round int) {
 			C.callOnRoundEnded(env, callback, midRoundEnded, C.jlong(batch), C.jlong(round))
 		},
-		OnError: func(msg string) {
-			jMsg := StringToJString(env, msg)
-			C.callOnError(env, callback, midError, jMsg)
-			C.DeleteLocalRef(env, C.jobject(jMsg))
-		},
 	}
 
-	workingConfigs := RunLatencyTests(
+	workingConfigs, err := RunLatencyTests(
 		goTestUrl,
 		int(latencyRounds),
 		int(roundTimeout),
@@ -308,7 +239,14 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
 		callbacks,
 	)
 
-	b, _ := json.Marshal(workingConfigs)
+	var resp NativeResponse
+	if err != nil {
+		resp = NativeResponse{Error: err.Error()}
+	} else {
+		b, _ := json.Marshal(workingConfigs)
+		resp = NativeResponse{Data: string(b)}
+	}
+	b, _ := json.Marshal(resp)
 	return StringToJString(env, string(b))
 }
 

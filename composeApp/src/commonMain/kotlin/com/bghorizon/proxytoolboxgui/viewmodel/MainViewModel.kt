@@ -24,7 +24,12 @@ class MainViewModel(val module: AppModule) : ViewModel() {
     init {
         viewModelScope.launch {
             module.appStatusManager.statusInfo.collect { info ->
-                _uiState.update { it.copy(appStatus = info.status, statusDescription = info.description) }
+                _uiState.update {
+                    it.copy(
+                        appStatus = info.status,
+                        statusDescription = info.description
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -55,12 +60,11 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val libraryPath = module.platform.getWorkerLibraryPath()
-                val json = GoBridge.discoverWorkers(libraryPath)
-                val workers = JsonConfig.json.decodeFromString<List<WorkerInfo>>(json)
+                val workers = GoBridge.discoverWorkers(libraryPath)
 
                 _uiState.update { state ->
                     val hasWorkers = workers.isNotEmpty()
-                    
+
                     // If we were in an error state because of missing workers, and now we have them, reset to IDLE.
                     // If we still have no workers, stay/enter ERROR state.
                     val newStatus = if (!hasWorkers) {
