@@ -254,17 +254,29 @@ private fun NormalSubscriptionsFAB(
         }
     ) {
         FloatingActionButtonMenuItem(
-            onClick = onImportClipboard,
+            onClick = {
+                onImportClipboard()
+                @Suppress("AssignedValueIsNeverRead")
+                expanded = false
+            },
             icon = { Icon(MaterialSymbols.Rounded.Content_paste, null) },
             text = { Text(stringResource(Res.string.sub_add_clipboard)) }
         )
         FloatingActionButtonMenuItem(
-            onClick = onImportQr,
+            onClick = {
+                onImportQr()
+                @Suppress("AssignedValueIsNeverRead")
+                expanded = false
+            },
             icon = { Icon(MaterialSymbols.Rounded.Qr_code_scanner, null) },
             text = { Text(stringResource(Res.string.sub_add_qr)) }
         )
         FloatingActionButtonMenuItem(
-            onClick = onAddManual,
+            onClick = {
+                onAddManual()
+                @Suppress("AssignedValueIsNeverRead")
+                expanded = false
+            },
             icon = { Icon(MaterialSymbols.Rounded.Edit, null) },
             text = { Text(stringResource(Res.string.sub_add_manual)) }
         )
@@ -651,6 +663,7 @@ private fun AddSubscriptionDialog(
         confirmText = stringResource(Res.string.dialog_btn_save),
         onConfirm = {
             if (note.isBlank() || url.isBlank()) {
+                @Suppress("AssignedValueIsNeverRead")
                 error = true
                 false
             } else {

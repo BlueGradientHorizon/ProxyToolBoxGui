@@ -223,18 +223,17 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val module = LocalAppModule.current
     val subVm: SubscriptionsScreenViewModel = viewModel { SubscriptionsScreenViewModel(module) }
     val subs by subVm.subscriptions.collectAsState()
-    val totalWorking = subs.sumOf { it.working }
 
     val appStatus = mainUiState.appStatus
     val workers = mainUiState.workers
-    val isTesting = (appStatus == AppStatus.TESTING || appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
+    val isTesting =
+        (appStatus == AppStatus.TESTING || appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
     val isWebServerRunning = mainUiState.webServerRunning
 
-    NormalMainFAB(
+    NormalHomeFAB(
         isTesting = isTesting,
         isWebServerRunning = isWebServerRunning,
         workersNotEmpty = workers.isNotEmpty(),
-        totalWorking = totalWorking,
         onToggleWebServer = { mainVm.toggleWebServer() },
         onExportWorkingConfigs = { homeVm.exportWorkingConfigs() },
         onCopyWorkingConfigs = { homeVm.copyWorkingConfigs() },
@@ -251,11 +250,10 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun NormalMainFAB(
+private fun NormalHomeFAB(
     isTesting: Boolean,
     isWebServerRunning: Boolean,
     workersNotEmpty: Boolean,
-    totalWorking: Int,
     onToggleWebServer: () -> Unit,
     onExportWorkingConfigs: () -> Unit,
     onCopyWorkingConfigs: () -> Unit,
@@ -308,20 +306,16 @@ private fun NormalMainFAB(
             )
             FloatingActionButtonMenuItem(
                 onClick = {
-                    if (totalWorking > 0) {
-                        onExportWorkingConfigs()
-                        expanded = false
-                    }
+                    onExportWorkingConfigs()
+                    expanded = false
                 },
                 icon = { Icon(MaterialSymbols.Rounded.Download, null) },
                 text = { Text(stringResource(Res.string.btn_export)) }
             )
             FloatingActionButtonMenuItem(
                 onClick = {
-                    if (totalWorking > 0) {
-                        onCopyWorkingConfigs()
-                        expanded = false
-                    }
+                    onCopyWorkingConfigs()
+                    expanded = false
                 },
                 icon = { Icon(MaterialSymbols.Rounded.Content_copy, null) },
                 text = { Text(stringResource(Res.string.btn_copy)) }
