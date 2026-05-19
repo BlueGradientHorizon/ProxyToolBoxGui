@@ -551,53 +551,41 @@ private fun QrScannerDialog(
     val scope = rememberCoroutineScope()
     val platform = mainVm.module.platform
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.sub_add_qr)) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+    SimpleAlertDialog(
+        onDismiss = onDismiss,
+        title = stringResource(Res.string.sub_add_qr),
+    ) {
+        if (mainUiState.isQrScannerSupported) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(MaterialTheme.shapes.medium)
             ) {
-                if (mainUiState.isQrScannerSupported) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .clip(MaterialTheme.shapes.medium)
-                    ) {
-                        SubscriptionScannerView(
-                            modifier = Modifier.fillMaxSize(),
-                            onCodeScanned = { result -> onCodeScanned(result) }
-                        )
-                    }
-                } else {
-                    Text(stringResource(Res.string.sub_qr_not_supported))
-                }
-
-                Button(
-                    onClick = {
-                        scope.launch {
-                            platform.pickImageAndScanQr()?.let { result ->
-                                onCodeScanned(result)
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(MaterialSymbols.Rounded.Photo_library, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(Res.string.sub_add_qr_file))
-                }
+                SubscriptionScannerView(
+                    modifier = Modifier.fillMaxSize(),
+                    onCodeScanned = { result -> onCodeScanned(result) }
+                )
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_cancel))
-            }
+        } else {
+            Text(stringResource(Res.string.sub_qr_not_supported))
         }
-    )
+
+        Button(
+            onClick = {
+                scope.launch {
+                    platform.pickImageAndScanQr()?.let { result ->
+                        onCodeScanned(result)
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(MaterialSymbols.Rounded.Photo_library, null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(Res.string.sub_add_qr_file))
+        }
+    }
 }
 
 @Composable
@@ -608,52 +596,40 @@ private fun ExportOptionsDialog(
 ) {
     var includeNotes by remember { mutableStateOf(true) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.btn_export_options)) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = { onShowQrCode(includeNotes) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(MaterialSymbols.Rounded.Qr_code, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(Res.string.export_show_qr))
-                }
-                Button(
-                    onClick = { onExportToClipboard(includeNotes) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(MaterialSymbols.Rounded.Content_paste, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(Res.string.export_to_clipboard))
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Checkbox(
-                        checked = includeNotes,
-                        onCheckedChange = { includeNotes = it }
-                    )
-                    Text(
-                        text = stringResource(Res.string.export_include_notes),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_cancel))
-            }
+    SimpleAlertDialog(
+        onDismiss = onDismiss,
+        title = stringResource(Res.string.btn_export_options),
+    ) {
+        Button(
+            onClick = { onShowQrCode(includeNotes) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(MaterialSymbols.Rounded.Qr_code, null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(Res.string.export_show_qr))
         }
-    )
+        Button(
+            onClick = { onExportToClipboard(includeNotes) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(MaterialSymbols.Rounded.Content_paste, null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(Res.string.export_to_clipboard))
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Checkbox(
+                checked = includeNotes,
+                onCheckedChange = { includeNotes = it }
+            )
+            Text(
+                text = stringResource(Res.string.export_include_notes),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
 }
 
 @Composable
@@ -666,63 +642,44 @@ private fun AddSubscriptionDialog(
     var url by remember { mutableStateOf(editingSubscription?.url ?: "") }
     var error by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth(),
-        title = {
-            Text(
-                if (editingSubscription != null)
-                    stringResource(Res.string.sub_edit)
-                else
-                    stringResource(Res.string.sub_add)
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = {
-                        note = it
-                        error = false
-                    },
-                    label = { Text(stringResource(Res.string.sub_edit_note)) },
-                    isError = error && note.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = {
-                        url = it
-                        error = false
-                    },
-                    label = { Text(stringResource(Res.string.sub_edit_link)) },
-                    isError = error && url.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (note.isBlank() || url.isBlank()) {
-//                        error = true
-                    } else {
-                        onSave(note, url)
-                    }
-                }
-            ) {
-                Text(stringResource(Res.string.dialog_btn_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_cancel))
+    SimpleAlertDialog(
+        onDismiss = onDismiss,
+        title = if (editingSubscription != null)
+            stringResource(Res.string.sub_edit)
+        else
+            stringResource(Res.string.sub_add),
+        confirmText = stringResource(Res.string.dialog_btn_save),
+        onConfirm = {
+            if (note.isBlank() || url.isBlank()) {
+                error = true
+                false
+            } else {
+                onSave(note, url)
+                true
             }
         }
-    )
+    ) {
+        OutlinedTextField(
+            value = note,
+            onValueChange = {
+                note = it
+                error = false
+            },
+            label = { Text(stringResource(Res.string.sub_edit_note)) },
+            isError = error && note.isBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = url,
+            onValueChange = {
+                url = it
+                error = false
+            },
+            label = { Text(stringResource(Res.string.sub_edit_link)) },
+            isError = error && url.isBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+    }
 }
