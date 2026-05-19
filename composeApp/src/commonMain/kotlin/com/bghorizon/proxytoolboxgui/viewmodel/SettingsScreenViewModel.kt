@@ -14,7 +14,6 @@ class SettingsScreenViewModel(private val module: AppModule) : ViewModel() {
     val uiState = _uiState.asStateFlow()
 
     val settings: StateFlow<AppSettings> = module.settingsRepository.settings
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
 
     fun updateMode(mode: SettingsScreenUiMode) {
         _uiState.update { it.copy(mode = mode) }

@@ -2,7 +2,6 @@ package com.bghorizon.proxytoolboxgui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.bghorizon.proxytoolboxgui.data.*
 import com.bghorizon.proxytoolboxgui.di.AppModule
 import com.bghorizon.proxytoolboxgui.ui.screens.*
 import kotlinx.coroutines.*
@@ -17,6 +16,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
     private val _uiState = MutableStateFlow(
         MainUiState(
             screen = HomeScreenState(),
+            settings = module.settingsRepository.settings.value,
             isDynamicColorSupported = module.platform.isDynamicColorSupported,
             isQrScannerSupported = module.platform.isQrScannerSupported,
         )
@@ -47,15 +47,6 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                 _uiState.update { it.copy(workers = workers) }
             }
         }
-        viewModelScope.launch {
-            try {
-                module.settingsRepository.loadSettings(module.platform)
-                discoverWorkers()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                updateAppStatus(AppStatus.ERROR)
-            }
-        }
     }
 
     fun navigateTo(screen: AppScreen) {
@@ -65,58 +56,6 @@ class MainViewModel(val module: AppModule) : ViewModel() {
 
     fun clearNavigationStartTimeMark() {
         navigationStartTimeMark = null
-    }
-
-    fun updateAppStatus(status: AppStatus, description: String? = null) {
-        module.appStatusManager.updateStatus(status, description)
-    }
-
-    fun discoverWorkers() {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val libraryPath = module.platform.getWorkerLibraryPath()
-                val workers = GoBridge.discoverWorkers(libraryPath)
-
-                _uiState.update { state ->
-                    val hasWorkers = workers.isNotEmpty()
-
-                    // If we were in an error state because of missing workers, and now we have them, reset to IDLE.
-                    // If we still have no workers, stay/enter ERROR state.
-                    val newStatus = if (!hasWorkers) {
-                        AppStatus.ERROR
-                    } else if (state.appStatus == AppStatus.ERROR) {
-                        AppStatus.IDLE
-                    } else {
-                        state.appStatus
-                    }
-
-                    state.copy(
-                        appStatus = newStatus,
-                        statusDescription = if (!hasWorkers) getString(Res.string.no_workers_found) else null
-                    )
-                }
-                module.workerRepository.setWorkers(workers)
-
-                val currentSettings = module.settingsRepository.settings.value
-                val savedName = currentSettings.selectedWorkerName
-                val savedPath = currentSettings.selectedWorker
-
-                // Find matching worker by path first, then by name
-                val matchedWorker = workers.find { it.path == savedPath }
-                    ?: workers.find { it.name == savedName }
-                    ?: if (workers.isNotEmpty()) workers[0] else null
-
-                if (matchedWorker != null && (matchedWorker.path != savedPath || savedName.isBlank())) {
-                    module.settingsRepository.updateSelectedWorker(
-                        matchedWorker.name,
-                        matchedWorker.path
-                    )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                updateAppStatus(AppStatus.ERROR, e.message)
-            }
-        }
     }
 
     fun toggleWebServer() {

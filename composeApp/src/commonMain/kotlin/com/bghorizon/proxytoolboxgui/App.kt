@@ -29,6 +29,7 @@ import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
 import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
+import com.bghorizon.proxytoolboxgui.data.WorkerManager
 import com.bghorizon.proxytoolboxgui.data.WorkerRepository
 import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDatabase
@@ -39,6 +40,7 @@ import com.bghorizon.proxytoolboxgui.ui.screens.HomeScreenState
 import com.bghorizon.proxytoolboxgui.ui.screens.SettingsScreenState
 import com.bghorizon.proxytoolboxgui.ui.screens.SubscriptionsScreenState
 import com.bghorizon.proxytoolboxgui.ui.theme.AppTheme
+import com.bghorizon.proxytoolboxgui.viewmodel.MainUiState
 import com.bghorizon.proxytoolboxgui.viewmodel.MainViewModel
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
@@ -56,12 +58,21 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val webServer = remember { ProxyWebServer() }
     val appStatusManager = remember { AppStatusManager() }
     val workerRepository = remember { WorkerRepository() }
+    val workerManager = remember {
+        WorkerManager(
+            workerRepository,
+            settingsRepository,
+            appStatusManager,
+            platform
+        )
+    }
 
     val appModule = remember {
         AppModule(
             settingsRepository = settingsRepository,
             subscriptionRepository = subscriptionRepository,
             workerRepository = workerRepository,
+            workerManager = workerManager,
             testManager = testManager,
             webServer = webServer,
             appStatusManager = appStatusManager,
@@ -73,7 +84,17 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
         MainViewModel(appModule)
     }
 
-    val uiState by viewModel.uiState.collectAsState()
+    // Professional initialization:
+    // We use produceState to perform all critical startup tasks (loading settings, 
+    // discovering workers) before exposing the UI state. This prevents flickering
+    // of theme and configuration values.
+    val appState by produceState<MainUiState?>(initialValue = null, viewModel) {
+        settingsRepository.loadSettings(platform)
+        workerManager.discover()
+        viewModel.uiState.collect { value = it }
+    }
+
+    val uiState = appState ?: return
 
     // Autonomous FAB padding calculation:
     // We track whether we just navigated to a new screen type.

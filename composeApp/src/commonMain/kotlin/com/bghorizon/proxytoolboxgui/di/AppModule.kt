@@ -6,6 +6,7 @@ import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
 import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
+import com.bghorizon.proxytoolboxgui.data.WorkerManager
 import com.bghorizon.proxytoolboxgui.data.WorkerRepository
 import com.bghorizon.proxytoolboxgui.platform.Platform
 
@@ -13,6 +14,7 @@ class AppModule(
     val settingsRepository: SettingsRepository,
     val subscriptionRepository: SubscriptionRepository,
     val workerRepository: WorkerRepository,
+    val workerManager: WorkerManager,
     val testManager: ProxyTestManager,
     val webServer: ProxyWebServer,
     val appStatusManager: AppStatusManager,
