@@ -7,6 +7,8 @@ import com.bghorizon.proxytoolboxgui.di.AppModule
 import com.bghorizon.proxytoolboxgui.ui.screens.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlin.time.TimeSource
+import kotlin.time.TimeMark
 import org.jetbrains.compose.resources.getString
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -20,6 +22,9 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    var navigationStartTimeMark: TimeMark? = null
+        private set
 
     init {
         viewModelScope.launch {
@@ -49,7 +54,12 @@ class MainViewModel(val module: AppModule) : ViewModel() {
     }
 
     fun navigateTo(screen: AppScreen) {
+        navigationStartTimeMark = TimeSource.Monotonic.markNow()
         _uiState.update { it.copy(screen = screen) }
+    }
+
+    fun clearNavigationStartTimeMark() {
+        navigationStartTimeMark = null
     }
 
     fun updateAppStatus(status: AppStatus, description: String? = null) {

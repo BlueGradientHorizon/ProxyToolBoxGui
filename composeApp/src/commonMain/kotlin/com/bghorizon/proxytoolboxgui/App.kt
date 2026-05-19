@@ -215,6 +215,13 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                     )
                                 )
                                 CompositionLocalProvider(LocalScaffoldPadding provides adjustedPadding) {
+                                    LaunchedEffect(uiState.screen) {
+                                        viewModel.navigationStartTimeMark?.let { startMark ->
+                                            val duration = startMark.elapsedNow()
+                                            println("Navigation to ${uiState.screen::class.simpleName} took ${duration.inWholeMilliseconds}ms")
+                                            viewModel.clearNavigationStartTimeMark()
+                                        }
+                                    }
                                     uiState.screen.Content(viewModel)
                                 }
                             }
