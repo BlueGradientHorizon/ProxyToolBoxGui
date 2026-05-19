@@ -25,7 +25,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         subscriptions: List<Subscription>,
         onTestCompleted: () -> Unit = {},
     ) {
-        if (_uiState.value.workers.isEmpty() || testJob?.isActive == true) return
+        if (module.workerRepository.workers.value.isEmpty() || testJob?.isActive == true) return
 
         if (appStatus == AppStatus.UPDATING_SUBS) {
             viewModelScope.launch {
@@ -246,10 +246,6 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         }
     }
 
-    fun setWorkers(workers: List<WorkerInfo>) {
-        _uiState.update { it.copy(workers = workers) }
-    }
-
     private suspend fun getWorkingConfigsString(): String {
         val settings = module.settingsRepository.settings.value
         var configs = module.subscriptionRepository.getWorkingConfigs()
@@ -308,6 +304,5 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 }
 
 data class HomeScreenUiState(
-    val testProgress: TestProgress = TestProgress(),
-    val workers: List<WorkerInfo> = emptyList()
+    val testProgress: TestProgress = TestProgress()
 )

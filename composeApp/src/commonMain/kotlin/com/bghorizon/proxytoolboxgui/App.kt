@@ -29,6 +29,7 @@ import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
 import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
+import com.bghorizon.proxytoolboxgui.data.WorkerRepository
 import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDatabase
 import com.bghorizon.proxytoolboxgui.di.AppModule
@@ -54,11 +55,13 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val testManager = remember { ProxyTestManager(subscriptionRepository) }
     val webServer = remember { ProxyWebServer() }
     val appStatusManager = remember { AppStatusManager() }
+    val workerRepository = remember { WorkerRepository() }
 
     val appModule = remember {
         AppModule(
             settingsRepository = settingsRepository,
             subscriptionRepository = subscriptionRepository,
+            workerRepository = workerRepository,
             testManager = testManager,
             webServer = webServer,
             appStatusManager = appStatusManager,
@@ -239,7 +242,7 @@ fun RowScope.AdaptiveNavigationItem(
     icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
-    isCompact: Boolean
+    isCompact: Boolean,
 ) {
     if (isCompact) {
         NavigationBarItem(

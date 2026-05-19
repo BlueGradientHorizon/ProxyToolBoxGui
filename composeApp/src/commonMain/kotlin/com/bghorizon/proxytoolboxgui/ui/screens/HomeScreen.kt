@@ -80,10 +80,6 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val appStatus = mainUiState.appStatus
     val statusDescription = mainUiState.statusDescription
 
-    LaunchedEffect(mainUiState.workers) {
-        homeVm.setWorkers(mainUiState.workers)
-    }
-
     val totalFound = subs.sumOf { it.total }
     val totalDuplicate = subs.sumOf { it.duplicated }
     val totalParseErr = subs.sumOf { it.parseErr }

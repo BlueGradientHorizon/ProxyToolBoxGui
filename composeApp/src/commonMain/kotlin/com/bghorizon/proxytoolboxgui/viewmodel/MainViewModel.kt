@@ -18,7 +18,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         MainUiState(
             screen = HomeScreenState(),
             isDynamicColorSupported = module.platform.isDynamicColorSupported,
-            isQrScannerSupported = module.platform.isQrScannerSupported
+            isQrScannerSupported = module.platform.isQrScannerSupported,
         )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -40,6 +40,11 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         viewModelScope.launch {
             module.settingsRepository.settings.collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
+            }
+        }
+        viewModelScope.launch {
+            module.workerRepository.workers.collect { workers ->
+                _uiState.update { it.copy(workers = workers) }
             }
         }
         viewModelScope.launch {
@@ -86,21 +91,20 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                     }
 
                     state.copy(
-                        workers = workers,
                         appStatus = newStatus,
                         statusDescription = if (!hasWorkers) getString(Res.string.no_workers_found) else null
                     )
                 }
+                module.workerRepository.setWorkers(workers)
 
                 val currentSettings = module.settingsRepository.settings.value
                 val savedName = currentSettings.selectedWorkerName
                 val savedPath = currentSettings.selectedWorker
 
-                val workersList = _uiState.value.workers
                 // Find matching worker by path first, then by name
-                val matchedWorker = workersList.find { it.path == savedPath }
-                    ?: workersList.find { it.name == savedName }
-                    ?: if (workersList.isNotEmpty()) workersList[0] else null
+                val matchedWorker = workers.find { it.path == savedPath }
+                    ?: workers.find { it.name == savedName }
+                    ?: if (workers.isNotEmpty()) workers[0] else null
 
                 if (matchedWorker != null && (matchedWorker.path != savedPath || savedName.isBlank())) {
                     module.settingsRepository.updateSelectedWorker(
