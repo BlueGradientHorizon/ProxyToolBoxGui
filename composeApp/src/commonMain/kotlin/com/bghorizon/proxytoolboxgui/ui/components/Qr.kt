@@ -2,10 +2,8 @@ package com.bghorizon.proxytoolboxgui.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,24 +48,18 @@ fun QrCodeDialog(
     content: String,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.title_qr_code)) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                QrCodeDisplay(content = content)
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.dialog_btn_close))
-            }
+    SimpleAlertDialog(
+        title = stringResource(Res.string.title_qr_code),
+        onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.dialog_btn_close)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            QrCodeDisplay(content = content)
         }
-    )
+    }
 }
 
 fun calculateQrSizeDp(textLength: Int): Int {
