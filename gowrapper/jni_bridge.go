@@ -92,8 +92,8 @@ func StringToJString(env *C.JNIEnv, s string) C.jstring {
 	return C.NewString(env, &carr[0], C.jsize(len(u16)))
 }
 
-//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeDiscoverWorkers
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, libraryPath C.jstring) C.jstring {
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, libraryPath C.jstring) C.jstring {
 	goLibraryPath := JStringToString(env, libraryPath)
 	workers, err := DiscoverWorkers(goLibraryPath)
 	var resp NativeResponse
@@ -107,13 +107,13 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeDiscoverWorkers(env 
 	return StringToJString(env, string(b))
 }
 
-//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeStopTests
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeStopTests(env *C.JNIEnv, clazz C.jclass) {
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeStopTests
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeStopTests(env *C.JNIEnv, clazz C.jclass) {
 	StopTests()
 }
 
-//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeInitializeRunner
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeInitializeRunner(
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeInitializeRunner
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeInitializeRunner(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	workerPath C.jstring,
@@ -130,8 +130,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeInitializeRunner(
 	return StringToJString(env, string(b))
 }
 
-//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs(
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	connUrisJson C.jstring,
@@ -157,8 +157,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeParseConfigs(
 	return StringToJString(env, string(b))
 }
 
-//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs(
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeValidateConfigs
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeValidateConfigs(
 	env *C.JNIEnv,
 	clazz C.jclass,
 ) C.jstring {
@@ -174,8 +174,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeValidateConfigs(
 	return StringToJString(env, string(b))
 }
 
-//export Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridge_nativeRunLatencyTests(
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTests
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTests(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	testUrl C.jstring,

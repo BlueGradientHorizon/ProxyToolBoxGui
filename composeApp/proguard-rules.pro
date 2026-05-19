@@ -1,2 +1,4 @@
 -keep class com.bghorizon.proxytoolboxgui.data.GoBridge { *; }
+-keep class com.bghorizon.proxytoolboxgui.data.GoBridgeNative { *; }
+-keep class com.bghorizon.proxytoolboxgui.data.NativeLoader { *; }
 -keep interface com.bghorizon.proxytoolboxgui.data.GoTestCallback { *; }
