@@ -55,12 +55,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val settingsRepository = remember { SettingsRepository(appDb.settingsDao()) }
     val subscriptionRepository = remember { SubscriptionRepository(subDb.subscriptionDao()) }
     val testManager = remember { ProxyTestManager(subscriptionRepository) }
-    val webServerManager = remember { 
-        WebServerManager(
-            settingsRepository,
-            subscriptionRepository,
-        )
-    }
+    val webServerManager = remember { WebServerManager(settingsRepository) }
     val appStatusManager = remember { AppStatusManager() }
     val workerRepository = remember { WorkerRepository() }
     val workerManager = remember {
@@ -109,7 +104,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     var isNavigating by remember(uiState.screen::class) { mutableStateOf(true) }
     var scaffoldCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val density = LocalDensity.current
-    
+
     val animatedFabPadding by animateDpAsState(
         targetValue = fabTotalPadding,
         animationSpec = if (isNavigating) snap() else spring(),
@@ -167,12 +162,13 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                         if (sc.isAttached && fabCoords.isAttached) {
                                             val newPadding = if (fabCoords.size.height > 0) {
                                                 // Calculate clearance: Distance from FAB top to Scaffold bottom.
-                                                val fabTopInScaffold = sc.localPositionOf(fabCoords, Offset.Zero).y
+                                                val fabTopInScaffold =
+                                                    sc.localPositionOf(fabCoords, Offset.Zero).y
                                                 with(density) { (sc.size.height - fabTopInScaffold).toDp() }
                                             } else {
                                                 0.dp
                                             }
-                                            
+
                                             // Only update if the difference is significant to avoid jitter
                                             if (kotlin.math.abs(fabTotalPadding.value - newPadding.value) > 0.5f) {
                                                 fabTotalPadding = newPadding

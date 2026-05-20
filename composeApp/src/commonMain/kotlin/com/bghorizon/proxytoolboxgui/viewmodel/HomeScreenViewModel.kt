@@ -7,9 +7,6 @@ import com.bghorizon.proxytoolboxgui.data.db.ConfigTestResultUpdate
 import com.bghorizon.proxytoolboxgui.di.AppModule
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
 import org.jetbrains.compose.resources.getString
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -25,7 +22,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         subscriptions: List<Subscription>,
         onTestCompleted: () -> Unit = {},
     ) {
-        if (module.workerRepository.workers.value.isEmpty() || testJob?.isActive == true) return
+        if ((module.workerRepository.workers.value.isEmpty()) || (testJob?.isActive == true)) return
 
         if (appStatus == AppStatus.UPDATING_SUBS) {
             viewModelScope.launch {
@@ -50,7 +47,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
             module.appStatusManager.updateStatus(AppStatus.PARSING)
             _uiState.update {
                 it.copy(
-                    testProgress = it.testProgress.copy(isRunning = true)
+                    testProgress = it.testProgress.copy(isRunning = true),
                 )
             }
 
@@ -170,7 +167,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
     private fun handleTestEvent(event: LatencyTestEvent, settings: AppSettings) {
         when (event) {
             is LatencyTestEvent.RoundStarted -> {
-                val currentRoundAbsolute = (event.batch - 1) * settings.latencyRounds + event.round
+                val currentRoundAbsolute = ((event.batch - 1) * settings.latencyRounds) + event.round
                 module.appStatusManager.updateStatus(AppStatus.TESTING)
                 _uiState.update { state ->
                     val current = state.testProgress
@@ -180,7 +177,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     if (idx >= 0) {
                         updatedProgresses[idx] = updatedProgresses[idx].copy(
                             total = event.total,
-                            running = event.total
+                            running = event.total,
                         )
                     }
 
@@ -238,56 +235,6 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             module.testManager.stopTests()
             module.appStatusManager.updateStatus(newAppStatus, description)
-        }
-    }
-
-    private suspend fun getWorkingConfigsString(): String {
-        val settings = module.settingsRepository.settings.value
-        var configs = module.subscriptionRepository.getWorkingConfigs()
-
-        if (settings.sortProfilesByDelay) {
-            configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
-        }
-
-        return configs.joinToString("\n") { it.connURI }
-    }
-
-    fun copyWorkingConfigs() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val uris = getWorkingConfigsString()
-            val msg = getString(Res.string.msg_copied_to_clipboard)
-            val label = getString(Res.string.label_proxy_configs)
-            withContext(Dispatchers.Main) {
-                module.platform.copyToClipboard(uris, label)
-                module.platform.showToast(msg)
-            }
-        }
-    }
-
-    fun exportWorkingConfigs() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val uris = getWorkingConfigsString()
-            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-
-            val day = now.day.toString().padStart(2, '0')
-            val month = now.month.ordinal.toString().padStart(2, '0')
-            val dmy = "$day$month${now.year}"
-
-            val hour = now.hour.toString().padStart(2, '0')
-            val minute = now.minute.toString().padStart(2, '0')
-            val second = now.second.toString().padStart(2, '0')
-            val hms = "$hour$minute$second"
-            val filename = "ProxyToolBoxGui_export_${dmy}_${hms}.txt"
-
-            val path = module.platform.exportToFile(uris, filename)
-            val msg = if (path != null) {
-                getString(Res.string.msg_exported_to, path)
-            } else {
-                getString(Res.string.msg_export_failed)
-            }
-            withContext(Dispatchers.Main) {
-                module.platform.showToast(msg)
-            }
         }
     }
 

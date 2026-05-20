@@ -206,8 +206,8 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
         isWebServerRunning = isWebServerRunning,
         workersNotEmpty = workers.isNotEmpty(),
         onToggleWebServer = { mainVm.toggleWebServer() },
-        onExportWorkingConfigs = { homeVm.exportWorkingConfigs() },
-        onCopyWorkingConfigs = { homeVm.copyWorkingConfigs() },
+        onExportWorkingConfigs = { mainVm.exportWorkingConfigs() },
+        onCopyWorkingConfigs = { mainVm.copyWorkingConfigs() },
         onStopTest = { homeVm.stopTest() },
         onStartTest = {
             homeVm.startTest(mainUiState.appStatus, subs) {
