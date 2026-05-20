@@ -5,6 +5,9 @@ internal actual object GoBridgeNative {
     actual external fun nativeDiscoverWorkers(libraryPath: String): String
 
     @JvmStatic
+    actual external fun nativeDiscoverSpeedTestPresets(): String
+
+    @JvmStatic
     actual external fun nativeInitializeRunner(workerPath: String): String
 
     @JvmStatic
@@ -20,7 +23,20 @@ internal actual object GoBridgeNative {
         roundTimeout: Int,
         testByBatches: Boolean,
         batchSize: Int,
-        callback: JniTestCallbackWrapper,
+        callback: JniLatencyTestCallbackWrapper,
+    ): String
+
+    @JvmStatic
+    actual external fun nativeRunSpeedTests(
+        connUrisJson: String,
+        providerId: String,
+        mode: String,
+        targetBytes: Long,
+        rounds: Int,
+        roundTimeout: Int,
+        testByBatches: Boolean,
+        batchSize: Int,
+        callback: JniSpeedTestCallbackWrapper,
     ): String
 
     @JvmStatic

@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/bluegradienthorizon/proxytoolbox/parsers"
+	"github.com/bluegradienthorizon/proxytoolbox/presets"
 	"github.com/bluegradienthorizon/proxytoolbox/registry"
 	"github.com/bluegradienthorizon/proxytoolbox/runner"
+	"github.com/bluegradienthorizon/proxytoolbox/worker"
 )
 
 type WorkerInfo struct {
@@ -19,15 +22,27 @@ type WorkerInfo struct {
 }
 
 type ProxyConfig struct {
-	Tag     string `json:"tag"`
-	ConnURI string `json:"conn_uri"`
-	Delay   int64  `json:"delay"`
+	Tag     string  `json:"tag"`
+	ConnURI string  `json:"conn_uri"`
+	Delay   int64   `json:"delay"`
+	Speed   float64 `json:"speed"`
 }
 
-type TestCallbacks struct {
+type LatencyTestCallbacks struct {
 	OnRoundStarted func(batch int, round int, total int)
 	OnProgress     func(tag string, delay int64, failed bool)
 	OnRoundEnded   func(batch int, round int)
+}
+
+type SpeedTestCallbacks struct {
+	OnRoundStarted func(batch int, round int, total int)
+	OnProgress     func(tag string, speed float64, failed bool)
+	OnRoundEnded   func(batch int, round int)
+}
+
+type SpeedTestPreset struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 var (
@@ -56,6 +71,12 @@ func DiscoverWorkers(libraryPath string) ([]WorkerInfo, error) {
 		}
 	}
 	return workers, nil
+}
+
+func DiscoverSpeedTestPresets() ([]SpeedTestPreset, error) {
+	return []SpeedTestPreset{
+		{Id: "cloudflare", Name: "Cloudflare"},
+	}, nil
 }
 
 func StopTests() {
@@ -180,7 +201,7 @@ func RunLatencyTests(
 	roundTimeout int,
 	testByBatches bool,
 	batchSize int,
-	callbacks TestCallbacks,
+	callbacks LatencyTestCallbacks,
 ) ([]ProxyConfig, error) {
 	testMu.Lock()
 	validConfigs := currentValidConfigs
@@ -318,6 +339,189 @@ func RunLatencyTests(
 				Tag:     cfg.Config.Tag,
 				ConnURI: cfg.ConnURI,
 				Delay:   delay,
+			})
+		}
+	}
+
+	return workingConfigs, nil
+}
+
+func RunSpeedTests(
+	connUrisJson string,
+	providerId string,
+	mode string,
+	targetBytes int64,
+	rounds int,
+	roundTimeout int,
+	testByBatches bool,
+	batchSize int,
+	callbacks SpeedTestCallbacks,
+) ([]ProxyConfig, error) {
+	testMu.Lock()
+	workerPath := currentWorkerPath
+	testMu.Unlock()
+
+	if workerPath == "" {
+		return nil, fmt.Errorf("worker path is empty")
+	}
+
+	var inputConfigs []ProxyConfig
+	if err := json.Unmarshal([]byte(connUrisJson), &inputConfigs); err != nil {
+		return nil, err
+	}
+
+	if len(inputConfigs) == 0 {
+		return nil, fmt.Errorf("No valid configs to test")
+	}
+
+	var validConfigs []parsers.ProxyConfig
+	for _, c := range inputConfigs {
+		p, err := parsers.ParseConfig(c.ConnURI)
+		if err == nil && p.Config != nil {
+			p.Config.Tag = c.Tag
+			validConfigs = append(validConfigs, *p)
+		}
+	}
+
+	if len(validConfigs) == 0 {
+		return nil, fmt.Errorf("no valid parsed configs")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	testMu.Lock()
+	testCancel = cancel
+	testMu.Unlock()
+	defer func() {
+		testMu.Lock()
+		testCancel = nil
+		testRunner = nil
+		testMu.Unlock()
+		cancel()
+	}()
+
+	goBatchSize := batchSize
+	if !testByBatches || goBatchSize <= 0 {
+		goBatchSize = len(validConfigs)
+	}
+
+	var allResults []runner.SpeedTestResult
+	
+	var provider worker.SpeedTestProvider
+	if providerId == "cloudflare" {
+		provider = presets.CloudflareProvider
+	} else {
+		provider = presets.CloudflareProvider // fallback
+	}
+
+	var testMode = worker.SpeedTestModeDownload
+	if mode == "upload" {
+		testMode = worker.SpeedTestModeUpload
+	}
+
+	for batchStart := 0; batchStart < len(validConfigs); batchStart += goBatchSize {
+		if ctx.Err() != nil {
+			break
+		}
+		batchEnd := min(batchStart+goBatchSize, len(validConfigs))
+		batchConfigs := validConfigs[batchStart:batchEnd]
+		batchNum := batchStart/goBatchSize + 1
+
+		batchRunner, err := runner.NewTestRunner(runner.RunnerSettings{
+			WorkerPath: workerPath,
+		})
+		if err != nil {
+			continue
+		}
+
+		testMu.Lock()
+		testRunner = batchRunner
+		testMu.Unlock()
+
+		_, batchValidationErrors, err := batchRunner.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
+		if err != nil {
+			batchRunner.Close()
+			testMu.Lock()
+			testRunner = nil
+			testMu.Unlock()
+			if ctx.Err() != nil {
+				break
+			}
+			continue
+		}
+
+		batchErrMap := make(map[string]bool)
+		for _, ve := range batchValidationErrors {
+			batchErrMap[ve.Tag] = true
+		}
+
+		var batchTags []string
+		for _, c := range batchConfigs {
+			if c.Config != nil && !batchErrMap[c.Config.Tag] {
+				batchTags = append(batchTags, c.Config.Tag)
+			}
+		}
+
+		if len(batchTags) == 0 {
+			batchRunner.Close()
+			testMu.Lock()
+			testRunner = nil
+			testMu.Unlock()
+			continue
+		}
+
+		stSettings := runner.SpeedTestRunnerSettings{
+			BaseTestRunnerSettings: runner.BaseTestRunnerSettings{
+				SortResults:  true,
+				FilterFailed: true,
+				Timeout:      time.Duration(roundTimeout) * time.Second,
+				Rounds:       rounds,
+				RoundStartedCallback: func(round int, outboundsLen int) {
+					if callbacks.OnRoundStarted != nil {
+						callbacks.OnRoundStarted(batchNum, round+1, outboundsLen)
+					}
+				},
+				ProgressCallback: func(result runner.SpeedTestResult) {
+					if callbacks.OnProgress != nil {
+						callbacks.OnProgress(result.Tag, result.Speed, result.Error != nil)
+					}
+				},
+				RoundEndedCallback: func(round int) {
+					if callbacks.OnRoundEnded != nil {
+						callbacks.OnRoundEnded(batchNum, round+1)
+					}
+				},
+			},
+			TargetBytes: targetBytes,
+			Mode:        testMode,
+			Provider:    provider,
+		}
+
+		testResults, err := batchRunner.RunSpeedTests(ctx, batchTags, stSettings)
+		if err == nil {
+			allResults = append(allResults, testResults.Results...)
+		}
+
+		batchRunner.Close()
+		testMu.Lock()
+		testRunner = nil
+		testMu.Unlock()
+	}
+
+	passedTags := make(map[string]float64)
+	for _, r := range allResults {
+		if r.Error == nil {
+			passedTags[r.Tag] = r.Speed
+		}
+	}
+
+	var workingConfigs []ProxyConfig
+	for _, cfg := range inputConfigs {
+		if speed, ok := passedTags[cfg.Tag]; ok {
+			workingConfigs = append(workingConfigs, ProxyConfig{
+				Tag:     cfg.Tag,
+				ConnURI: cfg.ConnURI,
+				Speed:   speed,
+				Delay:   cfg.Delay,
 			})
 		}
 	}

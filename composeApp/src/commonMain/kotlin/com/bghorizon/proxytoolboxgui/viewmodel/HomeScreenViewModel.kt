@@ -3,7 +3,8 @@ package com.bghorizon.proxytoolboxgui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bghorizon.proxytoolboxgui.data.*
-import com.bghorizon.proxytoolboxgui.data.db.ConfigTestResultUpdate
+import com.bghorizon.proxytoolboxgui.data.db.ConfigLatencyTestResultUpdate
+import com.bghorizon.proxytoolboxgui.data.db.ConfigSpeedTestResultUpdate
 import com.bghorizon.proxytoolboxgui.di.AppModule
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -48,16 +49,9 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
             }
 
             module.appStatusManager.updateStatus(AppStatus.PARSING)
-            _uiState.update {
-                it.copy(
-                    testProgress = it.testProgress.copy(isRunning = true)
-                )
-            }
-
+            
             try {
                 val setup = module.testManager.prepareTest(currentSettings, subscriptions)
-
-                // Persist the calculated 'duplicated' counts and reset baseline errors in DB
                 setup.updatedSubscriptions.forEach { sub ->
                     module.subscriptionRepository.saveSub(sub)
                 }
@@ -73,7 +67,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 
                 _uiState.update {
                     it.copy(
-                        testProgress = it.testProgress.copy(
+                        latencyTestProgress = LatencyTestProgress(
                             totalBatches = setup.totalBatches,
                             totalRounds = setup.totalRounds,
                             totalSeconds = setup.totalSeconds,
@@ -84,27 +78,32 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                                 (1..setup.totalRounds).map { r ->
                                     BatchProgress(batchNum = b, roundNum = r)
                                 }
-                            }
-                        )
+                            },
+                            isRunning = true,
+                            isRoundActive = false
+                        ),
+                        speedTestProgress = SpeedTestProgress()
                     )
                 }
+
+                startTimer()
 
                 val resultConfigs = module.testManager.runLatencyTests(
                     settings = currentSettings,
                     configs = setup.configs
                 ) { event ->
                     if (job?.isActive != true) return@runLatencyTests
-                    handleTestEvent(event, currentSettings)
+                    handleLatencyTestEvent(event, currentSettings)
                 }
 
                 if (job?.isActive != true) return@launch
 
                 module.subscriptionRepository.resetWorkingData()
 
-                // Save working configs
-                val updates = resultConfigs.mapNotNull { cfg ->
+                // Save latency configs
+                val latencyUpdates = resultConfigs.mapNotNull { cfg ->
                     module.testManager.extractIds(cfg.tag)?.let { (subId, configId) ->
-                        ConfigTestResultUpdate(
+                        ConfigLatencyTestResultUpdate(
                             subId = subId,
                             configId = configId,
                             working = true,
@@ -113,11 +112,77 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                         )
                     }
                 }
-                module.subscriptionRepository.updateConfigTestResultsBatch(updates)
+                module.subscriptionRepository.updateConfigLatencyTestResultsBatch(latencyUpdates)
 
-                module.appStatusManager.updateStatus(
-                    if (resultConfigs.isNotEmpty()) AppStatus.COMPLETED else AppStatus.IDLE
-                )
+                _uiState.update {
+                    it.copy(latencyTestProgress = it.latencyTestProgress.copy(isRunning = false))
+                }
+
+                // If Speed test enabled, proceed to stage two
+                if (currentSettings.performSpeedTest && resultConfigs.isNotEmpty()) {
+                    module.appStatusManager.updateStatus(AppStatus.SPEED_TESTING)
+                    
+                    var speedConfigs = resultConfigs
+                    if (currentSettings.sortByLatencyDelay) {
+                        speedConfigs = speedConfigs.sortedBy { it.delay }
+                    }
+                    
+                    val speedTotalBatches = if (currentSettings.testByBatches && (currentSettings.batchSize > 0)) {
+                        (speedConfigs.size + currentSettings.batchSize - 1) / currentSettings.batchSize
+                    } else 1
+                    
+                    val speedTotalSeconds = speedTotalBatches * currentSettings.speedTestRounds * currentSettings.roundTimeout
+                    
+                    _uiState.update {
+                        it.copy(
+                            speedTestProgress = SpeedTestProgress(
+                                totalBatches = speedTotalBatches,
+                                totalRounds = currentSettings.speedTestRounds,
+                                totalSeconds = speedTotalSeconds,
+                                elapsedSeconds = 0,
+                                currentBatch = 0,
+                                currentRound = 0,
+                                batchProgresses = (1..speedTotalBatches).flatMap { b ->
+                                    (1..currentSettings.speedTestRounds).map { r ->
+                                        BatchProgress(batchNum = b, roundNum = r)
+                                    }
+                                },
+                                isRunning = true,
+                                isRoundActive = false
+                            )
+                        )
+                    }
+
+                    val speedWorkingConfigs = module.testManager.runSpeedTests(
+                        settings = currentSettings,
+                        configs = speedConfigs
+                    ) { event ->
+                        if (job?.isActive != true) return@runSpeedTests
+                        handleSpeedTestEvent(event, currentSettings)
+                    }
+                    
+                    if (job?.isActive != true) return@launch
+                    
+                    val speedUpdates = speedWorkingConfigs.mapNotNull { cfg ->
+                        module.testManager.extractIds(cfg.tag)?.let { (subId, configId) ->
+                            ConfigSpeedTestResultUpdate(
+                                subId = subId,
+                                configId = configId,
+                                workingSpeed = true,
+                                speed = cfg.speed
+                            )
+                        }
+                    }
+                    module.subscriptionRepository.updateConfigSpeedTestResultsBatch(speedUpdates)
+                    
+                    module.appStatusManager.updateStatus(
+                        if (speedWorkingConfigs.isNotEmpty()) AppStatus.COMPLETED else AppStatus.IDLE
+                    )
+                } else {
+                    module.appStatusManager.updateStatus(
+                        if (resultConfigs.isNotEmpty()) AppStatus.COMPLETED else AppStatus.IDLE
+                    )
+                }
             } catch (e: Exception) {
                 if (e is CancellationException) {
                     module.appStatusManager.updateStatus(AppStatus.STOPPED)
@@ -130,10 +195,8 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     timerJob?.cancel()
                     _uiState.update {
                         it.copy(
-                            testProgress = it.testProgress.copy(
-                                isRunning = false,
-                                isRoundActive = false
-                            )
+                            latencyTestProgress = it.latencyTestProgress.copy(isRunning = false, isRoundActive = false),
+                            speedTestProgress = it.speedTestProgress.copy(isRunning = false, isRoundActive = false)
                         )
                     }
                     onTestCompleted()
@@ -141,10 +204,28 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
             }
         }
     }
+    
+    private fun startTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+                _uiState.update { state ->
+                    if (state.latencyTestProgress.isRunning) {
+                        state.copy(latencyTestProgress = state.latencyTestProgress.copy(elapsedSeconds = state.latencyTestProgress.elapsedSeconds + 1))
+                    } else if (state.speedTestProgress.isRunning) {
+                        state.copy(speedTestProgress = state.speedTestProgress.copy(elapsedSeconds = state.speedTestProgress.elapsedSeconds + 1))
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+    }
 
-    private fun handleTestEvent(event: TestEvent, settings: AppSettings) {
+    private fun handleLatencyTestEvent(event: LatencyTestEvent, settings: AppSettings) {
         when (event) {
-            is TestEvent.ParseFailed -> {
+            is LatencyTestEvent.ParseFailed -> {
                 module.appStatusManager.updateStatus(AppStatus.PARSING)
                 viewModelScope.launch(Dispatchers.IO) {
                     module.subscriptionRepository.resetParseErrorData()
@@ -155,7 +236,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 }
             }
 
-            is TestEvent.ValidateFailed -> {
+            is LatencyTestEvent.ValidateFailed -> {
                 module.appStatusManager.updateStatus(AppStatus.VALIDATING)
                 viewModelScope.launch(Dispatchers.IO) {
                     module.subscriptionRepository.resetValidErrorData()
@@ -166,11 +247,11 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 }
             }
 
-            is TestEvent.RoundStarted -> {
+            is LatencyTestEvent.RoundStarted -> {
                 val currentRoundAbsolute = (event.batch - 1) * settings.latencyRounds + event.round
                 module.appStatusManager.updateStatus(AppStatus.TESTING)
                 _uiState.update { state ->
-                    val current = state.testProgress
+                    val current = state.latencyTestProgress
                     val updatedProgresses = current.batchProgresses.toMutableList()
                     val idx =
                         updatedProgresses.indexOfFirst { (it.batchNum == event.batch && it.roundNum == event.round) }
@@ -182,7 +263,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     }
 
                     state.copy(
-                        testProgress = current.copy(
+                        latencyTestProgress = current.copy(
                             currentBatch = event.batch,
                             currentRound = event.round,
                             elapsedSeconds = (currentRoundAbsolute - 1) * settings.roundTimeout,
@@ -192,19 +273,11 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                         )
                     )
                 }
-
-                timerJob?.cancel()
-                timerJob = viewModelScope.launch {
-                    while (isActive) {
-                        delay(1000)
-                        _uiState.update { it.copy(testProgress = it.testProgress.copy(elapsedSeconds = it.testProgress.elapsedSeconds + 1)) }
-                    }
-                }
             }
 
-            is TestEvent.Progress -> {
+            is LatencyTestEvent.Progress -> {
                 _uiState.update { state ->
-                    val current = state.testProgress
+                    val current = state.latencyTestProgress
                     val updatedProgresses = current.batchProgresses.toMutableList()
                     val batchIndex = updatedProgresses.indexOfFirst {
                         it.batchNum == current.currentBatch && it.roundNum == current.currentRound
@@ -219,16 +292,80 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                         )
                     }
 
-                    state.copy(testProgress = current.copy(batchProgresses = updatedProgresses))
+                    state.copy(latencyTestProgress = current.copy(batchProgresses = updatedProgresses))
                 }
             }
 
-            is TestEvent.RoundEnded -> {
-                timerJob?.cancel()
-                _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }
+            is LatencyTestEvent.RoundEnded -> {
+                _uiState.update { it.copy(latencyTestProgress = it.latencyTestProgress.copy(isRoundActive = false)) }
             }
 
-            is TestEvent.Error -> {
+            is LatencyTestEvent.Error -> {
+                viewModelScope.launch {
+                    val msg = getString(Res.string.msg_test_error, event.message)
+                    module.platform.showToast(msg)
+                }
+                stopTest(AppStatus.ERROR, event.message)
+            }
+        }
+    }
+
+    private fun handleSpeedTestEvent(event: SpeedTestEvent, settings: AppSettings) {
+        when (event) {
+            is SpeedTestEvent.RoundStarted -> {
+                val currentRoundAbsolute = (event.batch - 1) * settings.speedTestRounds + event.round
+                module.appStatusManager.updateStatus(AppStatus.SPEED_TESTING)
+                _uiState.update { state ->
+                    val current = state.speedTestProgress
+                    val updatedProgresses = current.batchProgresses.toMutableList()
+                    val idx =
+                        updatedProgresses.indexOfFirst { (it.batchNum == event.batch && it.roundNum == event.round) }
+                    if (idx >= 0) {
+                        updatedProgresses[idx] = updatedProgresses[idx].copy(
+                            total = event.total,
+                            running = event.total
+                        )
+                    }
+
+                    state.copy(
+                        speedTestProgress = current.copy(
+                            currentBatch = event.batch,
+                            currentRound = event.round,
+                            elapsedSeconds = (currentRoundAbsolute - 1) * settings.roundTimeout,
+                            isRunning = true,
+                            isRoundActive = true,
+                            batchProgresses = updatedProgresses
+                        )
+                    )
+                }
+            }
+
+            is SpeedTestEvent.Progress -> {
+                _uiState.update { state ->
+                    val current = state.speedTestProgress
+                    val updatedProgresses = current.batchProgresses.toMutableList()
+                    val batchIndex = updatedProgresses.indexOfFirst {
+                        it.batchNum == current.currentBatch && it.roundNum == current.currentRound
+                    }
+
+                    if (batchIndex >= 0) {
+                        val bp = updatedProgresses[batchIndex]
+                        updatedProgresses[batchIndex] = bp.copy(
+                            running = bp.running - 1,
+                            failed = if (event.failed) bp.failed + 1 else bp.failed,
+                            succeeded = if (!event.failed) bp.succeeded + 1 else bp.succeeded
+                        )
+                    }
+
+                    state.copy(speedTestProgress = current.copy(batchProgresses = updatedProgresses))
+                }
+            }
+
+            is SpeedTestEvent.RoundEnded -> {
+                _uiState.update { it.copy(speedTestProgress = it.speedTestProgress.copy(isRoundActive = false)) }
+            }
+
+            is SpeedTestEvent.Error -> {
                 viewModelScope.launch {
                     val msg = getString(Res.string.msg_test_error, event.message)
                     module.platform.showToast(msg)
@@ -248,10 +385,12 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 
     private suspend fun getWorkingConfigsString(): String {
         val settings = module.settingsRepository.settings.value
-        var configs = module.subscriptionRepository.getWorkingConfigs()
+        var configs = module.subscriptionRepository.getWorkingConfigs(settings.performSpeedTest)
 
-        if (settings.sortProfilesByDelay) {
+        if (settings.sortProfilesByDelay && !settings.performSpeedTest) {
             configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
+        } else if (settings.performSpeedTest) {
+            configs = configs.sortedWith(compareByDescending<ProxyConfig> { it.speed }.thenBy { it.tag })
         }
 
         return configs.joinToString("\n") { it.connURI }
@@ -304,5 +443,6 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 }
 
 data class HomeScreenUiState(
-    val testProgress: TestProgress = TestProgress()
+    val latencyTestProgress: LatencyTestProgress = LatencyTestProgress(),
+    val speedTestProgress: SpeedTestProgress = SpeedTestProgress()
 )

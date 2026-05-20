@@ -14,6 +14,9 @@ class WorkerManager(
 ) {
     suspend fun discover() = withContext(Dispatchers.IO) {
         try {
+            val presets = GoBridge.discoverSpeedTestPresets()
+            workerRepository.setSpeedTestPresets(presets)
+
             val libraryPath = platform.getWorkerLibraryPath()
             val workers = GoBridge.discoverWorkers(libraryPath)
             
@@ -46,6 +49,12 @@ class WorkerManager(
                     matchedWorker.name,
                     matchedWorker.path
                 )
+            }
+            
+            val validProviderId = presets.find { it.id == currentSettings.speedTestProvider }?.id
+                ?: if (presets.isNotEmpty()) presets[0].id else currentSettings.speedTestProvider
+            if (validProviderId != currentSettings.speedTestProvider) {
+                settingsRepository.saveSettings(currentSettings.copy(speedTestProvider = validProviderId))
             }
         } catch (e: Exception) {
             e.printStackTrace()

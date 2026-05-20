@@ -19,6 +19,7 @@ data class Subscription(
     val url: String,
     val total: Int = 0,
     val working: Int = 0,
+    val workingSpeed: Int = 0,
     val updatedAt: Long = 0L,
     val duplicated: Int = 0,
     val parseErr: Int = 0,
@@ -35,19 +36,46 @@ data class BatchProgress(
     val succeeded: Int = 0
 )
 
+interface BaseTestProgress {
+    val phase: Int
+    val currentBatch: Int
+    val totalBatches: Int
+    val currentRound: Int
+    val totalRounds: Int
+    val batchProgresses: List<BatchProgress>
+    val elapsedSeconds: Int
+    val totalSeconds: Int
+    val isRunning: Boolean
+    val isRoundActive: Boolean
+}
+
 @Serializable
-data class TestProgress(
-    val phase: Int = 0,
-    val currentBatch: Int = 0,
-    val totalBatches: Int = 0,
-    val currentRound: Int = 0,
-    val totalRounds: Int = 0,
-    val batchProgresses: List<BatchProgress> = emptyList(),
-    val elapsedSeconds: Int = 0,
-    val totalSeconds: Int = 0,
-    val isRunning: Boolean = false,
-    val isRoundActive: Boolean = false
-)
+data class LatencyTestProgress(
+    override val phase: Int = 0,
+    override val currentBatch: Int = 0,
+    override val totalBatches: Int = 0,
+    override val currentRound: Int = 0,
+    override val totalRounds: Int = 0,
+    override val batchProgresses: List<BatchProgress> = emptyList(),
+    override val elapsedSeconds: Int = 0,
+    override val totalSeconds: Int = 0,
+    override val isRunning: Boolean = false,
+    override val isRoundActive: Boolean = false
+) : BaseTestProgress
+
+@Serializable
+data class SpeedTestProgress(
+    override val phase: Int = 0,
+    override val currentBatch: Int = 0,
+    override val totalBatches: Int = 0,
+    override val currentRound: Int = 0,
+    override val totalRounds: Int = 0,
+    override val batchProgresses: List<BatchProgress> = emptyList(),
+    override val elapsedSeconds: Int = 0,
+    override val totalSeconds: Int = 0,
+    override val isRunning: Boolean = false,
+    override val isRoundActive: Boolean = false
+) : BaseTestProgress
 
 @Serializable
 data class SubsUpdateProgress(
@@ -61,7 +89,14 @@ data class SubsUpdateProgress(
 data class ProxyConfig(
     val tag: String,
     val connURI: String,
-    val delay: Long = -1
+    val delay: Long = -1,
+    val speed: Double = 0.0
+)
+
+@Serializable
+data class SpeedTestPreset(
+    val id: String,
+    val name: String
 )
 
 @Serializable
@@ -81,7 +116,14 @@ data class AppSettings(
     val webServerLocalhost: Boolean = true,
     val testUrl: String = "https://www.google.com/generate_204",
     val parallelSubscriptionDownloads: Int = 5,
-    val sortProfilesByDelay: Boolean = false
+    val sortProfilesByDelay: Boolean = false,
+    
+    val performSpeedTest: Boolean = true,
+    val speedTestRounds: Int = 1,
+    val speedTestProvider: String = "cloudflare",
+    val speedTestMode: String = "download",
+    val speedTestTargetBytes: Int = 1048576,
+    val sortByLatencyDelay: Boolean = false
 )
 
 enum class ThemeMode {
@@ -89,7 +131,7 @@ enum class ThemeMode {
 }
 
 enum class AppStatus {
-    IDLE, UPDATING_SUBS, PARSING, VALIDATING, TESTING, COMPLETED, STOPPED, ERROR
+    IDLE, UPDATING_SUBS, PARSING, VALIDATING, TESTING, SPEED_TESTING, COMPLETED, STOPPED, ERROR
 }
 
 object JsonConfig {

@@ -25,6 +25,10 @@ sealed interface SettingsDialog : UiDialog {
     data object Port : SettingsDialog
     data object TestUrl : SettingsDialog
     data object ParallelDownloads : SettingsDialog
+    data object SpeedTestRounds : SettingsDialog
+    data object SpeedTestProvider : SettingsDialog
+    data object SpeedTestMode : SettingsDialog
+    data object SpeedTestTargetBytes : SettingsDialog
 }
 
 sealed interface SettingsScreenUiMode : ScreenUiMode {
@@ -207,6 +211,45 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                         settingsVm.updateSettings(settings.copy(sortProfilesByDelay = it))
                     }
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                SettingsSwitchItem(
+                    title = "Perform speed tests after latency tests",
+                    checked = settings.performSpeedTest,
+                    onCheckedChange = { settingsVm.updateSettings(settings.copy(performSpeedTest = it)) }
+                )
+                SettingsItem(
+                    title = "Speed test rounds",
+                    subtitle = settings.speedTestRounds.toString(),
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestRounds) }
+                )
+                SettingsItem(
+                    title = "Speed test provider",
+                    subtitle = mainUiState.speedTestPresets.find { it.id == settings.speedTestProvider }?.name ?: settings.speedTestProvider,
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestProvider) }
+                )
+                SettingsItem(
+                    title = "Speed test mode",
+                    subtitle = settings.speedTestMode.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestMode) }
+                )
+                SettingsItem(
+                    title = "Speed test target bytes",
+                    subtitle = settings.speedTestTargetBytes.toString(),
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestTargetBytes) }
+                )
+                SettingsSwitchItem(
+                    title = "Sort by latency test delay before speed testing",
+                    checked = settings.sortByLatencyDelay,
+                    enabled = settings.performSpeedTest && settings.sortProfilesByDelay,
+                    subtitle = if (!settings.sortProfilesByDelay) "Requires sorting by delay to be enabled" else null,
+                    onCheckedChange = { settingsVm.updateSettings(settings.copy(sortByLatencyDelay = it)) }
+                )
             }
         }
 
@@ -345,6 +388,56 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                             )
                         )
                     )
+                    true
+                }
+            )
+        }
+
+        SettingsDialog.SpeedTestRounds -> {
+            NumberInputDialog(
+                title = "Speed test rounds",
+                initialValue = settings.speedTestRounds,
+                hint = "Rounds (e.g. 1)",
+                onDismiss = { mainVm.hideDialog() },
+                onSave = {
+                    settingsVm.updateSettings(settings.copy(speedTestRounds = it.coerceAtLeast(1)))
+                    true
+                }
+            )
+        }
+
+        SettingsDialog.SpeedTestProvider -> {
+            val presets = mainUiState.speedTestPresets
+            SelectionDialog(
+                title = "Speed test provider",
+                items = presets,
+                selectedItem = presets.find { it.id == settings.speedTestProvider },
+                onDismiss = { mainVm.hideDialog() },
+                onSelect = { settingsVm.updateSettings(settings.copy(speedTestProvider = it.id)) },
+                itemLabel = { it.name }
+            )
+        }
+
+        SettingsDialog.SpeedTestMode -> {
+            val modes = listOf("download", "upload")
+            SelectionDialog(
+                title = "Speed test mode",
+                items = modes,
+                selectedItem = settings.speedTestMode,
+                onDismiss = { mainVm.hideDialog() },
+                onSelect = { settingsVm.updateSettings(settings.copy(speedTestMode = it)) },
+                itemLabel = { it.replaceFirstChar { char -> if (char.isLowerCase()) char.titlecase() else char.toString() } }
+            )
+        }
+
+        SettingsDialog.SpeedTestTargetBytes -> {
+            NumberInputDialog(
+                title = "Speed test target bytes",
+                initialValue = settings.speedTestTargetBytes,
+                hint = "Bytes (e.g. 1048576 for 1MB)",
+                onDismiss = { mainVm.hideDialog() },
+                onSave = {
+                    settingsVm.updateSettings(settings.copy(speedTestTargetBytes = it.coerceAtLeast(1024)))
                     true
                 }
             )

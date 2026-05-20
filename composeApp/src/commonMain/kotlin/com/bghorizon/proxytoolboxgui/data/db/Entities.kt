@@ -22,7 +22,13 @@ data class AppSettingsEntity(
     val webServerLocalhost: Boolean,
     val testUrl: String,
     val parallelSubscriptionDownloads: Int,
-    val sortProfilesByDelay: Boolean = false
+    val sortProfilesByDelay: Boolean = false,
+    val performSpeedTest: Boolean = true,
+    val speedTestRounds: Int = 1,
+    val speedTestProvider: String = "cloudflare",
+    val speedTestMode: String = "download",
+    val speedTestTargetBytes: Int = 1048576,
+    val sortByLatencyDelay: Boolean = false
 )
 
 @Entity(tableName = "subscriptions")
@@ -52,5 +58,7 @@ data class SubscriptionDataEntity(
     val validErr: Boolean = false,
     val fixedConnURI: String? = null,
     val working: Boolean = false,
-    val delay: Long = -1
+    val delay: Long = -1,
+    val workingSpeed: Boolean = false,
+    val speed: Double = 0.0
 )

@@ -15,6 +15,7 @@ private fun parseNativeResponse(json: String): NativeResponse {
 
 internal expect object GoBridgeNative {
     fun nativeDiscoverWorkers(libraryPath: String): String
+    fun nativeDiscoverSpeedTestPresets(): String
     fun nativeInitializeRunner(workerPath: String): String
     fun nativeParseConfigs(connUrisJson: String): String
     fun nativeValidateConfigs(): String
@@ -24,9 +25,19 @@ internal expect object GoBridgeNative {
         roundTimeout: Int,
         testByBatches: Boolean,
         batchSize: Int,
-        callback: JniTestCallbackWrapper,
+        callback: JniLatencyTestCallbackWrapper,
     ): String
-
+    fun nativeRunSpeedTests(
+        connUrisJson: String,
+        providerId: String,
+        mode: String,
+        targetBytes: Long,
+        rounds: Int,
+        roundTimeout: Int,
+        testByBatches: Boolean,
+        batchSize: Int,
+        callback: JniSpeedTestCallbackWrapper,
+    ): String
     fun nativeStopTests()
 }
 
@@ -37,6 +48,13 @@ object GoBridge {
 
     fun discoverWorkers(libraryPath: String): List<WorkerInfo> {
         val responseJson = GoBridgeNative.nativeDiscoverWorkers(libraryPath)
+        val response = parseNativeResponse(responseJson)
+        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
+    }
+
+    fun discoverSpeedTestPresets(): List<SpeedTestPreset> {
+        val responseJson = GoBridgeNative.nativeDiscoverSpeedTestPresets()
         val response = parseNativeResponse(responseJson)
         if (!response.error.isNullOrEmpty()) throw Exception(response.error)
         return JsonConfig.json.decodeFromString(response.data)
@@ -65,9 +83,9 @@ object GoBridge {
     fun runLatencyTests(
         testUrl: String,
         settings: AppSettings,
-        callback: GoTestCallback,
+        callback: GoLatencyTestCallback,
     ): List<ProxyConfig> {
-        val wrapper = JniTestCallbackWrapper(callback)
+        val wrapper = JniLatencyTestCallbackWrapper(callback)
 
         val responseJson = GoBridgeNative.nativeRunLatencyTests(
             testUrl,
@@ -83,13 +101,44 @@ object GoBridge {
         return JsonConfig.json.decodeFromString(response.data)
     }
 
+    fun runSpeedTests(
+        configs: List<ProxyConfig>,
+        settings: AppSettings,
+        callback: GoSpeedTestCallback
+    ): List<ProxyConfig> {
+        val wrapper = JniSpeedTestCallbackWrapper(callback)
+        val connUrisJson = JsonConfig.json.encodeToString(configs)
+        
+        val responseJson = GoBridgeNative.nativeRunSpeedTests(
+            connUrisJson,
+            settings.speedTestProvider,
+            settings.speedTestMode,
+            settings.speedTestTargetBytes.toLong(),
+            settings.speedTestRounds,
+            settings.roundTimeout,
+            settings.testByBatches,
+            settings.batchSize,
+            wrapper
+        )
+
+        val response = parseNativeResponse(responseJson)
+        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
+        return JsonConfig.json.decodeFromString(response.data)
+    }
+
     fun stopTests() {
         GoBridgeNative.nativeStopTests()
     }
 }
 
-interface GoTestCallback {
+interface GoLatencyTestCallback {
     fun onRoundStarted(batch: Long, round: Long, total: Long)
     fun onProgress(tag: String, delay: Long, failed: Boolean)
+    fun onRoundEnded(batch: Long, round: Long)
+}
+
+interface GoSpeedTestCallback {
+    fun onRoundStarted(batch: Long, round: Long, total: Long)
+    fun onProgress(tag: String, speed: Double, failed: Boolean)
     fun onRoundEnded(batch: Long, round: Long)
 }

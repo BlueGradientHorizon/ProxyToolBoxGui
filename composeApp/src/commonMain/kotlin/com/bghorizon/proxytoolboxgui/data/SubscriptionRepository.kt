@@ -3,7 +3,8 @@ package com.bghorizon.proxytoolboxgui.data
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDao
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDataEntity
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionEntity
-import com.bghorizon.proxytoolboxgui.data.db.ConfigTestResultUpdate
+import com.bghorizon.proxytoolboxgui.data.db.ConfigLatencyTestResultUpdate
+import com.bghorizon.proxytoolboxgui.data.db.ConfigSpeedTestResultUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -20,6 +21,7 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
                     url = stats.url,
                     total = stats.total,
                     working = stats.working,
+                    workingSpeed = stats.workingSpeed,
                     updatedAt = stats.updatedAt,
                     duplicated = stats.duplicated,
                     parseErr = stats.parseErr,
@@ -45,13 +47,26 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.deleteSubscriptions(ids)
     }
 
-    suspend fun getWorkingConfigs(): List<ProxyConfig> {
-        return dao.getAllConfigs().filter { it.working }.map { data ->
-            ProxyConfig(
-                tag = "sub-${data.subId}-${data.configId}",
-                connURI = data.fixedConnURI ?: data.connURI,
-                delay = data.delay
-            )
+    suspend fun getWorkingConfigs(requireSpeedTestPass: Boolean = false): List<ProxyConfig> {
+        val allConfigs = dao.getAllConfigs()
+        return if (requireSpeedTestPass) {
+            allConfigs.filter { it.workingSpeed }.map { data ->
+                ProxyConfig(
+                    tag = "sub-${data.subId}-${data.configId}",
+                    connURI = data.fixedConnURI ?: data.connURI,
+                    delay = data.delay,
+                    speed = data.speed
+                )
+            }
+        } else {
+            allConfigs.filter { it.working }.map { data ->
+                ProxyConfig(
+                    tag = "sub-${data.subId}-${data.configId}",
+                    connURI = data.fixedConnURI ?: data.connURI,
+                    delay = data.delay,
+                    speed = data.speed
+                )
+            }
         }
     }
 
@@ -74,8 +89,12 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.markConfigsValidErrBatch(ids)
     }
 
-    suspend fun updateConfigTestResultsBatch(results: List<ConfigTestResultUpdate>) {
-        dao.updateConfigTestResultsBatch(results)
+    suspend fun updateConfigLatencyTestResultsBatch(results: List<ConfigLatencyTestResultUpdate>) {
+        dao.updateConfigLatencyTestResultsBatch(results)
+    }
+
+    suspend fun updateConfigSpeedTestResultsBatch(results: List<ConfigSpeedTestResultUpdate>) {
+        dao.updateConfigSpeedTestResultsBatch(results)
     }
 
     suspend fun resetParseErrorData() {

@@ -61,7 +61,7 @@ interface SubscriptionDao {
 
 
     @Query("UPDATE subscriptions_data SET working = :working, fixedConnURI = :fixedUri, delay = :delay WHERE subId = :subId AND configId = :configId")
-    suspend fun updateConfigTestResult(
+    suspend fun updateConfigLatencyTestResult(
         subId: String,
         configId: Int,
         working: Boolean,
@@ -70,8 +70,21 @@ interface SubscriptionDao {
     )
 
     @Transaction
-    suspend fun updateConfigTestResultsBatch(results: List<ConfigTestResultUpdate>) {
-        results.forEach { updateConfigTestResult(it.subId, it.configId, it.working, it.fixedUri, it.delay) }
+    suspend fun updateConfigLatencyTestResultsBatch(results: List<ConfigLatencyTestResultUpdate>) {
+        results.forEach { updateConfigLatencyTestResult(it.subId, it.configId, it.working, it.fixedUri, it.delay) }
+    }
+    
+    @Query("UPDATE subscriptions_data SET workingSpeed = :workingSpeed, speed = :speed WHERE subId = :subId AND configId = :configId")
+    suspend fun updateConfigSpeedTestResult(
+        subId: String,
+        configId: Int,
+        workingSpeed: Boolean,
+        speed: Double,
+    )
+
+    @Transaction
+    suspend fun updateConfigSpeedTestResultsBatch(results: List<ConfigSpeedTestResultUpdate>) {
+        results.forEach { updateConfigSpeedTestResult(it.subId, it.configId, it.workingSpeed, it.speed) }
     }
 
     @Query("UPDATE subscriptions_data SET parseErr = 1 WHERE subId = :subId AND configId = :configId")
@@ -96,7 +109,7 @@ interface SubscriptionDao {
     @Query("UPDATE subscriptions_data SET validErr = 0")
     suspend fun resetValidErrorData()
 
-    @Query("UPDATE subscriptions_data SET working = 0, fixedConnURI = NULL")
+    @Query("UPDATE subscriptions_data SET working = 0, fixedConnURI = NULL, workingSpeed = 0, speed = 0.0")
     suspend fun resetWorkingData()
 
     @Query(
@@ -104,6 +117,7 @@ interface SubscriptionDao {
         SELECT s.*, 
                COUNT(d.configId) as total,
                SUM(CASE WHEN d.working = 1 THEN 1 ELSE 0 END) as working,
+               SUM(CASE WHEN d.workingSpeed = 1 THEN 1 ELSE 0 END) as workingSpeed,
                SUM(CASE WHEN d.parseErr = 1 THEN 1 ELSE 0 END) as parseErr,
                SUM(CASE WHEN d.validErr = 1 THEN 1 ELSE 0 END) as validErr
         FROM subscriptions s 
@@ -122,14 +136,22 @@ data class SubscriptionWithStats(
     val duplicated: Int,
     val total: Int,
     val working: Int,
+    val workingSpeed: Int,
     val parseErr: Int,
     val validErr: Int
 )
 
-data class ConfigTestResultUpdate(
+data class ConfigLatencyTestResultUpdate(
     val subId: String,
     val configId: Int,
     val working: Boolean,
     val fixedUri: String?,
     val delay: Long
+)
+
+data class ConfigSpeedTestResultUpdate(
+    val subId: String,
+    val configId: Int,
+    val workingSpeed: Boolean,
+    val speed: Double
 )

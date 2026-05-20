@@ -19,7 +19,7 @@ import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import com.bghorizon.proxytoolboxgui.data.AppStatus
-import com.bghorizon.proxytoolboxgui.data.TestProgress
+import com.bghorizon.proxytoolboxgui.data.BaseTestProgress
 import com.bghorizon.proxytoolboxgui.viewmodel.*
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
@@ -76,7 +76,8 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val subVm: SubscriptionsScreenViewModel = viewModel { SubscriptionsScreenViewModel(module) }
     val subs by subVm.subscriptions.collectAsState()
 
-    val testProgress = homeUiState.testProgress
+    val latencyTestProgress = homeUiState.latencyTestProgress
+    val speedTestProgress = homeUiState.speedTestProgress
     val appStatus = mainUiState.appStatus
     val statusDescription = mainUiState.statusDescription
 
@@ -85,6 +86,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val totalParseErr = subs.sumOf { it.parseErr }
     val totalValidErr = subs.sumOf { it.validErr }
     val totalWorking = subs.sumOf { it.working }
+    val totalWorkingSpeed = subs.sumOf { it.workingSpeed }
 
     val scaffoldPadding = LocalScaffoldPadding.current
 
@@ -106,6 +108,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                     AppStatus.UPDATING_SUBS -> stringResource(Res.string.updating_subs)
                     AppStatus.PARSING -> stringResource(Res.string.parsing)
                     AppStatus.VALIDATING -> stringResource(Res.string.validating)
+                    AppStatus.SPEED_TESTING -> "Speed testing"
                     AppStatus.ERROR -> stringResource(Res.string.error)
                     else -> stringResource(Res.string.testing)
                 },
@@ -113,7 +116,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                 color = when (appStatus) {
                     AppStatus.ERROR -> MaterialTheme.colorScheme.error
                     AppStatus.STOPPED -> MaterialTheme.colorScheme.outline
-                    AppStatus.TESTING, AppStatus.PARSING, AppStatus.VALIDATING, AppStatus.UPDATING_SUBS -> MaterialTheme.colorScheme.primary
+                    AppStatus.TESTING, AppStatus.SPEED_TESTING, AppStatus.PARSING, AppStatus.VALIDATING, AppStatus.UPDATING_SUBS -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.onSurface
                 }
             )
@@ -127,8 +130,10 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                 )
             }
 
-            if (testProgress.isRunning) {
-                TestProgressBar(testProgress)
+            if (latencyTestProgress.isRunning) {
+                TestProgressBar(latencyTestProgress)
+            } else if (speedTestProgress.isRunning) {
+                TestProgressBar(speedTestProgress)
             }
 
             HorizontalDivider(
@@ -142,8 +147,11 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
             StatLine(stringResource(Res.string.lbl_validation_errors, totalValidErr))
             StatLine(
                 stringResource(Res.string.lbl_working_profiles, totalWorking),
-                isHighlighted = true
+                isHighlighted = !mainUiState.settings.performSpeedTest
             )
+            if (mainUiState.settings.performSpeedTest) {
+                StatLine("Passed the speed test: $totalWorkingSpeed", isHighlighted = true)
+            }
         }
 
         LazyColumn(
@@ -157,8 +165,50 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (testProgress.batchProgresses.isNotEmpty()) {
-                val groupedBatches = testProgress.batchProgresses.groupBy { it.batchNum }.toList()
+            if (latencyTestProgress.batchProgresses.isNotEmpty()) {
+                item {
+                    Text(
+                        "Latency Tests",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                val groupedBatches = latencyTestProgress.batchProgresses.groupBy { it.batchNum }.toList()
+                    .sortedBy { it.first }
+
+                items(groupedBatches) { (batchNum, rounds) ->
+                    BatchTable(
+                        title = stringResource(Res.string.batch_title, batchNum),
+                        headers = listOf(
+                            stringResource(Res.string.column_round),
+                            stringResource(Res.string.column_total),
+                            stringResource(Res.string.column_running),
+                            stringResource(Res.string.column_failed),
+                            stringResource(Res.string.column_succeeded)
+                        ),
+                        headerWeights = listOf(0.7f, 1f, 1f, 1f, 1f),
+                        rows = rounds.sortedBy { it.roundNum }.map { round ->
+                            listOf(
+                                round.roundNum.toString(),
+                                round.total.toString(),
+                                round.running.toString(),
+                                round.failed.toString(),
+                                round.succeeded.toString()
+                            )
+                        }
+                    )
+                }
+            }
+
+            if (speedTestProgress.batchProgresses.isNotEmpty()) {
+                item {
+                    Text(
+                        "Speed Tests",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                val groupedBatches = speedTestProgress.batchProgresses.groupBy { it.batchNum }.toList()
                     .sortedBy { it.first }
 
                 items(groupedBatches) { (batchNum, rounds) ->
@@ -198,7 +248,7 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val appStatus = mainUiState.appStatus
     val workers = mainUiState.workers
     val isTesting =
-        (appStatus == AppStatus.TESTING || appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
+        (appStatus == AppStatus.TESTING || appStatus == AppStatus.SPEED_TESTING || appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
     val isWebServerRunning = mainUiState.webServerRunning
 
     NormalHomeFAB(
@@ -334,15 +384,10 @@ private fun NormalHomeFAB(
 
 
 @Composable
-private fun TestProgressBar(progress: TestProgress) {
+private fun TestProgressBar(progress: BaseTestProgress) {
     var remaining by remember { mutableIntStateOf(progress.totalSeconds - progress.elapsedSeconds) }
     LaunchedEffect(progress.isRoundActive, progress.totalSeconds, progress.elapsedSeconds) {
         remaining = progress.totalSeconds - progress.elapsedSeconds
-        if (!progress.isRoundActive) return@LaunchedEffect
-        while (remaining > 0 && progress.isRoundActive) {
-            delay(1000)
-            remaining--
-        }
     }
     val fraction =
         if (progress.totalSeconds > 0) 1f - (remaining.toFloat() / progress.totalSeconds.toFloat()) else 0f

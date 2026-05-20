@@ -47,6 +47,11 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                 _uiState.update { it.copy(workers = workers) }
             }
         }
+        viewModelScope.launch {
+            module.workerRepository.speedTestPresets.collect { presets ->
+                _uiState.update { it.copy(speedTestPresets = presets) }
+            }
+        }
     }
 
     fun navigateTo(screen: AppScreen) {
@@ -77,7 +82,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                     port = port,
                     host = host
                 ) {
-                    module.subscriptionRepository.getWorkingConfigs()
+                    module.subscriptionRepository.getWorkingConfigs(settings.performSpeedTest)
                         .joinToString("\n") { it.connURI }
                 }
 

@@ -33,8 +33,12 @@ static void callOnRoundStarted(JNIEnv *env, jobject cb, jmethodID mid, jlong bat
     (*env)->CallVoidMethod(env, cb, mid, batch, round, total);
 }
 
-static void callOnProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, jlong delay, jboolean failed) {
+static void callOnLatencyProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, jlong delay, jboolean failed) {
     (*env)->CallVoidMethod(env, cb, mid, tag, delay, failed);
+}
+
+static void callOnSpeedProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, jdouble speed, jboolean failed) {
+    (*env)->CallVoidMethod(env, cb, mid, tag, speed, failed);
 }
 
 static void callOnRoundEnded(JNIEnv *env, jobject cb, jmethodID mid, jlong batch, jlong round) {
@@ -101,6 +105,20 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorker
 		resp = NativeResponse{Error: err.Error()}
 	} else {
 		b, _ := json.Marshal(workers)
+		resp = NativeResponse{Data: string(b)}
+	}
+	b, _ := json.Marshal(resp)
+	return StringToJString(env, string(b))
+}
+
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverSpeedTestPresets
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverSpeedTestPresets(env *C.JNIEnv, clazz C.jclass) C.jstring {
+	presets, err := DiscoverSpeedTestPresets()
+	var resp NativeResponse
+	if err != nil {
+		resp = NativeResponse{Error: err.Error()}
+	} else {
+		b, _ := json.Marshal(presets)
 		resp = NativeResponse{Data: string(b)}
 	}
 	b, _ := json.Marshal(resp)
@@ -212,7 +230,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 		C.free(unsafe.Pointer(cSigVJJ))
 	}()
 
-	callbacks := TestCallbacks{
+	callbacks := LatencyTestCallbacks{
 		OnRoundStarted: func(batch int, round int, total int) {
 			C.callOnRoundStarted(env, callback, midRoundStarted, C.jlong(batch), C.jlong(round), C.jlong(total))
 		},
@@ -222,7 +240,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 			if failed {
 				cFailed = 1
 			}
-			C.callOnProgress(env, callback, midProgress, jTag, C.jlong(delay), cFailed)
+			C.callOnLatencyProgress(env, callback, midProgress, jTag, C.jlong(delay), cFailed)
 			C.DeleteLocalRef(env, C.jobject(jTag))
 		},
 		OnRoundEnded: func(batch int, round int) {
@@ -233,6 +251,90 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 	workingConfigs, err := RunLatencyTests(
 		goTestUrl,
 		int(latencyRounds),
+		int(roundTimeout),
+		goTestByBatches,
+		int(batchSize),
+		callbacks,
+	)
+
+	var resp NativeResponse
+	if err != nil {
+		resp = NativeResponse{Error: err.Error()}
+	} else {
+		b, _ := json.Marshal(workingConfigs)
+		resp = NativeResponse{Data: string(b)}
+	}
+	b, _ := json.Marshal(resp)
+	return StringToJString(env, string(b))
+}
+
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunSpeedTests
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunSpeedTests(
+	env *C.JNIEnv,
+	clazz C.jclass,
+	connUrisJson C.jstring,
+	providerId C.jstring,
+	mode C.jstring,
+	targetBytes C.jlong,
+	rounds C.jint,
+	roundTimeout C.jint,
+	testByBatches C.jboolean,
+	batchSize C.jint,
+	callback C.jobject,
+) C.jstring {
+	goConnUrisJson := JStringToString(env, connUrisJson)
+	goProviderId := JStringToString(env, providerId)
+	goMode := JStringToString(env, mode)
+	goTestByBatches := testByBatches != 0
+
+	cbClass := C.GetObjectClass(env, callback)
+	defer C.DeleteLocalRef(env, C.jobject(cbClass))
+
+	cOnRoundStarted := C.CString("onRoundStarted")
+	cOnProgress := C.CString("onProgress")
+	cOnRoundEnded := C.CString("onRoundEnded")
+
+	cSigVJJJ := C.CString("(JJJ)V")
+	cSigVSDZ := C.CString("(Ljava/lang/String;DZ)V")
+	cSigVJJ := C.CString("(JJ)V")
+
+	midRoundStarted := C.GetMethodID(env, cbClass, cOnRoundStarted, cSigVJJJ)
+	midProgress := C.GetMethodID(env, cbClass, cOnProgress, cSigVSDZ)
+	midRoundEnded := C.GetMethodID(env, cbClass, cOnRoundEnded, cSigVJJ)
+
+	defer func() {
+		C.free(unsafe.Pointer(cOnRoundStarted))
+		C.free(unsafe.Pointer(cOnProgress))
+		C.free(unsafe.Pointer(cOnRoundEnded))
+		C.free(unsafe.Pointer(cSigVJJJ))
+		C.free(unsafe.Pointer(cSigVSDZ))
+		C.free(unsafe.Pointer(cSigVJJ))
+	}()
+
+	callbacks := SpeedTestCallbacks{
+		OnRoundStarted: func(batch int, round int, total int) {
+			C.callOnRoundStarted(env, callback, midRoundStarted, C.jlong(batch), C.jlong(round), C.jlong(total))
+		},
+		OnProgress: func(tag string, speed float64, failed bool) {
+			jTag := StringToJString(env, tag)
+			var cFailed C.jboolean = 0
+			if failed {
+				cFailed = 1
+			}
+			C.callOnSpeedProgress(env, callback, midProgress, jTag, C.jdouble(speed), cFailed)
+			C.DeleteLocalRef(env, C.jobject(jTag))
+		},
+		OnRoundEnded: func(batch int, round int) {
+			C.callOnRoundEnded(env, callback, midRoundEnded, C.jlong(batch), C.jlong(round))
+		},
+	}
+
+	workingConfigs, err := RunSpeedTests(
+		goConnUrisJson,
+		goProviderId,
+		goMode,
+		int64(targetBytes),
+		int(rounds),
 		int(roundTimeout),
 		goTestByBatches,
 		int(batchSize),
