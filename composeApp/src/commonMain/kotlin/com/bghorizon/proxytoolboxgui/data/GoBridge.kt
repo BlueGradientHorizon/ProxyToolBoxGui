@@ -18,6 +18,18 @@ internal expect object GoBridgeNative {
     fun nativeInitializeRunner(workerPath: String): String
     fun nativeParseConfigs(connUrisJson: String): String
     fun nativeValidateConfigs(): String
+    fun nativeRunSpeedTests(
+        provider: String,
+        mode: String,
+        targetBytes: Long,
+        speedRounds: Int,
+        roundTimeout: Int,
+        testByBatches: Boolean,
+        batchSize: Int,
+        targetTagsJson: String,
+        callback: JniSpeedTestCallbackWrapper,
+    ): String
+
     fun nativeRunLatencyTests(
         testUrl: String,
         latencyRounds: Int,
@@ -83,6 +95,31 @@ object GoBridge {
         return JsonConfig.json.decodeFromString(response.data)
     }
 
+    fun runSpeedTests(
+        provider: String,
+        mode: String,
+        targetBytes: Long,
+        settings: AppSettings,
+        targetTagsJson: String,
+        callback: GoSpeedTestCallback,
+    ): String {
+        val wrapper = JniSpeedTestCallbackWrapper(callback)
+        val responseJson = GoBridgeNative.nativeRunSpeedTests(
+            provider,
+            mode,
+            targetBytes,
+            settings.speedTestRounds,
+            settings.roundTimeout,
+            settings.testByBatches,
+            settings.batchSize,
+            targetTagsJson,
+            wrapper,
+        )
+        val response = parseNativeResponse(responseJson)
+        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
+        return response.data
+    }
+
     fun stopTests() {
         GoBridgeNative.nativeStopTests()
     }
@@ -92,4 +129,24 @@ interface GoTestCallback {
     fun onRoundStarted(batch: Long, round: Long, total: Long)
     fun onProgress(tag: String, delay: Long, failed: Boolean)
     fun onRoundEnded(batch: Long, round: Long)
+}
+
+interface GoSpeedTestCallback {
+    fun onRoundStarted(batch: Long, round: Long, total: Long)
+    fun onProgress(tag: String, speed: Double, failed: Boolean)
+    fun onRoundEnded(batch: Long, round: Long)
+}
+
+class JniSpeedTestCallbackWrapper(private val callback: GoSpeedTestCallback) {
+    fun onRoundStarted(batch: Long, round: Long, total: Long) {
+        callback.onRoundStarted(batch, round, total)
+    }
+
+    fun onProgress(tag: String, speed: Double, failed: Boolean) {
+        callback.onProgress(tag, speed, failed)
+    }
+
+    fun onRoundEnded(batch: Long, round: Long) {
+        callback.onRoundEnded(batch, round)
+    }
 }

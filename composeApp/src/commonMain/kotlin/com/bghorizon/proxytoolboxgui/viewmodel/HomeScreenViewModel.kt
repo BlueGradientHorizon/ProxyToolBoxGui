@@ -100,6 +100,8 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 if (job?.isActive != true) return@launch
 
                 module.subscriptionRepository.resetWorkingData()
+                module.subscriptionRepository.resetWorkingSpeedData() 
+
 
                 // Save working configs
                 val updates = resultConfigs.mapNotNull { cfg ->
@@ -114,6 +116,50 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     }
                 }
                 module.subscriptionRepository.updateConfigTestResultsBatch(updates)
+
+                var finalConfigs = resultConfigs
+                if (currentSettings.performSpeedTest && resultConfigs.isNotEmpty()) {
+                    _uiState.update { state ->
+                        val totalBatches = if (currentSettings.testByBatches && currentSettings.batchSize > 0) {
+                            (resultConfigs.size + currentSettings.batchSize - 1) / currentSettings.batchSize
+                        } else 1
+                        val totalRounds = currentSettings.speedTestRounds
+                        val speedTotalSeconds = totalBatches * totalRounds * currentSettings.roundTimeout
+                        val current = state.testProgress
+                        state.copy(
+                            testProgress = current.copy(
+                                phase = 1,
+                                speedTotalBatches = totalBatches,
+                                speedTotalRounds = totalRounds,
+                                totalSeconds = current.totalSeconds + speedTotalSeconds,
+                                speedCurrentBatch = 0,
+                                speedCurrentRound = 0,
+                                speedBatchProgresses = (1..totalBatches).flatMap { b ->
+                                    (1..totalRounds).map { r -> BatchProgress(batchNum = b, roundNum = r) }
+                                }
+                            )
+                        )
+                    }
+                    val tags = resultConfigs.map { it.tag }
+                    val speedConfigs = module.testManager.runSpeedTests(
+                        settings = currentSettings,
+                        targetTags = tags
+                    ) { event ->
+                        if (job?.isActive != true) return@runSpeedTests
+                        handleTestEvent(event, currentSettings)
+                    }
+                    if (job?.isActive != true) return@launch
+                    val speedUpdates = speedConfigs.mapNotNull { cfg ->
+                        module.testManager.extractIds(cfg.tag)?.let { (subId, configId) ->
+                            com.bghorizon.proxytoolboxgui.data.db.ConfigSpeedTestResultUpdate(
+                                subId, configId, true, cfg.speed
+                            )
+                        }
+                    }
+                    module.subscriptionRepository.updateConfigSpeedTestResultsBatch(speedUpdates)
+                    finalConfigs = speedConfigs
+                }
+
 
                 module.appStatusManager.updateStatus(
                     if (resultConfigs.isNotEmpty()) AppStatus.COMPLETED else AppStatus.IDLE
@@ -248,10 +294,14 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 
     private suspend fun getWorkingConfigsString(): String {
         val settings = module.settingsRepository.settings.value
-        var configs = module.subscriptionRepository.getWorkingConfigs()
+        var configs = module.subscriptionRepository.getWorkingConfigs(settings.performSpeedTest)
 
         if (settings.sortProfilesByDelay) {
-            configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
+            if (settings.performSpeedTest && !settings.sortSpeedByDelay) {
+                configs = configs.sortedWith(compareByDescending<ProxyConfig> { it.speed }.thenBy { it.tag })
+            } else {
+                configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
+            }
         }
 
         return configs.joinToString("\n") { it.connURI }

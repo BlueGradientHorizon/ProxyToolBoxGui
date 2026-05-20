@@ -14,6 +14,18 @@ internal actual object GoBridgeNative {
     actual external fun nativeValidateConfigs(): String
 
     @JvmStatic
+    actual external fun nativeRunSpeedTests(
+        provider: String,
+        mode: String,
+        targetBytes: Long,
+        speedRounds: Int,
+        roundTimeout: Int,
+        testByBatches: Boolean,
+        batchSize: Int,
+        targetTagsJson: String,
+        callback: JniSpeedTestCallbackWrapper,
+    ): String
+
     actual external fun nativeRunLatencyTests(
         testUrl: String,
         latencyRounds: Int,

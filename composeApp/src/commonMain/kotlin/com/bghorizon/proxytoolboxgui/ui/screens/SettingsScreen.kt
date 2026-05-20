@@ -207,6 +207,46 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                         settingsVm.updateSettings(settings.copy(sortProfilesByDelay = it))
                     }
                 )
+                SettingsSwitchItem(
+                    title = "Perform Speed Tests",
+                    checked = settings.performSpeedTest,
+                    onCheckedChange = {
+                        settingsVm.updateSettings(settings.copy(performSpeedTest = it))
+                    }
+                )
+                SettingsItem(
+                    title = "Speed Test Rounds",
+                    subtitle = "${settings.speedTestRounds} round(s)",
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestRounds) }
+                )
+                SettingsItem(
+                    title = "Speed Test Provider",
+                    subtitle = settings.speedTestProvider,
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestProvider) }
+                )
+                SettingsItem(
+                    title = "Speed Test Mode",
+                    subtitle = settings.speedTestMode,
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestMode) }
+                )
+                SettingsItem(
+                    title = "Target Bytes",
+                    subtitle = settings.speedTestTargetBytes.toString(),
+                    enabled = settings.performSpeedTest,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestTargetBytes) }
+                )
+                SettingsSwitchItem(
+                    title = "Sort by sequence of latency test delay",
+                    subtitle = "Sorts speed test results using latency delay.",
+                    enabled = settings.performSpeedTest && settings.sortProfilesByDelay,
+                    checked = settings.sortSpeedByDelay,
+                    onCheckedChange = {
+                        settingsVm.updateSettings(settings.copy(sortSpeedByDelay = it))
+                    }
+                )
             }
         }
 
@@ -345,6 +385,60 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                             )
                         )
                     )
+                    true
+                }
+            )
+        }
+
+        SettingsDialog.SpeedTestRounds -> {
+            NumberInputDialog(
+                title = "Speed Test Rounds",
+                initialValue = settings.speedTestRounds,
+                hint = "Number of rounds",
+                onDismiss = { mainVm.hideDialog() },
+                onSave = {
+                    settingsVm.updateSettings(settings.copy(speedTestRounds = it.coerceAtLeast(1)))
+                    true
+                }
+            )
+        }
+
+        SettingsDialog.SpeedTestProvider -> {
+            val providers = listOf("cloudflare")
+            SelectionDialog(
+                title = "Speed Test Provider",
+                items = providers,
+                selectedItem = settings.speedTestProvider,
+                onDismiss = { mainVm.hideDialog() },
+                onSelect = { settingsVm.updateSettings(settings.copy(speedTestProvider = it)) },
+                emptyText = "No providers available",
+                itemLabel = { it },
+                itemSecondaryLabel = { null }
+            )
+        }
+
+        SettingsDialog.SpeedTestMode -> {
+            val modes = listOf("download", "upload")
+            SelectionDialog(
+                title = "Speed Test Mode",
+                items = modes,
+                selectedItem = settings.speedTestMode,
+                onDismiss = { mainVm.hideDialog() },
+                onSelect = { settingsVm.updateSettings(settings.copy(speedTestMode = it)) },
+                emptyText = "No modes available",
+                itemLabel = { it },
+                itemSecondaryLabel = { null }
+            )
+        }
+
+        SettingsDialog.SpeedTestTargetBytes -> {
+            NumberInputDialog(
+                title = "Target Bytes",
+                initialValue = settings.speedTestTargetBytes.toInt(),
+                hint = "Number of bytes",
+                onDismiss = { mainVm.hideDialog() },
+                onSave = {
+                    settingsVm.updateSettings(settings.copy(speedTestTargetBytes = it.toLong().coerceAtLeast(1L)))
                     true
                 }
             )

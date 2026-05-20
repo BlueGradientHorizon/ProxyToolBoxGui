@@ -45,12 +45,13 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.deleteSubscriptions(ids)
     }
 
-    suspend fun getWorkingConfigs(): List<ProxyConfig> {
-        return dao.getAllConfigs().filter { it.working }.map { data ->
+    suspend fun getWorkingConfigs(speedTest: Boolean = false): List<ProxyConfig> {
+        return dao.getAllConfigs().filter { if (speedTest) it.workingSpeed else it.working }.map { data ->
             ProxyConfig(
                 tag = "sub-${data.subId}-${data.configId}",
                 connURI = data.fixedConnURI ?: data.connURI,
-                delay = data.delay
+                delay = data.delay,
+                speed = data.speed
             )
         }
     }
@@ -78,6 +79,10 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.updateConfigTestResultsBatch(results)
     }
 
+    suspend fun updateConfigSpeedTestResultsBatch(results: List<com.bghorizon.proxytoolboxgui.data.db.ConfigSpeedTestResultUpdate>) {
+        dao.updateConfigSpeedTestResultsBatch(results)
+    }
+
     suspend fun resetParseErrorData() {
         dao.resetParseErrorData()
     }
@@ -88,6 +93,10 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
 
     suspend fun resetWorkingData() {
         dao.resetWorkingData()
+    }
+
+    suspend fun resetWorkingSpeedData() {
+        dao.resetWorkingSpeedData()
     }
 }
 

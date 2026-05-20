@@ -63,6 +63,12 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
     testUrl = testUrl,
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
     sortProfilesByDelay = sortProfilesByDelay,
+    performSpeedTest = performSpeedTest,
+    speedTestRounds = speedTestRounds,
+    speedTestProvider = speedTestProvider,
+    speedTestMode = speedTestMode,
+    speedTestTargetBytes = speedTestTargetBytes,
+    sortSpeedByDelay = sortSpeedByDelay,
 )
 
 private fun AppSettingsEntity.toModel() = AppSettings(
@@ -82,4 +88,10 @@ private fun AppSettingsEntity.toModel() = AppSettings(
     testUrl = testUrl,
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
     sortProfilesByDelay = sortProfilesByDelay,
+    performSpeedTest = performSpeedTest,
+    speedTestRounds = speedTestRounds,
+    speedTestProvider = speedTestProvider,
+    speedTestMode = speedTestMode,
+    speedTestTargetBytes = speedTestTargetBytes,
+    sortSpeedByDelay = sortSpeedByDelay,
 )

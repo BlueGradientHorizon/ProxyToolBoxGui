@@ -158,6 +158,34 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (testProgress.batchProgresses.isNotEmpty()) {
+            if (testProgress.speedBatchProgresses.isNotEmpty()) {
+                val groupedSpeedBatches = testProgress.speedBatchProgresses.groupBy { it.batchNum }.toList()
+                    .sortedBy { it.first }
+
+                items(groupedSpeedBatches) { (batchNum, rounds) ->
+                    BatchTable(
+                        title = "Speed Test - " + stringResource(Res.string.batch_title, batchNum),
+                        headers = listOf(
+                            stringResource(Res.string.column_round),
+                            stringResource(Res.string.column_total),
+                            stringResource(Res.string.column_running),
+                            stringResource(Res.string.column_failed),
+                            stringResource(Res.string.column_succeeded)
+                        ),
+                        headerWeights = listOf(0.7f, 1f, 1f, 1f, 1f),
+                        rows = rounds.sortedBy { it.roundNum }.map { round ->
+                            listOf(
+                                round.roundNum.toString(),
+                                round.total.toString(),
+                                round.running.toString(),
+                                round.failed.toString(),
+                                round.succeeded.toString()
+                            )
+                        }
+                    )
+                }
+            }
+
                 val groupedBatches = testProgress.batchProgresses.groupBy { it.batchNum }.toList()
                     .sortedBy { it.first }
 
@@ -359,10 +387,10 @@ private fun TestProgressBar(progress: TestProgress) {
             text = stringResource(
                 Res.string.test_progress_status,
                 remaining,
-                progress.currentBatch,
-                progress.totalBatches,
-                progress.currentRound,
-                progress.totalRounds
+                if (progress.phase == 1) progress.speedCurrentBatch else progress.currentBatch,
+                if (progress.phase == 1) progress.speedTotalBatches else progress.totalBatches,
+                if (progress.phase == 1) progress.speedCurrentRound else progress.currentRound,
+                if (progress.phase == 1) progress.speedTotalRounds else progress.totalRounds
             ),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant

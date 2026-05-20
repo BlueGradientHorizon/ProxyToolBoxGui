@@ -138,3 +138,38 @@ sealed class TestEvent {
     data class RoundEnded(val batch: Int, val round: Int) : TestEvent()
     data class Error(val message: String) : TestEvent()
 }
+    suspend fun runSpeedTests(
+        settings: AppSettings,
+        targetTags: List<String>,
+        onEvent: (TestEvent) -> Unit
+    ): List<ProxyConfig> = withContext(Dispatchers.IO) {
+        try {
+            val tagsJson = JsonConfig.json.encodeToString(targetTags)
+            val resultJson = GoBridge.runSpeedTests(
+                provider = settings.speedTestProvider,
+                mode = settings.speedTestMode,
+                targetBytes = settings.speedTestTargetBytes,
+                settings = settings,
+                targetTagsJson = tagsJson,
+                callback = object : GoSpeedTestCallback {
+                    override fun onRoundStarted(batch: Long, round: Long, total: Long) {
+                        onEvent(TestEvent.RoundStarted(batch.toInt(), round.toInt(), total.toInt()))
+                    }
+
+                    override fun onProgress(tag: String, speed: Double, failed: Boolean) {
+                        onEvent(TestEvent.SpeedProgress(tag, speed, failed))
+                    }
+
+                    override fun onRoundEnded(batch: Long, round: Long) {
+                        onEvent(TestEvent.RoundEnded(batch.toInt(), round.toInt()))
+                    }
+                }
+            )
+            // Parse result (it is ProxySpeedConfig, but we will reuse ProxyConfig)
+            val list = JsonConfig.json.decodeFromString<List<ProxyConfig>>(resultJson)
+            list
+        } catch (e: Exception) {
+            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
+            emptyList()
+        }
+    }

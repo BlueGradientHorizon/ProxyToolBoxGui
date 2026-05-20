@@ -43,6 +43,11 @@ data class TestProgress(
     val currentRound: Int = 0,
     val totalRounds: Int = 0,
     val batchProgresses: List<BatchProgress> = emptyList(),
+    val speedCurrentBatch: Int = 0,
+    val speedTotalBatches: Int = 0,
+    val speedCurrentRound: Int = 0,
+    val speedTotalRounds: Int = 0,
+    val speedBatchProgresses: List<BatchProgress> = emptyList(),
     val elapsedSeconds: Int = 0,
     val totalSeconds: Int = 0,
     val isRunning: Boolean = false,
@@ -61,7 +66,8 @@ data class SubsUpdateProgress(
 data class ProxyConfig(
     val tag: String,
     val connURI: String,
-    val delay: Long = -1
+    val delay: Long = -1,
+    val speed: Double = -1.0
 )
 
 @Serializable
@@ -81,7 +87,13 @@ data class AppSettings(
     val webServerLocalhost: Boolean = true,
     val testUrl: String = "https://www.google.com/generate_204",
     val parallelSubscriptionDownloads: Int = 5,
-    val sortProfilesByDelay: Boolean = false
+    val sortProfilesByDelay: Boolean = false,
+    val performSpeedTest: Boolean = true,
+    val speedTestRounds: Int = 1,
+    val speedTestProvider: String = "cloudflare",
+    val speedTestMode: String = "download",
+    val speedTestTargetBytes: Long = 1024L,
+    val sortSpeedByDelay: Boolean = false
 )
 
 enum class ThemeMode {
