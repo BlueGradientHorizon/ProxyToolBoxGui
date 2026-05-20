@@ -2,6 +2,7 @@ package com.bghorizon.proxytoolboxgui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bghorizon.proxytoolboxgui.data.ProxyConfig
 import com.bghorizon.proxytoolboxgui.di.AppModule
 import com.bghorizon.proxytoolboxgui.ui.screens.*
 import kotlinx.coroutines.*
@@ -77,8 +78,14 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                     port = port,
                     host = host
                 ) {
-                    module.subscriptionRepository.getWorkingConfigs()
-                        .joinToString("\n") { it.connURI }
+                    val currentSettings = module.settingsRepository.settings.value
+                    var configs = module.subscriptionRepository.getWorkingConfigs()
+                    
+                    if (currentSettings.sortProfilesByDelay) {
+                        configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
+                    }
+                    
+                    configs.joinToString("\n") { it.connURI }
                 }
 
                 _uiState.update { it.copy(webServerRunning = true) }

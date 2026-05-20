@@ -23,19 +23,22 @@ class ProxyTestManager(
 
         for (i in subs.indices) {
             val sub = subs[i]
-            val uris =
-                subscriptionRepository.getConfigsUris(sub.id).filter { it.isNotBlank() }
-            val uniqueUris = if (settings.performDedup) {
-                ConfigUtils.naiveDeduplicate(uris, seenUris)
+            val allConfigs =
+                subscriptionRepository.getConfigs(sub.id).filter { it.connURI.isNotBlank() }
+
+            val uniqueConfigs = if (settings.performDedup) {
+                ConfigUtils.naiveDeduplicateByConnUri(allConfigs, { it.connURI }, seenUris)
             } else {
-                uris
+                allConfigs
             }
+
             if (settings.performDedup) {
-                subs[i] = subs[i].copy(duplicated = uris.size - uniqueUris.size)
+                subs[i] = subs[i].copy(duplicated = allConfigs.size - uniqueConfigs.size)
             }
-            for ((uriIndex, uri) in uniqueUris.withIndex()) {
-                val tag = "sub-${sub.id}-$uriIndex"
-                configs.add(ProxyConfig(tag = tag, connURI = uri))
+
+            for (cfg in uniqueConfigs) {
+                val tag = "sub-${sub.id}-${cfg.configId}"
+                configs.add(ProxyConfig(tag = tag, connURI = cfg.connURI))
             }
         }
 

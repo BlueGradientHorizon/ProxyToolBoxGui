@@ -55,8 +55,8 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         }
     }
 
-    suspend fun getConfigsUris(subId: String): List<String> {
-        return dao.getConfigs(subId).map { it.connURI }
+    suspend fun getConfigs(subId: String): List<SubscriptionDataEntity> {
+        return dao.getConfigs(subId)
     }
 
     suspend fun setConfigsUris(subId: String, uris: List<String>) {
