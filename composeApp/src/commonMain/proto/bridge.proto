@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package com.bghorizon.proxytoolboxgui.proto;
+
+option java_package = "com.bghorizon.proxytoolboxgui.proto";
+option java_multiple_files = true;
+option go_package = "github.com/bluegradienthorizon/proxytoolboxgui/gowrapper/proto";
+
+message PBWorkerInfo {
+    string name = 1;
+    string version = 2;
+    string path = 3;
+}
+
+message PBWorkerInfoList {
+    repeated PBWorkerInfo workers = 1;
+}
+
+message PBProxyConfig {
+    string tag = 1;
+    string conn_uri = 2;
+    int64 delay = 3;
+}
+
+message PBProxyConfigList {
+    repeated PBProxyConfig configs = 1;
+}
+
+message PBStringMap {
+    map<string, string> items = 1;
+}
+
+message PBNativeResponse {
+    string error = 1;
+    oneof payload {
+        PBWorkerInfoList workers = 2;
+        PBProxyConfigList configs = 3;
+        PBStringMap string_map = 4;
+        bool success = 5;
+    }
+}

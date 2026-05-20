@@ -2,16 +2,16 @@ package com.bghorizon.proxytoolboxgui.data
 
 internal actual object GoBridgeNative {
     @JvmStatic
-    actual external fun nativeDiscoverWorkers(libraryPath: String): String
+    actual external fun nativeDiscoverWorkers(libraryPath: String): ByteArray
 
     @JvmStatic
-    actual external fun nativeInitializeRunner(workerPath: String): String
+    actual external fun nativeInitializeRunner(workerPath: String): ByteArray
 
     @JvmStatic
-    actual external fun nativeParseConfigs(connUrisJson: String): String
+    actual external fun nativeParseConfigs(configs: ByteArray): ByteArray
 
     @JvmStatic
-    actual external fun nativeValidateConfigs(): String
+    actual external fun nativeValidateConfigs(): ByteArray
 
     @JvmStatic
     actual external fun nativeRunLatencyTests(
@@ -21,7 +21,7 @@ internal actual object GoBridgeNative {
         testByBatches: Boolean,
         batchSize: Int,
         callback: JniTestCallbackWrapper,
-    ): String
+    ): ByteArray
 
     @JvmStatic
     actual external fun nativeStopTests()

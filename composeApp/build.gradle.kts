@@ -75,6 +75,9 @@ kotlin {
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.qrose)
+
+            implementation(project(":proto-library"))
+            implementation(libs.protobuf.kotlin.lite)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -123,8 +126,15 @@ val osName = System.getProperty("os.name").lowercase()
 val isWindows = osName.contains("win")
 val desktopTarget = if (isWindows) "windows_x64" else "linux_x64"
 
+val buildGoProto = tasks.register<Exec>("buildGoProto") {
+    group = "build"
+    workingDir = file("../gowrapper")
+    commandLine("make", "proto")
+}
+
 val runBuildGoWrapperDesktop = tasks.register<Exec>("runBuildGoWrapperDesktop") {
     group = "build"
+    dependsOn(buildGoProto)
     workingDir = file("../gowrapper")
     commandLine("make", desktopTarget)
 }
@@ -153,6 +163,7 @@ tasks.register<Copy>("buildWorkersDesktop") {
 
 val runBuildGoWrapperAndroid = tasks.register<Exec>("runBuildGoWrapperAndroid") {
     group = "build"
+    dependsOn(buildGoProto)
     workingDir = file("../gowrapper")
     commandLine("make", "android")
 }

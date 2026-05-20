@@ -33,7 +33,12 @@ ifeq ($(OS),Windows_NT)
     endif
 endif
 
-.PHONY: build windows_x64 linux_x64 android clean
+.PHONY: build windows_x64 linux_x64 android clean proto
+
+proto:
+	protoc --proto_path=../composeApp/src/commonMain/proto \
+		   --go_out=. --go_opt=module=github.com/bluegradienthorizon/proxytoolboxgui/gowrapper \
+		   ../composeApp/src/commonMain/proto/bridge.proto
 
 ifeq ($(OS),Windows_NT)
 build: windows_x64
@@ -41,7 +46,7 @@ else
 build: linux_x64
 endif
 
-windows_x64:
+windows_x64: proto
 	@cmd.exe /c "if not exist "$(subst /,\,$(MSYS2_DIR))" ( echo MSYS2/MinGW64 not found at $(MSYS2_DIR) && exit 1 )"
 	$(call ENV_SET,PATH,%PATH%;$(subst /,\,$(MSYS2_DIR))) \
 	$(call ENV_SET,GOOS,windows) \
@@ -51,14 +56,14 @@ windows_x64:
 	$(call ENV_SET,C_INCLUDE_PATH,$(subst \,/,$(JAVA_HOME))/include$(JNI_SEP)$(subst \,/,$(JAVA_HOME))/include/win32) \
 	go build -buildmode=c-shared -o $(OUT_DIR)/windows/x64/libwrapper$(LIB)
 
-linux_x64:
+linux_x64: proto
 	$(call ENV_SET,GOOS,linux) \
 	$(call ENV_SET,GOARCH,amd64) \
 	$(call ENV_SET,CGO_ENABLED,1) \
 	$(call ENV_SET,C_INCLUDE_PATH,$(JAVA_HOME)/include$(JNI_SEP)$(JAVA_HOME)/include/linux) \
 	go build -buildmode=c-shared -o $(OUT_DIR)/linux/x64/libwrapper.so
 
-android:
+android: proto
 	$(call build_arch,arm64,,aarch64-linux-android,arm64-v8a) \
 	$(call build_arch,arm,7,armv7a-linux-androideabi,armeabi-v7a) \
 	$(call build_arch,amd64,,x86_64-linux-android,x86_64) \

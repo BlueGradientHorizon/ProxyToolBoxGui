@@ -63,9 +63,8 @@ class ProxyTestManager(
             return@withContext emptyList()
         }
 
-        val connUrisJson = JsonConfig.json.encodeToString(configs)
         try {
-            val errors = GoBridge.parseConfigs(connUrisJson)
+            val errors = GoBridge.parseConfigs(configs)
             if (errors.isNotEmpty()) {
                 onEvent(TestEvent.ParseFailed(errors))
             }

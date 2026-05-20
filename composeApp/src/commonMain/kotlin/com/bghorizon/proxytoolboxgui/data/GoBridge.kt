@@ -1,23 +1,12 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-
-@Serializable
-private data class NativeResponse(
-    @SerialName("data") val data: String = "",
-    @SerialName("error") val error: String? = null,
-)
-
-private fun parseNativeResponse(json: String): NativeResponse {
-    return JsonConfig.json.decodeFromString(json)
-}
+import com.bghorizon.proxytoolboxgui.proto.*
 
 internal expect object GoBridgeNative {
-    fun nativeDiscoverWorkers(libraryPath: String): String
-    fun nativeInitializeRunner(workerPath: String): String
-    fun nativeParseConfigs(connUrisJson: String): String
-    fun nativeValidateConfigs(): String
+    fun nativeDiscoverWorkers(libraryPath: String): ByteArray
+    fun nativeInitializeRunner(workerPath: String): ByteArray
+    fun nativeParseConfigs(configs: ByteArray): ByteArray
+    fun nativeValidateConfigs(): ByteArray
     fun nativeRunLatencyTests(
         testUrl: String,
         latencyRounds: Int,
@@ -25,7 +14,7 @@ internal expect object GoBridgeNative {
         testByBatches: Boolean,
         batchSize: Int,
         callback: JniTestCallbackWrapper,
-    ): String
+    ): ByteArray
 
     fun nativeStopTests()
 }
@@ -35,31 +24,59 @@ object GoBridge {
         NativeLoader.init()
     }
 
+    private fun checkResponse(response: PBNativeResponse) {
+        if (response.error.isNotEmpty()) {
+            throw Exception(response.error)
+        }
+    }
+
     fun discoverWorkers(libraryPath: String): List<WorkerInfo> {
-        val responseJson = GoBridgeNative.nativeDiscoverWorkers(libraryPath)
-        val response = parseNativeResponse(responseJson)
-        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
-        return JsonConfig.json.decodeFromString(response.data)
+        val bytes = GoBridgeNative.nativeDiscoverWorkers(libraryPath)
+        val response = PBNativeResponse.parseFrom(bytes)
+        checkResponse(response)
+
+        val workersList = response.workers
+        return workersList.workersList.map { proto ->
+            WorkerInfo(
+                name = proto.name,
+                version = proto.version,
+                path = proto.path
+            )
+        }
     }
 
     fun initializeRunner(workerPath: String) {
-        val responseJson = GoBridgeNative.nativeInitializeRunner(workerPath)
-        val response = parseNativeResponse(responseJson)
-        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
+        val bytes = GoBridgeNative.nativeInitializeRunner(workerPath)
+        val response = PBNativeResponse.parseFrom(bytes)
+        checkResponse(response)
     }
 
-    fun parseConfigs(connUrisJson: String): Map<String, String> {
-        val responseJson = GoBridgeNative.nativeParseConfigs(connUrisJson)
-        val response = parseNativeResponse(responseJson)
-        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
-        return JsonConfig.json.decodeFromString(response.data)
+    fun parseConfigs(inputConfigs: List<ProxyConfig>): Map<String, String> {
+        val builder = PBProxyConfigList.newBuilder()
+        inputConfigs.forEach { cfg ->
+            builder.addConfigs(
+                PBProxyConfig.newBuilder()
+                    .setTag(cfg.tag)
+                    .setConnUri(cfg.connURI)
+                    .setDelay(cfg.delay)
+                    .build()
+            )
+        }
+        val protoInput = builder.build()
+
+        val bytes = GoBridgeNative.nativeParseConfigs(protoInput.toByteArray())
+        val response = PBNativeResponse.parseFrom(bytes)
+        checkResponse(response)
+
+        return response.stringMap.itemsMap
     }
 
     fun validateConfigs(): Map<String, String> {
-        val responseJson = GoBridgeNative.nativeValidateConfigs()
-        val response = parseNativeResponse(responseJson)
-        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
-        return JsonConfig.json.decodeFromString(response.data)
+        val bytes = GoBridgeNative.nativeValidateConfigs()
+        val response = PBNativeResponse.parseFrom(bytes)
+        checkResponse(response)
+
+        return response.stringMap.itemsMap
     }
 
     fun runLatencyTests(
@@ -69,7 +86,7 @@ object GoBridge {
     ): List<ProxyConfig> {
         val wrapper = JniTestCallbackWrapper(callback)
 
-        val responseJson = GoBridgeNative.nativeRunLatencyTests(
+        val bytes = GoBridgeNative.nativeRunLatencyTests(
             testUrl,
             settings.latencyRounds,
             settings.roundTimeout,
@@ -78,9 +95,17 @@ object GoBridge {
             wrapper,
         )
 
-        val response = parseNativeResponse(responseJson)
-        if (!response.error.isNullOrEmpty()) throw Exception(response.error)
-        return JsonConfig.json.decodeFromString(response.data)
+        val response = PBNativeResponse.parseFrom(bytes)
+        checkResponse(response)
+
+        val configsList = response.configs
+        return configsList.configsList.map { proto ->
+            ProxyConfig(
+                tag = proto.tag,
+                connURI = proto.connUri,
+                delay = proto.delay
+            )
+        }
     }
 
     fun stopTests() {

@@ -44,19 +44,31 @@ static void callOnRoundEnded(JNIEnv *env, jobject cb, jmethodID mid, jlong batch
 static void DeleteLocalRef(JNIEnv *env, jobject obj) {
     (*env)->DeleteLocalRef(env, obj);
 }
+
+static jbyteArray NewByteArray(JNIEnv *env, jsize len) {
+    return (*env)->NewByteArray(env, len);
+}
+
+static void SetByteArrayRegion(JNIEnv *env, jbyteArray array, jsize start, jsize len, const jbyte *buf) {
+    (*env)->SetByteArrayRegion(env, array, start, len, buf);
+}
+
+static jsize GetArrayLength(JNIEnv *env, jarray array) {
+    return (*env)->GetArrayLength(env, array);
+}
+
+static void GetByteArrayRegion(JNIEnv *env, jbyteArray array, jsize start, jsize len, jbyte *buf) {
+    (*env)->GetByteArrayRegion(env, array, start, len, buf);
+}
 */
 import "C"
 import (
-	"encoding/json"
-	"fmt"
 	"unicode/utf16"
 	"unsafe"
-)
 
-type NativeResponse struct {
-	Data  string `json:"data"`
-	Error string `json:"error"`
-}
+	pb "github.com/bluegradienthorizon/proxytoolboxgui/gowrapper/proto"
+	"google.golang.org/protobuf/proto"
+)
 
 func JStringToString(env *C.JNIEnv, s C.jstring) string {
 	if s == 0 {
@@ -92,19 +104,53 @@ func StringToJString(env *C.JNIEnv, s string) C.jstring {
 	return C.NewString(env, &carr[0], C.jsize(len(u16)))
 }
 
+func BytesToJByteArray(env *C.JNIEnv, b []byte) C.jbyteArray {
+	size := C.jsize(len(b))
+	arr := C.NewByteArray(env, size)
+	if size > 0 {
+		C.SetByteArrayRegion(env, arr, 0, size, (*C.jbyte)(unsafe.Pointer(&b[0])))
+	}
+	return arr
+}
+
+func JByteArrayToBytes(env *C.JNIEnv, arr C.jbyteArray) []byte {
+	if arr == 0 {
+		return nil
+	}
+	n := C.GetArrayLength(env, C.jarray(arr))
+	if n == 0 {
+		return []byte{}
+	}
+	b := make([]byte, int(n))
+	C.GetByteArrayRegion(env, arr, 0, n, (*C.jbyte)(unsafe.Pointer(&b[0])))
+	return b
+}
+
+func MarshalResponse(resp *pb.PBNativeResponse) []byte {
+	b, _ := proto.Marshal(resp)
+	return b
+}
+
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, libraryPath C.jstring) C.jstring {
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, libraryPath C.jstring) C.jbyteArray {
 	goLibraryPath := JStringToString(env, libraryPath)
 	workers, err := DiscoverWorkers(goLibraryPath)
-	var resp NativeResponse
+
+	resp := &pb.PBNativeResponse{}
 	if err != nil {
-		resp = NativeResponse{Error: err.Error()}
+		resp.Error = err.Error()
 	} else {
-		b, _ := json.Marshal(workers)
-		resp = NativeResponse{Data: string(b)}
+		workerList := &pb.PBWorkerInfoList{}
+		for _, w := range workers {
+			workerList.Workers = append(workerList.Workers, &pb.PBWorkerInfo{
+				Name:    w.Name,
+				Version: w.Version,
+				Path:    w.Path,
+			})
+		}
+		resp.Payload = &pb.PBNativeResponse_Workers{Workers: workerList}
 	}
-	b, _ := json.Marshal(resp)
-	return StringToJString(env, string(b))
+	return BytesToJByteArray(env, MarshalResponse(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeStopTests
@@ -117,61 +163,67 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeInitializeRunn
 	env *C.JNIEnv,
 	clazz C.jclass,
 	workerPath C.jstring,
-) C.jstring {
+) C.jbyteArray {
 	goWorkerPath := JStringToString(env, workerPath)
 	err := InitializeRunner(goWorkerPath)
-	var resp NativeResponse
+
+	resp := &pb.PBNativeResponse{}
 	if err != nil {
-		resp = NativeResponse{Error: err.Error()}
+		resp.Error = err.Error()
 	} else {
-		resp = NativeResponse{Data: "{}"}
+		resp.Payload = &pb.PBNativeResponse_Success{Success: true}
 	}
-	b, _ := json.Marshal(resp)
-	return StringToJString(env, string(b))
+	return BytesToJByteArray(env, MarshalResponse(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs(
 	env *C.JNIEnv,
 	clazz C.jclass,
-	connUrisJson C.jstring,
-) C.jstring {
-	goConnUrisJson := JStringToString(env, connUrisJson)
+	configsProto C.jbyteArray,
+) C.jbyteArray {
+	configsBytes := JByteArrayToBytes(env, configsProto)
+
+	var inputConfigsProto pb.PBProxyConfigList
+	if err := proto.Unmarshal(configsBytes, &inputConfigsProto); err != nil {
+		resp := &pb.PBNativeResponse{Error: err.Error()}
+		return BytesToJByteArray(env, MarshalResponse(resp))
+	}
 
 	var inputConfigs []ProxyConfig
-	if err := json.Unmarshal([]byte(goConnUrisJson), &inputConfigs); err != nil {
-		resp := NativeResponse{Error: fmt.Sprintf("Unmarshal input error: %v", err)}
-		b, _ := json.Marshal(resp)
-		return StringToJString(env, string(b))
+	for _, c := range inputConfigsProto.Configs {
+		inputConfigs = append(inputConfigs, ProxyConfig{
+			Tag:     c.Tag,
+			ConnURI: c.ConnUri,
+			Delay:   c.Delay,
+		})
 	}
 
 	parseErrors, err := ParseConfigs(inputConfigs)
-	var resp NativeResponse
+	resp := &pb.PBNativeResponse{}
 	if err != nil {
-		resp = NativeResponse{Error: err.Error()}
+		resp.Error = err.Error()
 	} else {
-		b, _ := json.Marshal(parseErrors)
-		resp = NativeResponse{Data: string(b)}
+		stringMap := &pb.PBStringMap{Items: parseErrors}
+		resp.Payload = &pb.PBNativeResponse_StringMap{StringMap: stringMap}
 	}
-	b, _ := json.Marshal(resp)
-	return StringToJString(env, string(b))
+	return BytesToJByteArray(env, MarshalResponse(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeValidateConfigs
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeValidateConfigs(
 	env *C.JNIEnv,
 	clazz C.jclass,
-) C.jstring {
+) C.jbyteArray {
 	validateErrors, err := ValidateConfigs()
-	var resp NativeResponse
+	resp := &pb.PBNativeResponse{}
 	if err != nil {
-		resp = NativeResponse{Error: err.Error()}
+		resp.Error = err.Error()
 	} else {
-		b, _ := json.Marshal(validateErrors)
-		resp = NativeResponse{Data: string(b)}
+		stringMap := &pb.PBStringMap{Items: validateErrors}
+		resp.Payload = &pb.PBNativeResponse_StringMap{StringMap: stringMap}
 	}
-	b, _ := json.Marshal(resp)
-	return StringToJString(env, string(b))
+	return BytesToJByteArray(env, MarshalResponse(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTests
@@ -184,7 +236,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 	testByBatches C.jboolean,
 	batchSize C.jint,
 	callback C.jobject,
-) C.jstring {
+) C.jbyteArray {
 	goTestUrl := JStringToString(env, testUrl)
 	goTestByBatches := testByBatches != 0
 
@@ -239,15 +291,21 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 		callbacks,
 	)
 
-	var resp NativeResponse
+	resp := &pb.PBNativeResponse{}
 	if err != nil {
-		resp = NativeResponse{Error: err.Error()}
+		resp.Error = err.Error()
 	} else {
-		b, _ := json.Marshal(workingConfigs)
-		resp = NativeResponse{Data: string(b)}
+		configsList := &pb.PBProxyConfigList{}
+		for _, c := range workingConfigs {
+			configsList.Configs = append(configsList.Configs, &pb.PBProxyConfig{
+				Tag:     c.Tag,
+				ConnUri: c.ConnURI,
+				Delay:   c.Delay,
+			})
+		}
+		resp.Payload = &pb.PBNativeResponse_Configs{Configs: configsList}
 	}
-	b, _ := json.Marshal(resp)
-	return StringToJString(env, string(b))
+	return BytesToJByteArray(env, MarshalResponse(resp))
 }
 
 func main() {}
