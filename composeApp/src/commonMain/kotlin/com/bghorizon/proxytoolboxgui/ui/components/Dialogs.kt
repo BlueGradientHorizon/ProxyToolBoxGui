@@ -11,9 +11,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.rounded.Close
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
 import proxytoolboxgui.composeapp.generated.resources.dialog_btn_cancel
+import proxytoolboxgui.composeapp.generated.resources.dialog_btn_close
 import proxytoolboxgui.composeapp.generated.resources.dialog_btn_save
 
 @Composable
@@ -148,6 +153,44 @@ fun TextInputDialog(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FullScreenDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable BoxScope.() -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                TopAppBar(
+                    title = { Text(title) },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = MaterialSymbols.Rounded.Close,
+                                contentDescription = stringResource(Res.string.dialog_btn_close)
+                            )
+                        }
+                    }
+                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    content()
+                }
+            }
+        }
     }
 }
 

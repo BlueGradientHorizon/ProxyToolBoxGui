@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.alexzhirkevich.qrose.options.QrBrush
@@ -13,7 +12,6 @@ import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.Res
-import proxytoolboxgui.composeapp.generated.resources.dialog_btn_close
 import proxytoolboxgui.composeapp.generated.resources.title_qr_code
 import kotlin.math.max
 import kotlin.math.sqrt
@@ -48,17 +46,11 @@ fun QrCodeDialog(
     content: String,
     onDismiss: () -> Unit
 ) {
-    SimpleAlertDialog(
+    FullScreenDialog(
         title = stringResource(Res.string.title_qr_code),
-        onDismiss = onDismiss,
-        confirmText = stringResource(Res.string.dialog_btn_close)
+        onDismiss = onDismiss
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            QrCodeDisplay(content = content)
-        }
+        QrCodeDisplay(content = content)
     }
 }
 
