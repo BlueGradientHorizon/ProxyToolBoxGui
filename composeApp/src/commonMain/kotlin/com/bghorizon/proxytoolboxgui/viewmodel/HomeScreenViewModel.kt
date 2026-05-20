@@ -269,6 +269,26 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 }
             }
 
+            is TestEvent.SpeedProgress -> {
+                _uiState.update { state ->
+                    val current = state.testProgress
+                    val updatedProgresses = current.speedBatchProgresses.toMutableList()
+                    val batchIndex = updatedProgresses.indexOfFirst {
+                        it.batchNum == current.speedCurrentBatch && it.roundNum == current.speedCurrentRound
+                    }
+
+                    if (batchIndex >= 0) {
+                        val bp = updatedProgresses[batchIndex]
+                        updatedProgresses[batchIndex] = bp.copy(
+                            running = bp.running - 1,
+                            failed = if (event.failed) bp.failed + 1 else bp.failed,
+                            succeeded = if (!event.failed) bp.succeeded + 1 else bp.succeeded
+                        )
+                    }
+
+                    state.copy(testProgress = current.copy(speedBatchProgresses = updatedProgresses))
+                }
+            }
             is TestEvent.RoundEnded -> {
                 timerJob?.cancel()
                 _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }

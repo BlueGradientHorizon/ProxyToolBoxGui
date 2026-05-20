@@ -25,6 +25,10 @@ sealed interface SettingsDialog : UiDialog {
     data object Port : SettingsDialog
     data object TestUrl : SettingsDialog
     data object ParallelDownloads : SettingsDialog
+    data object SpeedTestRounds : SettingsDialog
+    data object SpeedTestProvider : SettingsDialog
+    data object SpeedTestMode : SettingsDialog
+    data object SpeedTestTargetBytes : SettingsDialog
 }
 
 sealed interface SettingsScreenUiMode : ScreenUiMode {
@@ -413,7 +417,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 onSelect = { settingsVm.updateSettings(settings.copy(speedTestProvider = it)) },
                 emptyText = "No providers available",
                 itemLabel = { it },
-                itemSecondaryLabel = { null }
+                itemSecondaryLabel = null
             )
         }
 
@@ -427,7 +431,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 onSelect = { settingsVm.updateSettings(settings.copy(speedTestMode = it)) },
                 emptyText = "No modes available",
                 itemLabel = { it },
-                itemSecondaryLabel = { null }
+                itemSecondaryLabel = null
             )
         }
 

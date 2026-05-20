@@ -112,20 +112,6 @@ interface SubscriptionDao {
         ORDER BY s.rowid ASC
     """)
     fun getSubscriptionsWithStatsFlow(): kotlinx.coroutines.flow.Flow<List<SubscriptionWithStats>>
-}
-
-data class SubscriptionWithStats(
-    val id: String,
-    val note: String,
-    val url: String,
-    val updatedAt: Long,
-    val duplicated: Int,
-    val total: Int,
-    val working: Int,
-    val parseErr: Int,
-    val validErr: Int
-)
-
     @Query("UPDATE subscriptions_data SET workingSpeed = :workingSpeed, speed = :speed WHERE subId = :subId AND configId = :configId")
     suspend fun updateConfigSpeedTestResult(
         subId: String,
@@ -141,6 +127,21 @@ data class SubscriptionWithStats(
 
     @Query("UPDATE subscriptions_data SET workingSpeed = 0, speed = -1.0")
     suspend fun resetWorkingSpeedData()
+}
+
+data class SubscriptionWithStats(
+    val id: String,
+    val note: String,
+    val url: String,
+    val updatedAt: Long,
+    val duplicated: Int,
+    val total: Int,
+    val working: Int,
+    val parseErr: Int,
+    val validErr: Int
+)
+
+
 
 data class ConfigTestResultUpdate(
     val subId: String,

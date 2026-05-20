@@ -14,7 +14,6 @@ internal actual object GoBridgeNative {
     actual external fun nativeValidateConfigs(): String
 
     @JvmStatic
-    @JvmStatic
     actual external fun nativeRunSpeedTests(
         provider: String,
         mode: String,

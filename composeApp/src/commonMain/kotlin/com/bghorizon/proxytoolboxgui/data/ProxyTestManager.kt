@@ -120,24 +120,7 @@ class ProxyTestManager(
         val configId = parts.last().toIntOrNull() ?: return null
         return subId to configId
     }
-}
 
-data class TestSetup(
-    val configs: List<ProxyConfig>,
-    val updatedSubscriptions: List<Subscription>,
-    val totalBatches: Int,
-    val totalRounds: Int,
-    val totalSeconds: Int
-)
-
-sealed class TestEvent {
-    data class ParseFailed(val errors: Map<String, String>) : TestEvent()
-    data class ValidateFailed(val errors: Map<String, String>) : TestEvent()
-    data class RoundStarted(val batch: Int, val round: Int, val total: Int) : TestEvent()
-    data class Progress(val tag: String, val delay: Long, val failed: Boolean) : TestEvent()
-    data class RoundEnded(val batch: Int, val round: Int) : TestEvent()
-    data class Error(val message: String) : TestEvent()
-}
     suspend fun runSpeedTests(
         settings: AppSettings,
         targetTags: List<String>,
@@ -173,3 +156,23 @@ sealed class TestEvent {
             emptyList()
         }
     }
+
+}
+
+data class TestSetup(
+    val configs: List<ProxyConfig>,
+    val updatedSubscriptions: List<Subscription>,
+    val totalBatches: Int,
+    val totalRounds: Int,
+    val totalSeconds: Int
+)
+
+sealed class TestEvent {
+    data class ParseFailed(val errors: Map<String, String>) : TestEvent()
+    data class ValidateFailed(val errors: Map<String, String>) : TestEvent()
+    data class RoundStarted(val batch: Int, val round: Int, val total: Int) : TestEvent()
+    data class Progress(val tag: String, val delay: Long, val failed: Boolean) : TestEvent()
+    data class RoundEnded(val batch: Int, val round: Int) : TestEvent()
+    data class Error(val message: String) : TestEvent()
+    data class SpeedProgress(val tag: String, val speed: Double, val failed: Boolean) : TestEvent()
+}

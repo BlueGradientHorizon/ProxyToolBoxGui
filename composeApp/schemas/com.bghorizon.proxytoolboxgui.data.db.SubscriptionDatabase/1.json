@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "2cf7f1e5e2363a29872f6288d73101cf",
+    "identityHash": "3cabe2f728884eb24f39785723cfdd28",
     "entities": [
       {
         "tableName": "subscriptions",
@@ -48,7 +48,7 @@
       },
       {
         "tableName": "subscriptions_data",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`subId` TEXT NOT NULL, `configId` INTEGER NOT NULL, `connURI` TEXT NOT NULL, `parseErr` INTEGER NOT NULL, `validErr` INTEGER NOT NULL, `fixedConnURI` TEXT, `working` INTEGER NOT NULL, `delay` INTEGER NOT NULL, PRIMARY KEY(`subId`, `configId`), FOREIGN KEY(`subId`) REFERENCES `subscriptions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`subId` TEXT NOT NULL, `configId` INTEGER NOT NULL, `connURI` TEXT NOT NULL, `parseErr` INTEGER NOT NULL, `validErr` INTEGER NOT NULL, `fixedConnURI` TEXT, `working` INTEGER NOT NULL, `delay` INTEGER NOT NULL, `workingSpeed` INTEGER NOT NULL, `speed` REAL NOT NULL, PRIMARY KEY(`subId`, `configId`), FOREIGN KEY(`subId`) REFERENCES `subscriptions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "subId",
@@ -96,6 +96,18 @@
             "columnName": "delay",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "workingSpeed",
+            "columnName": "workingSpeed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speed",
+            "columnName": "speed",
+            "affinity": "REAL",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -122,7 +134,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2cf7f1e5e2363a29872f6288d73101cf')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3cabe2f728884eb24f39785723cfdd28')"
     ]
   }
 }
