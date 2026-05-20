@@ -89,9 +89,30 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     )
                 }
 
+                module.testManager.initializeRunner(currentSettings.selectedWorker)
+
+                module.appStatusManager.updateStatus(AppStatus.PARSING)
+                val parseErrors = module.testManager.parseConfigs(setup.configs)
+                if (parseErrors.isNotEmpty()) {
+                    module.subscriptionRepository.resetParseErrorData()
+                    val batch = parseErrors.keys.mapNotNull { tag ->
+                        module.testManager.extractIds(tag)
+                    }
+                    module.subscriptionRepository.markConfigsParseErrBatch(batch)
+                }
+
+                module.appStatusManager.updateStatus(AppStatus.VALIDATING)
+                val validErrors = module.testManager.validateConfigs()
+                if (validErrors.isNotEmpty()) {
+                    module.subscriptionRepository.resetValidErrorData()
+                    val batch = validErrors.keys.mapNotNull { tag ->
+                        module.testManager.extractIds(tag)
+                    }
+                    module.subscriptionRepository.markConfigsValidErrBatch(batch)
+                }
+
                 val resultConfigs = module.testManager.runLatencyTests(
-                    settings = currentSettings,
-                    configs = setup.configs
+                    settings = currentSettings
                 ) { event ->
                     if (job?.isActive != true) return@runLatencyTests
                     handleTestEvent(event, currentSettings)
@@ -122,7 +143,11 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 if (e is CancellationException) {
                     module.appStatusManager.updateStatus(AppStatus.STOPPED)
                 } else {
-                    module.appStatusManager.updateStatus(AppStatus.ERROR)
+                    val msg = getString(Res.string.msg_test_error, e.message ?: "Unknown error")
+                    withContext(Dispatchers.Main) {
+                        module.platform.showToast(msg)
+                    }
+                    module.appStatusManager.updateStatus(AppStatus.ERROR, e.message)
                     e.printStackTrace()
                 }
             } finally {
@@ -142,31 +167,9 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         }
     }
 
-    private fun handleTestEvent(event: TestEvent, settings: AppSettings) {
+    private fun handleTestEvent(event: LatencyTestEvent, settings: AppSettings) {
         when (event) {
-            is TestEvent.ParseFailed -> {
-                module.appStatusManager.updateStatus(AppStatus.PARSING)
-                viewModelScope.launch(Dispatchers.IO) {
-                    module.subscriptionRepository.resetParseErrorData()
-                    val batch = event.errors.keys.mapNotNull { tag ->
-                        module.testManager.extractIds(tag)
-                    }
-                    module.subscriptionRepository.markConfigsParseErrBatch(batch)
-                }
-            }
-
-            is TestEvent.ValidateFailed -> {
-                module.appStatusManager.updateStatus(AppStatus.VALIDATING)
-                viewModelScope.launch(Dispatchers.IO) {
-                    module.subscriptionRepository.resetValidErrorData()
-                    val batch = event.errors.keys.mapNotNull { tag ->
-                        module.testManager.extractIds(tag)
-                    }
-                    module.subscriptionRepository.markConfigsValidErrBatch(batch)
-                }
-            }
-
-            is TestEvent.RoundStarted -> {
+            is LatencyTestEvent.RoundStarted -> {
                 val currentRoundAbsolute = (event.batch - 1) * settings.latencyRounds + event.round
                 module.appStatusManager.updateStatus(AppStatus.TESTING)
                 _uiState.update { state ->
@@ -202,7 +205,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 }
             }
 
-            is TestEvent.Progress -> {
+            is LatencyTestEvent.Progress -> {
                 _uiState.update { state ->
                     val current = state.testProgress
                     val updatedProgresses = current.batchProgresses.toMutableList()
@@ -223,17 +226,9 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 }
             }
 
-            is TestEvent.RoundEnded -> {
+            is LatencyTestEvent.RoundEnded -> {
                 timerJob?.cancel()
                 _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }
-            }
-
-            is TestEvent.Error -> {
-                viewModelScope.launch {
-                    val msg = getString(Res.string.msg_test_error, event.message)
-                    module.platform.showToast(msg)
-                }
-                stopTest(AppStatus.ERROR, event.message)
             }
         }
     }

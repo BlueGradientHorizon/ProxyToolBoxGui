@@ -51,60 +51,46 @@ class ProxyTestManager(
         TestSetup(configs, subs, totalBatches, totalRounds, totalSeconds)
     }
 
+    suspend fun initializeRunner(workerPath: String) = withContext(Dispatchers.IO) {
+        GoBridge.initializeRunner(workerPath)
+    }
+
+    suspend fun parseConfigs(configs: List<ProxyConfig>): Map<String, String> =
+        withContext(Dispatchers.IO) {
+            GoBridge.parseConfigs(configs)
+        }
+
+    suspend fun validateConfigs(): Map<String, String> = withContext(Dispatchers.IO) {
+        GoBridge.validateConfigs()
+    }
+
     suspend fun runLatencyTests(
         settings: AppSettings,
-        configs: List<ProxyConfig>,
-        onEvent: (TestEvent) -> Unit
+        onEvent: (LatencyTestEvent) -> Unit
     ): List<ProxyConfig> = withContext(Dispatchers.IO) {
-        try {
-            GoBridge.initializeRunner(settings.selectedWorker)
-        } catch (e: Exception) {
-            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
-            return@withContext emptyList()
-        }
-
-        try {
-            val errors = GoBridge.parseConfigs(configs)
-            if (errors.isNotEmpty()) {
-                onEvent(TestEvent.ParseFailed(errors))
-            }
-        } catch (e: Exception) {
-            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
-            return@withContext emptyList()
-        }
-
-        try {
-            val errors = GoBridge.validateConfigs()
-            if (errors.isNotEmpty()) {
-                onEvent(TestEvent.ValidateFailed(errors))
-            }
-        } catch (e: Exception) {
-            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
-            return@withContext emptyList()
-        }
-
-        try {
-            GoBridge.runLatencyTests(
-                testUrl = settings.testUrl,
-                settings = settings,
-                callback = object : GoTestCallback {
-                    override fun onRoundStarted(batch: Long, round: Long, total: Long) {
-                        onEvent(TestEvent.RoundStarted(batch.toInt(), round.toInt(), total.toInt()))
-                    }
-
-                    override fun onProgress(tag: String, delay: Long, failed: Boolean) {
-                        onEvent(TestEvent.Progress(tag, delay, failed))
-                    }
-
-                    override fun onRoundEnded(batch: Long, round: Long) {
-                        onEvent(TestEvent.RoundEnded(batch.toInt(), round.toInt()))
-                    }
+        GoBridge.runLatencyTests(
+            testUrl = settings.testUrl,
+            settings = settings,
+            callback = object : GoTestCallback {
+                override fun onRoundStarted(batch: Long, round: Long, total: Long) {
+                    onEvent(
+                        LatencyTestEvent.RoundStarted(
+                            batch.toInt(),
+                            round.toInt(),
+                            total.toInt()
+                        )
+                    )
                 }
-            )
-        } catch (e: Exception) {
-            onEvent(TestEvent.Error(e.message ?: "Unknown error"))
-            emptyList()
-        }
+
+                override fun onProgress(tag: String, delay: Long, failed: Boolean) {
+                    onEvent(LatencyTestEvent.Progress(tag, delay, failed))
+                }
+
+                override fun onRoundEnded(batch: Long, round: Long) {
+                    onEvent(LatencyTestEvent.RoundEnded(batch.toInt(), round.toInt()))
+                }
+            }
+        )
     }
 
     fun stopTests() {
@@ -121,6 +107,12 @@ class ProxyTestManager(
     }
 }
 
+sealed class LatencyTestEvent {
+    data class RoundStarted(val batch: Int, val round: Int, val total: Int) : LatencyTestEvent()
+    data class Progress(val tag: String, val delay: Long, val failed: Boolean) : LatencyTestEvent()
+    data class RoundEnded(val batch: Int, val round: Int) : LatencyTestEvent()
+}
+
 data class TestSetup(
     val configs: List<ProxyConfig>,
     val updatedSubscriptions: List<Subscription>,
@@ -128,12 +120,3 @@ data class TestSetup(
     val totalRounds: Int,
     val totalSeconds: Int
 )
-
-sealed class TestEvent {
-    data class ParseFailed(val errors: Map<String, String>) : TestEvent()
-    data class ValidateFailed(val errors: Map<String, String>) : TestEvent()
-    data class RoundStarted(val batch: Int, val round: Int, val total: Int) : TestEvent()
-    data class Progress(val tag: String, val delay: Long, val failed: Boolean) : TestEvent()
-    data class RoundEnded(val batch: Int, val round: Int) : TestEvent()
-    data class Error(val message: String) : TestEvent()
-}
