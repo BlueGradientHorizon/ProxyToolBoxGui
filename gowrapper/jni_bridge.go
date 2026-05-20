@@ -70,6 +70,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+/*
 func JStringToString(env *C.JNIEnv, s C.jstring) string {
 	if s == 0 {
 		return ""
@@ -84,11 +85,12 @@ func JStringToString(env *C.JNIEnv, s C.jstring) string {
 	ptr := unsafe.Pointer(chars)
 	size := unsafe.Sizeof(C.jchar(0))
 	for i := 0; i < int(n); i++ {
-		u16s[i] = *(*uint16)(unsafe.Pointer(uintptr(ptr) + uintptr(i)*size))
+		u16s[i] = *(*uint16)(unsafe.Add(ptr, uintptr(i)*size))
 	}
 	runes := utf16.Decode(u16s)
 	return string(runes)
 }
+*/
 
 func StringToJString(env *C.JNIEnv, s string) C.jstring {
 	r := []rune(s)
@@ -126,19 +128,26 @@ func JByteArrayToBytes(env *C.JNIEnv, arr C.jbyteArray) []byte {
 	return b
 }
 
-func MarshalResponse(resp *pb.PBNativeResponse) []byte {
-	b, _ := proto.Marshal(resp)
+func MarshalProto(m proto.Message) []byte {
+	b, _ := proto.Marshal(m)
 	return b
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers
-func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, libraryPath C.jstring) C.jbyteArray {
-	goLibraryPath := JStringToString(env, libraryPath)
-	workers, err := DiscoverWorkers(goLibraryPath)
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorkers(env *C.JNIEnv, clazz C.jclass, requestProto C.jbyteArray) C.jbyteArray {
+	requestBytes := JByteArrayToBytes(env, requestProto)
 
-	resp := &pb.PBNativeResponse{}
+	var req pb.PBDiscoverWorkersRequest
+	if err := proto.Unmarshal(requestBytes, &req); err != nil {
+		resp := &pb.PBDiscoverWorkersResponse{Error: new(err.Error())}
+		return BytesToJByteArray(env, MarshalProto(resp))
+	}
+
+	workers, err := DiscoverWorkers(req.LibraryPath)
+
+	resp := &pb.PBDiscoverWorkersResponse{}
 	if err != nil {
-		resp.Error = err.Error()
+		resp.Error = new(err.Error())
 	} else {
 		workerList := &pb.PBWorkerInfoList{}
 		for _, w := range workers {
@@ -148,9 +157,9 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorker
 				Path:    w.Path,
 			})
 		}
-		resp.Payload = &pb.PBNativeResponse_Workers{Workers: workerList}
+		resp.Workers = workerList
 	}
-	return BytesToJByteArray(env, MarshalResponse(resp))
+	return BytesToJByteArray(env, MarshalProto(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeStopTests
@@ -162,18 +171,26 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeStopTests(env 
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeInitializeRunner(
 	env *C.JNIEnv,
 	clazz C.jclass,
-	workerPath C.jstring,
+	requestProto C.jbyteArray,
 ) C.jbyteArray {
-	goWorkerPath := JStringToString(env, workerPath)
-	err := InitializeRunner(goWorkerPath)
+	requestBytes := JByteArrayToBytes(env, requestProto)
 
-	resp := &pb.PBNativeResponse{}
-	if err != nil {
-		resp.Error = err.Error()
-	} else {
-		resp.Payload = &pb.PBNativeResponse_Success{Success: true}
+	var req pb.PBInitializeRunnerRequest
+	if err := proto.Unmarshal(requestBytes, &req); err != nil {
+		resp := &pb.PBInitializeRunnerResponse{Error: new(err.Error())}
+		return BytesToJByteArray(env, MarshalProto(resp))
 	}
-	return BytesToJByteArray(env, MarshalResponse(resp))
+
+	err := InitializeRunner(req.WorkerPath)
+
+	resp := &pb.PBInitializeRunnerResponse{}
+	if err != nil {
+		errStr := err.Error()
+		resp.Error = &errStr
+	} else {
+		resp.Success = true
+	}
+	return BytesToJByteArray(env, MarshalProto(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs
@@ -186,8 +203,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs(
 
 	var inputConfigsProto pb.PBProxyConfigList
 	if err := proto.Unmarshal(configsBytes, &inputConfigsProto); err != nil {
-		resp := &pb.PBNativeResponse{Error: err.Error()}
-		return BytesToJByteArray(env, MarshalResponse(resp))
+		resp := &pb.PBParseConfigsResponse{Error: new(err.Error())}
+		return BytesToJByteArray(env, MarshalProto(resp))
 	}
 
 	var inputConfigs []ProxyConfig
@@ -200,14 +217,14 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs(
 	}
 
 	parseErrors, err := ParseConfigs(inputConfigs)
-	resp := &pb.PBNativeResponse{}
+	resp := &pb.PBParseConfigsResponse{}
 	if err != nil {
-		resp.Error = err.Error()
+		errStr := err.Error()
+		resp.Error = &errStr
 	} else {
-		stringMap := &pb.PBStringMap{Items: parseErrors}
-		resp.Payload = &pb.PBNativeResponse_StringMap{StringMap: stringMap}
+		resp.ParseErrors = &pb.PBStringMap{Items: parseErrors}
 	}
-	return BytesToJByteArray(env, MarshalResponse(resp))
+	return BytesToJByteArray(env, MarshalProto(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeValidateConfigs
@@ -216,29 +233,30 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeValidateConfig
 	clazz C.jclass,
 ) C.jbyteArray {
 	validateErrors, err := ValidateConfigs()
-	resp := &pb.PBNativeResponse{}
+	resp := &pb.PBValidateConfigsResponse{}
 	if err != nil {
-		resp.Error = err.Error()
+		errStr := err.Error()
+		resp.Error = &errStr
 	} else {
-		stringMap := &pb.PBStringMap{Items: validateErrors}
-		resp.Payload = &pb.PBNativeResponse_StringMap{StringMap: stringMap}
+		resp.ValidateErrors = &pb.PBStringMap{Items: validateErrors}
 	}
-	return BytesToJByteArray(env, MarshalResponse(resp))
+	return BytesToJByteArray(env, MarshalProto(resp))
 }
 
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTests
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTests(
 	env *C.JNIEnv,
 	clazz C.jclass,
-	testUrl C.jstring,
-	latencyRounds C.jint,
-	roundTimeout C.jint,
-	testByBatches C.jboolean,
-	batchSize C.jint,
+	requestProto C.jbyteArray,
 	callback C.jobject,
 ) C.jbyteArray {
-	goTestUrl := JStringToString(env, testUrl)
-	goTestByBatches := testByBatches != 0
+	requestBytes := JByteArrayToBytes(env, requestProto)
+
+	var req pb.PBRunLatencyTestsRequest
+	if err := proto.Unmarshal(requestBytes, &req); err != nil {
+		resp := &pb.PBRunLatencyTestsResponse{Error: new(err.Error())}
+		return BytesToJByteArray(env, MarshalProto(resp))
+	}
 
 	cbClass := C.GetObjectClass(env, callback)
 	defer C.DeleteLocalRef(env, C.jobject(cbClass))
@@ -283,17 +301,18 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 	}
 
 	workingConfigs, err := RunLatencyTests(
-		goTestUrl,
-		int(latencyRounds),
-		int(roundTimeout),
-		goTestByBatches,
-		int(batchSize),
+		req.TestUrl,
+		int(req.LatencyRounds),
+		int(req.RoundTimeout),
+		req.TestByBatches,
+		int(req.BatchSize),
 		callbacks,
 	)
 
-	resp := &pb.PBNativeResponse{}
+	resp := &pb.PBRunLatencyTestsResponse{}
 	if err != nil {
-		resp.Error = err.Error()
+		errStr := err.Error()
+		resp.Error = &errStr
 	} else {
 		configsList := &pb.PBProxyConfigList{}
 		for _, c := range workingConfigs {
@@ -303,9 +322,9 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 				Delay:   c.Delay,
 			})
 		}
-		resp.Payload = &pb.PBNativeResponse_Configs{Configs: configsList}
+		resp.Configs = configsList
 	}
-	return BytesToJByteArray(env, MarshalResponse(resp))
+	return BytesToJByteArray(env, MarshalProto(resp))
 }
 
 func main() {}

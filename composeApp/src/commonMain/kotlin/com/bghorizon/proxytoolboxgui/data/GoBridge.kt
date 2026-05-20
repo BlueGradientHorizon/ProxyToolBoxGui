@@ -3,18 +3,11 @@ package com.bghorizon.proxytoolboxgui.data
 import com.bghorizon.proxytoolboxgui.proto.*
 
 internal expect object GoBridgeNative {
-    fun nativeDiscoverWorkers(libraryPath: String): ByteArray
-    fun nativeInitializeRunner(workerPath: String): ByteArray
-    fun nativeParseConfigs(configs: ByteArray): ByteArray
+    fun nativeDiscoverWorkers(b: ByteArray): ByteArray
+    fun nativeInitializeRunner(b: ByteArray): ByteArray
+    fun nativeParseConfigs(b: ByteArray): ByteArray
     fun nativeValidateConfigs(): ByteArray
-    fun nativeRunLatencyTests(
-        testUrl: String,
-        latencyRounds: Int,
-        roundTimeout: Int,
-        testByBatches: Boolean,
-        batchSize: Int,
-        callback: JniTestCallbackWrapper,
-    ): ByteArray
+    fun nativeRunLatencyTests(b: ByteArray, c: JniTestCallbackWrapper): ByteArray
 
     fun nativeStopTests()
 }
@@ -24,19 +17,15 @@ object GoBridge {
         NativeLoader.init()
     }
 
-    private fun checkResponse(response: PBNativeResponse) {
-        if (response.error.isNotEmpty()) {
-            throw Exception(response.error)
-        }
-    }
-
     fun discoverWorkers(libraryPath: String): List<WorkerInfo> {
-        val bytes = GoBridgeNative.nativeDiscoverWorkers(libraryPath)
-        val response = PBNativeResponse.parseFrom(bytes)
-        checkResponse(response)
+        val request = PBDiscoverWorkersRequest.newBuilder()
+            .setLibraryPath(libraryPath)
+            .build()
+        val b = GoBridgeNative.nativeDiscoverWorkers(request.toByteArray())
+        val r = PBDiscoverWorkersResponse.parseFrom(b)
+        if (r.hasError()) throw kotlin.Exception(r.error)
 
-        val workersList = response.workers
-        return workersList.workersList.map { proto ->
+        return r.workers.workersList.map { proto ->
             WorkerInfo(
                 name = proto.name,
                 version = proto.version,
@@ -46,9 +35,12 @@ object GoBridge {
     }
 
     fun initializeRunner(workerPath: String) {
-        val bytes = GoBridgeNative.nativeInitializeRunner(workerPath)
-        val response = PBNativeResponse.parseFrom(bytes)
-        checkResponse(response)
+        val request = PBInitializeRunnerRequest.newBuilder()
+            .setWorkerPath(workerPath)
+            .build()
+        val b = GoBridgeNative.nativeInitializeRunner(request.toByteArray())
+        val r = PBInitializeRunnerResponse.parseFrom(b)
+        if (r.hasError()) throw kotlin.Exception(r.error)
     }
 
     fun parseConfigs(inputConfigs: List<ProxyConfig>): Map<String, String> {
@@ -59,24 +51,24 @@ object GoBridge {
                     .setTag(cfg.tag)
                     .setConnUri(cfg.connURI)
                     .setDelay(cfg.delay)
-                    .build()
+                    .build(),
             )
         }
         val protoInput = builder.build()
 
-        val bytes = GoBridgeNative.nativeParseConfigs(protoInput.toByteArray())
-        val response = PBNativeResponse.parseFrom(bytes)
-        checkResponse(response)
+        val b = GoBridgeNative.nativeParseConfigs(protoInput.toByteArray())
+        val r = PBParseConfigsResponse.parseFrom(b)
+        if (r.hasError()) throw kotlin.Exception(r.error)
 
-        return response.stringMap.itemsMap
+        return r.parseErrors.itemsMap
     }
 
     fun validateConfigs(): Map<String, String> {
-        val bytes = GoBridgeNative.nativeValidateConfigs()
-        val response = PBNativeResponse.parseFrom(bytes)
-        checkResponse(response)
+        val b = GoBridgeNative.nativeValidateConfigs()
+        val r = PBValidateConfigsResponse.parseFrom(b)
+        if (r.hasError()) throw kotlin.Exception(r.error)
 
-        return response.stringMap.itemsMap
+        return r.validateErrors.itemsMap
     }
 
     fun runLatencyTests(
@@ -86,20 +78,23 @@ object GoBridge {
     ): List<ProxyConfig> {
         val wrapper = JniTestCallbackWrapper(callback)
 
-        val bytes = GoBridgeNative.nativeRunLatencyTests(
-            testUrl,
-            settings.latencyRounds,
-            settings.roundTimeout,
-            settings.testByBatches,
-            settings.batchSize,
+        val request = PBRunLatencyTestsRequest.newBuilder()
+            .setTestUrl(testUrl)
+            .setLatencyRounds(settings.latencyRounds)
+            .setRoundTimeout(settings.roundTimeout)
+            .setTestByBatches(settings.testByBatches)
+            .setBatchSize(settings.batchSize)
+            .build()
+
+        val b = GoBridgeNative.nativeRunLatencyTests(
+            request.toByteArray(),
             wrapper,
         )
 
-        val response = PBNativeResponse.parseFrom(bytes)
-        checkResponse(response)
+        val r = PBRunLatencyTestsResponse.parseFrom(b)
+        if (r.hasError()) throw kotlin.Exception(r.error)
 
-        val configsList = response.configs
-        return configsList.configsList.map { proto ->
+        return r.configs.configsList.map { proto ->
             ProxyConfig(
                 tag = proto.tag,
                 connURI = proto.connUri,

@@ -273,34 +273,27 @@ func (x *PBStringMap) GetItems() map[string]string {
 	return nil
 }
 
-type PBNativeResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Error string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
-	// Types that are valid to be assigned to Payload:
-	//
-	//	*PBNativeResponse_Workers
-	//	*PBNativeResponse_Configs
-	//	*PBNativeResponse_StringMap
-	//	*PBNativeResponse_Success
-	Payload       isPBNativeResponse_Payload `protobuf_oneof:"payload"`
+type PBDiscoverWorkersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LibraryPath   string                 `protobuf:"bytes,1,opt,name=library_path,json=libraryPath,proto3" json:"library_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PBNativeResponse) Reset() {
-	*x = PBNativeResponse{}
+func (x *PBDiscoverWorkersRequest) Reset() {
+	*x = PBDiscoverWorkersRequest{}
 	mi := &file_bridge_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PBNativeResponse) String() string {
+func (x *PBDiscoverWorkersRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PBNativeResponse) ProtoMessage() {}
+func (*PBDiscoverWorkersRequest) ProtoMessage() {}
 
-func (x *PBNativeResponse) ProtoReflect() protoreflect.Message {
+func (x *PBDiscoverWorkersRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_bridge_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -312,88 +305,397 @@ func (x *PBNativeResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PBNativeResponse.ProtoReflect.Descriptor instead.
-func (*PBNativeResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use PBDiscoverWorkersRequest.ProtoReflect.Descriptor instead.
+func (*PBDiscoverWorkersRequest) Descriptor() ([]byte, []int) {
 	return file_bridge_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *PBNativeResponse) GetError() string {
+func (x *PBDiscoverWorkersRequest) GetLibraryPath() string {
 	if x != nil {
-		return x.Error
+		return x.LibraryPath
 	}
 	return ""
 }
 
-func (x *PBNativeResponse) GetPayload() isPBNativeResponse_Payload {
+type PBDiscoverWorkersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Workers       *PBWorkerInfoList      `protobuf:"bytes,1,opt,name=workers,proto3" json:"workers,omitempty"`
+	Error         *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBDiscoverWorkersResponse) Reset() {
+	*x = PBDiscoverWorkersResponse{}
+	mi := &file_bridge_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBDiscoverWorkersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBDiscoverWorkersResponse) ProtoMessage() {}
+
+func (x *PBDiscoverWorkersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[6]
 	if x != nil {
-		return x.Payload
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBDiscoverWorkersResponse.ProtoReflect.Descriptor instead.
+func (*PBDiscoverWorkersResponse) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PBDiscoverWorkersResponse) GetWorkers() *PBWorkerInfoList {
+	if x != nil {
+		return x.Workers
 	}
 	return nil
 }
 
-func (x *PBNativeResponse) GetWorkers() *PBWorkerInfoList {
-	if x != nil {
-		if x, ok := x.Payload.(*PBNativeResponse_Workers); ok {
-			return x.Workers
-		}
+func (x *PBDiscoverWorkersResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
 	}
-	return nil
+	return ""
 }
 
-func (x *PBNativeResponse) GetConfigs() *PBProxyConfigList {
-	if x != nil {
-		if x, ok := x.Payload.(*PBNativeResponse_Configs); ok {
-			return x.Configs
-		}
-	}
-	return nil
+type PBInitializeRunnerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkerPath    string                 `protobuf:"bytes,1,opt,name=worker_path,json=workerPath,proto3" json:"worker_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PBNativeResponse) GetStringMap() *PBStringMap {
-	if x != nil {
-		if x, ok := x.Payload.(*PBNativeResponse_StringMap); ok {
-			return x.StringMap
-		}
-	}
-	return nil
+func (x *PBInitializeRunnerRequest) Reset() {
+	*x = PBInitializeRunnerRequest{}
+	mi := &file_bridge_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
-func (x *PBNativeResponse) GetSuccess() bool {
+func (x *PBInitializeRunnerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBInitializeRunnerRequest) ProtoMessage() {}
+
+func (x *PBInitializeRunnerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[7]
 	if x != nil {
-		if x, ok := x.Payload.(*PBNativeResponse_Success); ok {
-			return x.Success
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
 		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBInitializeRunnerRequest.ProtoReflect.Descriptor instead.
+func (*PBInitializeRunnerRequest) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PBInitializeRunnerRequest) GetWorkerPath() string {
+	if x != nil {
+		return x.WorkerPath
+	}
+	return ""
+}
+
+type PBInitializeRunnerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Error         *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBInitializeRunnerResponse) Reset() {
+	*x = PBInitializeRunnerResponse{}
+	mi := &file_bridge_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBInitializeRunnerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBInitializeRunnerResponse) ProtoMessage() {}
+
+func (x *PBInitializeRunnerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBInitializeRunnerResponse.ProtoReflect.Descriptor instead.
+func (*PBInitializeRunnerResponse) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PBInitializeRunnerResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
 	}
 	return false
 }
 
-type isPBNativeResponse_Payload interface {
-	isPBNativeResponse_Payload()
+func (x *PBInitializeRunnerResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
 }
 
-type PBNativeResponse_Workers struct {
-	Workers *PBWorkerInfoList `protobuf:"bytes,2,opt,name=workers,proto3,oneof"`
+type PBParseConfigsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ParseErrors   *PBStringMap           `protobuf:"bytes,1,opt,name=parse_errors,json=parseErrors,proto3" json:"parse_errors,omitempty"`
+	Error         *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-type PBNativeResponse_Configs struct {
-	Configs *PBProxyConfigList `protobuf:"bytes,3,opt,name=configs,proto3,oneof"`
+func (x *PBParseConfigsResponse) Reset() {
+	*x = PBParseConfigsResponse{}
+	mi := &file_bridge_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
-type PBNativeResponse_StringMap struct {
-	StringMap *PBStringMap `protobuf:"bytes,4,opt,name=string_map,json=stringMap,proto3,oneof"`
+func (x *PBParseConfigsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
 }
 
-type PBNativeResponse_Success struct {
-	Success bool `protobuf:"varint,5,opt,name=success,proto3,oneof"`
+func (*PBParseConfigsResponse) ProtoMessage() {}
+
+func (x *PBParseConfigsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
 }
 
-func (*PBNativeResponse_Workers) isPBNativeResponse_Payload() {}
+// Deprecated: Use PBParseConfigsResponse.ProtoReflect.Descriptor instead.
+func (*PBParseConfigsResponse) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{9}
+}
 
-func (*PBNativeResponse_Configs) isPBNativeResponse_Payload() {}
+func (x *PBParseConfigsResponse) GetParseErrors() *PBStringMap {
+	if x != nil {
+		return x.ParseErrors
+	}
+	return nil
+}
 
-func (*PBNativeResponse_StringMap) isPBNativeResponse_Payload() {}
+func (x *PBParseConfigsResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
 
-func (*PBNativeResponse_Success) isPBNativeResponse_Payload() {}
+type PBValidateConfigsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ValidateErrors *PBStringMap           `protobuf:"bytes,1,opt,name=validate_errors,json=validateErrors,proto3" json:"validate_errors,omitempty"`
+	Error          *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PBValidateConfigsResponse) Reset() {
+	*x = PBValidateConfigsResponse{}
+	mi := &file_bridge_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBValidateConfigsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBValidateConfigsResponse) ProtoMessage() {}
+
+func (x *PBValidateConfigsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBValidateConfigsResponse.ProtoReflect.Descriptor instead.
+func (*PBValidateConfigsResponse) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *PBValidateConfigsResponse) GetValidateErrors() *PBStringMap {
+	if x != nil {
+		return x.ValidateErrors
+	}
+	return nil
+}
+
+func (x *PBValidateConfigsResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+type PBRunLatencyTestsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TestUrl       string                 `protobuf:"bytes,1,opt,name=test_url,json=testUrl,proto3" json:"test_url,omitempty"`
+	LatencyRounds int32                  `protobuf:"varint,2,opt,name=latency_rounds,json=latencyRounds,proto3" json:"latency_rounds,omitempty"`
+	RoundTimeout  int32                  `protobuf:"varint,3,opt,name=round_timeout,json=roundTimeout,proto3" json:"round_timeout,omitempty"`
+	TestByBatches bool                   `protobuf:"varint,4,opt,name=test_by_batches,json=testByBatches,proto3" json:"test_by_batches,omitempty"`
+	BatchSize     int32                  `protobuf:"varint,5,opt,name=batch_size,json=batchSize,proto3" json:"batch_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBRunLatencyTestsRequest) Reset() {
+	*x = PBRunLatencyTestsRequest{}
+	mi := &file_bridge_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBRunLatencyTestsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBRunLatencyTestsRequest) ProtoMessage() {}
+
+func (x *PBRunLatencyTestsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBRunLatencyTestsRequest.ProtoReflect.Descriptor instead.
+func (*PBRunLatencyTestsRequest) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *PBRunLatencyTestsRequest) GetTestUrl() string {
+	if x != nil {
+		return x.TestUrl
+	}
+	return ""
+}
+
+func (x *PBRunLatencyTestsRequest) GetLatencyRounds() int32 {
+	if x != nil {
+		return x.LatencyRounds
+	}
+	return 0
+}
+
+func (x *PBRunLatencyTestsRequest) GetRoundTimeout() int32 {
+	if x != nil {
+		return x.RoundTimeout
+	}
+	return 0
+}
+
+func (x *PBRunLatencyTestsRequest) GetTestByBatches() bool {
+	if x != nil {
+		return x.TestByBatches
+	}
+	return false
+}
+
+func (x *PBRunLatencyTestsRequest) GetBatchSize() int32 {
+	if x != nil {
+		return x.BatchSize
+	}
+	return 0
+}
+
+type PBRunLatencyTestsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Configs       *PBProxyConfigList     `protobuf:"bytes,1,opt,name=configs,proto3" json:"configs,omitempty"`
+	Error         *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBRunLatencyTestsResponse) Reset() {
+	*x = PBRunLatencyTestsResponse{}
+	mi := &file_bridge_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBRunLatencyTestsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBRunLatencyTestsResponse) ProtoMessage() {}
+
+func (x *PBRunLatencyTestsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBRunLatencyTestsResponse.ProtoReflect.Descriptor instead.
+func (*PBRunLatencyTestsResponse) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PBRunLatencyTestsResponse) GetConfigs() *PBProxyConfigList {
+	if x != nil {
+		return x.Configs
+	}
+	return nil
+}
+
+func (x *PBRunLatencyTestsResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
 
 var File_bridge_proto protoreflect.FileDescriptor
 
@@ -417,15 +719,39 @@ const file_bridge_proto_rawDesc = "" +
 	"\n" +
 	"ItemsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc9\x02\n" +
-	"\x10PBNativeResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\x12Q\n" +
-	"\aworkers\x18\x02 \x01(\v25.com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoListH\x00R\aworkers\x12R\n" +
-	"\aconfigs\x18\x03 \x01(\v26.com.bghorizon.proxytoolboxgui.proto.PBProxyConfigListH\x00R\aconfigs\x12Q\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
+	"\x18PBDiscoverWorkersRequest\x12!\n" +
+	"\flibrary_path\x18\x01 \x01(\tR\vlibraryPath\"\x91\x01\n" +
+	"\x19PBDiscoverWorkersResponse\x12O\n" +
+	"\aworkers\x18\x01 \x01(\v25.com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoListR\aworkers\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"<\n" +
+	"\x19PBInitializeRunnerRequest\x12\x1f\n" +
+	"\vworker_path\x18\x01 \x01(\tR\n" +
+	"workerPath\"[\n" +
+	"\x1aPBInitializeRunnerResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\x92\x01\n" +
+	"\x16PBParseConfigsResponse\x12S\n" +
+	"\fparse_errors\x18\x01 \x01(\v20.com.bghorizon.proxytoolboxgui.proto.PBStringMapR\vparseErrors\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\x9b\x01\n" +
+	"\x19PBValidateConfigsResponse\x12Y\n" +
+	"\x0fvalidate_errors\x18\x01 \x01(\v20.com.bghorizon.proxytoolboxgui.proto.PBStringMapR\x0evalidateErrors\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\xc8\x01\n" +
+	"\x18PBRunLatencyTestsRequest\x12\x19\n" +
+	"\btest_url\x18\x01 \x01(\tR\atestUrl\x12%\n" +
+	"\x0elatency_rounds\x18\x02 \x01(\x05R\rlatencyRounds\x12#\n" +
+	"\rround_timeout\x18\x03 \x01(\x05R\froundTimeout\x12&\n" +
+	"\x0ftest_by_batches\x18\x04 \x01(\bR\rtestByBatches\x12\x1d\n" +
 	"\n" +
-	"string_map\x18\x04 \x01(\v20.com.bghorizon.proxytoolboxgui.proto.PBStringMapH\x00R\tstringMap\x12\x1a\n" +
-	"\asuccess\x18\x05 \x01(\bH\x00R\asuccessB\t\n" +
-	"\apayloadBg\n" +
+	"batch_size\x18\x05 \x01(\x05R\tbatchSize\"\x92\x01\n" +
+	"\x19PBRunLatencyTestsResponse\x12P\n" +
+	"\aconfigs\x18\x01 \x01(\v26.com.bghorizon.proxytoolboxgui.proto.PBProxyConfigListR\aconfigs\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_errorBg\n" +
 	"#com.bghorizon.proxytoolboxgui.protoP\x01Z>github.com/bluegradienthorizon/proxytoolboxgui/gowrapper/protob\x06proto3"
 
 var (
@@ -440,28 +766,36 @@ func file_bridge_proto_rawDescGZIP() []byte {
 	return file_bridge_proto_rawDescData
 }
 
-var file_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_bridge_proto_goTypes = []any{
-	(*PBWorkerInfo)(nil),      // 0: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
-	(*PBWorkerInfoList)(nil),  // 1: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
-	(*PBProxyConfig)(nil),     // 2: com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
-	(*PBProxyConfigList)(nil), // 3: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
-	(*PBStringMap)(nil),       // 4: com.bghorizon.proxytoolboxgui.proto.PBStringMap
-	(*PBNativeResponse)(nil),  // 5: com.bghorizon.proxytoolboxgui.proto.PBNativeResponse
-	nil,                       // 6: com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
+	(*PBWorkerInfo)(nil),               // 0: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
+	(*PBWorkerInfoList)(nil),           // 1: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
+	(*PBProxyConfig)(nil),              // 2: com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
+	(*PBProxyConfigList)(nil),          // 3: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
+	(*PBStringMap)(nil),                // 4: com.bghorizon.proxytoolboxgui.proto.PBStringMap
+	(*PBDiscoverWorkersRequest)(nil),   // 5: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersRequest
+	(*PBDiscoverWorkersResponse)(nil),  // 6: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersResponse
+	(*PBInitializeRunnerRequest)(nil),  // 7: com.bghorizon.proxytoolboxgui.proto.PBInitializeRunnerRequest
+	(*PBInitializeRunnerResponse)(nil), // 8: com.bghorizon.proxytoolboxgui.proto.PBInitializeRunnerResponse
+	(*PBParseConfigsResponse)(nil),     // 9: com.bghorizon.proxytoolboxgui.proto.PBParseConfigsResponse
+	(*PBValidateConfigsResponse)(nil),  // 10: com.bghorizon.proxytoolboxgui.proto.PBValidateConfigsResponse
+	(*PBRunLatencyTestsRequest)(nil),   // 11: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsRequest
+	(*PBRunLatencyTestsResponse)(nil),  // 12: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsResponse
+	nil,                                // 13: com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
 }
 var file_bridge_proto_depIdxs = []int32{
-	0, // 0: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
-	2, // 1: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
-	6, // 2: com.bghorizon.proxytoolboxgui.proto.PBStringMap.items:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
-	1, // 3: com.bghorizon.proxytoolboxgui.proto.PBNativeResponse.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
-	3, // 4: com.bghorizon.proxytoolboxgui.proto.PBNativeResponse.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
-	4, // 5: com.bghorizon.proxytoolboxgui.proto.PBNativeResponse.string_map:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0,  // 0: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
+	2,  // 1: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
+	13, // 2: com.bghorizon.proxytoolboxgui.proto.PBStringMap.items:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
+	1,  // 3: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersResponse.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
+	4,  // 4: com.bghorizon.proxytoolboxgui.proto.PBParseConfigsResponse.parse_errors:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
+	4,  // 5: com.bghorizon.proxytoolboxgui.proto.PBValidateConfigsResponse.validate_errors:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
+	3,  // 6: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsResponse.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
+	7,  // [7:7] is the sub-list for method output_type
+	7,  // [7:7] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_bridge_proto_init() }
@@ -469,19 +803,18 @@ func file_bridge_proto_init() {
 	if File_bridge_proto != nil {
 		return
 	}
-	file_bridge_proto_msgTypes[5].OneofWrappers = []any{
-		(*PBNativeResponse_Workers)(nil),
-		(*PBNativeResponse_Configs)(nil),
-		(*PBNativeResponse_StringMap)(nil),
-		(*PBNativeResponse_Success)(nil),
-	}
+	file_bridge_proto_msgTypes[6].OneofWrappers = []any{}
+	file_bridge_proto_msgTypes[8].OneofWrappers = []any{}
+	file_bridge_proto_msgTypes[9].OneofWrappers = []any{}
+	file_bridge_proto_msgTypes[10].OneofWrappers = []any{}
+	file_bridge_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bridge_proto_rawDesc), len(file_bridge_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

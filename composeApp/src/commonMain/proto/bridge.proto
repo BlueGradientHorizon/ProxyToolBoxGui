@@ -30,12 +30,43 @@ message PBStringMap {
     map<string, string> items = 1;
 }
 
-message PBNativeResponse {
-    string error = 1;
-    oneof payload {
-        PBWorkerInfoList workers = 2;
-        PBProxyConfigList configs = 3;
-        PBStringMap string_map = 4;
-        bool success = 5;
-    }
+message PBDiscoverWorkersRequest {
+    string library_path = 1;
+}
+
+message PBDiscoverWorkersResponse {
+    PBWorkerInfoList workers = 1;
+    optional string error = 2;
+}
+
+message PBInitializeRunnerRequest {
+    string worker_path = 1;
+}
+
+message PBInitializeRunnerResponse {
+    bool success = 1;
+    optional string error = 2;
+}
+
+message PBParseConfigsResponse {
+    PBStringMap parse_errors = 1;
+    optional string error = 2;
+}
+
+message PBValidateConfigsResponse {
+    PBStringMap validate_errors = 1;
+    optional string error = 2;
+}
+
+message PBRunLatencyTestsRequest {
+    string test_url = 1;
+    int32 latency_rounds = 2;
+    int32 round_timeout = 3;
+    bool test_by_batches = 4;
+    int32 batch_size = 5;
+}
+
+message PBRunLatencyTestsResponse {
+    PBProxyConfigList configs = 1;
+    optional string error = 2;
 }
