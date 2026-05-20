@@ -26,7 +26,7 @@ import com.composables.icons.materialsymbols.rounded.List
 import com.composables.icons.materialsymbols.rounded.Settings
 import com.bghorizon.proxytoolboxgui.data.AppStatusManager
 import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
-import com.bghorizon.proxytoolboxgui.data.ProxyWebServer
+import com.bghorizon.proxytoolboxgui.data.WebServerManager
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
 import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
 import com.bghorizon.proxytoolboxgui.data.WorkerManager
@@ -55,7 +55,12 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val settingsRepository = remember { SettingsRepository(appDb.settingsDao()) }
     val subscriptionRepository = remember { SubscriptionRepository(subDb.subscriptionDao()) }
     val testManager = remember { ProxyTestManager(subscriptionRepository) }
-    val webServer = remember { ProxyWebServer() }
+    val webServerManager = remember { 
+        WebServerManager(
+            settingsRepository,
+            subscriptionRepository,
+        )
+    }
     val appStatusManager = remember { AppStatusManager() }
     val workerRepository = remember { WorkerRepository() }
     val workerManager = remember {
@@ -74,7 +79,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
             workerRepository = workerRepository,
             workerManager = workerManager,
             testManager = testManager,
-            webServer = webServer,
+            webServerManager = webServerManager,
             appStatusManager = appStatusManager,
             platform = platform
         )

@@ -2,7 +2,6 @@ package com.bghorizon.proxytoolboxgui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.bghorizon.proxytoolboxgui.data.ProxyConfig
 import com.bghorizon.proxytoolboxgui.di.AppModule
 import com.bghorizon.proxytoolboxgui.ui.screens.*
 import kotlinx.coroutines.*
@@ -48,6 +47,11 @@ class MainViewModel(val module: AppModule) : ViewModel() {
                 _uiState.update { it.copy(workers = workers) }
             }
         }
+        viewModelScope.launch {
+            module.webServerManager.isRunning.collect { running ->
+                _uiState.update { it.copy(webServerRunning = running) }
+            }
+        }
     }
 
     fun navigateTo(screen: AppScreen) {
@@ -70,25 +74,8 @@ class MainViewModel(val module: AppModule) : ViewModel() {
     fun startWebServer() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val settings = module.settingsRepository.settings.value
-                val port = settings.webServerPort
-                val host = if (settings.webServerLocalhost) "127.0.0.1" else "0.0.0.0"
-
-                module.webServer.start(
-                    port = port,
-                    host = host
-                ) {
-                    val currentSettings = module.settingsRepository.settings.value
-                    var configs = module.subscriptionRepository.getWorkingConfigs()
-                    
-                    if (currentSettings.sortProfilesByDelay) {
-                        configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
-                    }
-                    
-                    configs.joinToString("\n") { it.connURI }
-                }
-
-                _uiState.update { it.copy(webServerRunning = true) }
+                module.webServerManager.start()
+                val port = module.settingsRepository.settings.value.webServerPort
                 val msg = getString(Res.string.web_server_started, port)
                 module.platform.showToast(msg)
             } catch (e: Exception) {
@@ -102,8 +89,7 @@ class MainViewModel(val module: AppModule) : ViewModel() {
     fun stopWebServer() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                module.webServer.stop()
-                _uiState.update { it.copy(webServerRunning = false) }
+                module.webServerManager.stop()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
