@@ -116,7 +116,7 @@
     <string name="speed_test_target_bytes">Target bytes</string>
     <string name="speed_test_sort_by_latency_delay">Sort profiles in sequence of asc. latency for exporting</string>
     <string name="speed_test_sort_by_latency_delay_hint">Setting "%1$s" should be enabled</string>
-    <string name="web_server_auto_start">Auto-start web-server after test</string>
+    <string name="web_server_auto_start">Auto-start web server on successful test completion</string>
     <string name="web_server_port">Web-server port</string>
     <string name="web_server_localhost">Web-server listens only localhost</string>
 

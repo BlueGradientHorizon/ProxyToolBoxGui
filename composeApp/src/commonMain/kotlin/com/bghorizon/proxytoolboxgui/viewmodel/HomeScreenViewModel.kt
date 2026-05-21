@@ -20,7 +20,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
     fun startTest(
         appStatus: AppStatus,
         subscriptions: List<Subscription>,
-        onTestCompleted: () -> Unit = {},
+        onTestCompleted: (Boolean) -> Unit = {},
     ) {
         if ((module.runtimeSettingsManager.workers.value.isEmpty()) || (testJob?.isActive == true)) return
 
@@ -34,6 +34,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         testJob = viewModelScope.launch(Dispatchers.IO) {
             val job = coroutineContext[Job]
             val currentSettings = module.settingsRepository.settings.value
+            var success = false
 
             if (currentSettings.selectedWorker.isBlank()) {
                 val msg = getString(Res.string.msg_select_worker)
@@ -168,6 +169,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                 module.appStatusManager.updateStatus(
                     if (resultConfigs.isNotEmpty()) AppStatus.COMPLETED else AppStatus.IDLE
                 )
+                success = true
             } catch (e: Exception) {
                 if (e is CancellationException) {
                     module.appStatusManager.updateStatus(AppStatus.STOPPED)
@@ -191,7 +193,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                             )
                         )
                     }
-                    onTestCompleted()
+                    onTestCompleted(success)
                 }
             }
         }

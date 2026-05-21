@@ -246,8 +246,8 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
         onCopyWorkingConfigs = { mainVm.copyWorkingConfigs() },
         onStopTest = { homeVm.stopTest() },
         onStartTest = {
-            homeVm.startTest(mainUiState.appStatus, subs) {
-                if (mainUiState.settings.autoStartWebServer) {
+            homeVm.startTest(mainUiState.appStatus, subs) { isSuccess ->
+                if (isSuccess && mainUiState.settings.autoStartWebServer) {
                     mainVm.startWebServer()
                 }
             }
