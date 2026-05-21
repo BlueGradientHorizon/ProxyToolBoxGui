@@ -1,6 +1,8 @@
 package com.bghorizon.proxytoolboxgui.platform
 
 import com.bghorizon.proxytoolboxgui.data.NativeLoader
+import androidx.compose.ui.window.Notification
+import androidx.compose.ui.window.TrayState
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.NotFoundException
@@ -15,6 +17,10 @@ import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.getString
+import proxytoolboxgui.composeapp.generated.resources.Res
+import proxytoolboxgui.composeapp.generated.resources.app_name
 
 class JVMPlatform : Platform {
     override val name: String = "JVM ${System.getProperty("java.version")}"
@@ -83,7 +89,17 @@ class JVMPlatform : Platform {
     }
 
     override fun showToast(message: String, duration: Int) {
-        println("Toast: $message (duration: $duration)")
+        trayState?.sendNotification(
+            Notification(
+                title = runBlocking { getString(Res.string.app_name) },
+                message = message,
+                type = Notification.Type.Info
+            )
+        )
+    }
+
+    companion object {
+        var trayState: TrayState? = null
     }
 }
 
