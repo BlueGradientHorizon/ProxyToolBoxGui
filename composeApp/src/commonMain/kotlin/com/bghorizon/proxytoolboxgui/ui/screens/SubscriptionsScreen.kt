@@ -289,6 +289,10 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
     val subscriptions by subVm.subscriptions.collectAsState()
     val activeDialog = mainUiState.activeDialog
 
+    BackHandler(enabled = subUiState.mode is SubscriptionsScreenUiMode.Selection) {
+        subVm.updateMode(SubscriptionsScreenUiMode.Normal)
+    }
+
     val scaffoldPadding = LocalScaffoldPadding.current
 
     val updateProgress = subUiState.updateProgress
