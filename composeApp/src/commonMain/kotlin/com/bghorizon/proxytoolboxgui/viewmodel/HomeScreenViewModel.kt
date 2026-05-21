@@ -150,6 +150,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
             } finally {
                 withContext(NonCancellable) {
                     timerJob?.cancel()
+                    module.testManager.stopTests()
                     _uiState.update {
                         it.copy(
                             testProgress = it.testProgress.copy(
@@ -167,7 +168,8 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
     private fun handleTestEvent(event: LatencyTestEvent, settings: AppSettings) {
         when (event) {
             is LatencyTestEvent.RoundStarted -> {
-                val currentRoundAbsolute = ((event.batch - 1) * settings.latencyRounds) + event.round
+                val currentRoundAbsolute =
+                    ((event.batch - 1) * settings.latencyRounds) + event.round
                 module.appStatusManager.updateStatus(AppStatus.TESTING)
                 _uiState.update { state ->
                     val current = state.testProgress

@@ -66,12 +66,18 @@ func StopTests() {
 	}
 	if testRunner != nil {
 		testRunner.Close()
+		testRunner = nil
 	}
 }
 
 func InitializeRunner(workerPath string) error {
 	testMu.Lock()
 	defer testMu.Unlock()
+
+	if testRunner != nil {
+		testRunner.Close()
+	}
+
 	currentWorkerPath = workerPath
 
 	// Verify if we can create a runner
@@ -81,7 +87,7 @@ func InitializeRunner(workerPath string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to initialize test runner: %v", err)
 	}
-	tr.Close()
+	testRunner = tr
 	return nil
 }
 
@@ -130,7 +136,11 @@ func ParseConfigs(inputConfigs []ProxyConfig) (map[string]string, error) {
 
 func ValidateConfigs() (map[string]string, error) {
 	testMu.Lock()
-	defer testMu.Unlock()
+	testMu.Unlock()
+
+	if testRunner == nil {
+		return nil, fmt.Errorf("Test runner not initialized")
+	}
 
 	if len(currentParsedConfigs) == 0 {
 		return nil, fmt.Errorf("No configs to validate")
@@ -139,15 +149,7 @@ func ValidateConfigs() (map[string]string, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tr, err := runner.NewTestRunner(runner.RunnerSettings{
-		WorkerPath: currentWorkerPath,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create test runner for validation: %v", err)
-	}
-	defer tr.Close()
-
-	taggedConfigs, validationErrors, err := tr.Validate(ctx, currentParsedConfigs, runner.DefaultConfigTaggerFunc)
+	taggedConfigs, validationErrors, err := testRunner.Validate(ctx, currentParsedConfigs, runner.DefaultConfigTaggerFunc)
 	if err != nil {
 		return nil, fmt.Errorf("Validation error: %v", err)
 	}
@@ -170,7 +172,10 @@ func ValidateConfigs() (map[string]string, error) {
 		return nil, fmt.Errorf("No valid configs after validation")
 	}
 
+	testMu.Lock()
 	currentValidConfigs = validConfigs
+	testMu.Unlock()
+
 	return validateErrors, nil
 }
 
@@ -184,8 +189,11 @@ func RunLatencyTests(
 ) ([]ProxyConfig, error) {
 	testMu.Lock()
 	validConfigs := currentValidConfigs
-	workerPath := currentWorkerPath
 	testMu.Unlock()
+
+	if testRunner == nil {
+		return nil, fmt.Errorf("Test runner not initialized")
+	}
 
 	if len(validConfigs) == 0 {
 		return nil, fmt.Errorf("No valid configs to test")
@@ -198,7 +206,6 @@ func RunLatencyTests(
 	defer func() {
 		testMu.Lock()
 		testCancel = nil
-		testRunner = nil
 		testMu.Unlock()
 		cancel()
 	}()
@@ -220,46 +227,14 @@ func RunLatencyTests(
 		batchConfigs := validConfigs[batchStart:batchEnd]
 		batchNum := batchStart/goBatchSize + 1
 
-		batchRunner, err := runner.NewTestRunner(runner.RunnerSettings{
-			WorkerPath: workerPath,
-		})
-		if err != nil {
-			continue
-		}
-
-		testMu.Lock()
-		testRunner = batchRunner
-		testMu.Unlock()
-
-		_, batchValidationErrors, err := batchRunner.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
-		if err != nil {
-			batchRunner.Close()
-			testMu.Lock()
-			testRunner = nil
-			testMu.Unlock()
-			if ctx.Err() != nil {
-				break
-			}
-			continue
-		}
-
-		batchErrMap := make(map[string]bool)
-		for _, ve := range batchValidationErrors {
-			batchErrMap[ve.Tag] = true
-		}
-
 		var batchTags []string
 		for _, c := range batchConfigs {
-			if c.Config != nil && !batchErrMap[c.Config.Tag] {
+			if c.Config != nil {
 				batchTags = append(batchTags, c.Config.Tag)
 			}
 		}
 
 		if len(batchTags) == 0 {
-			batchRunner.Close()
-			testMu.Lock()
-			testRunner = nil
-			testMu.Unlock()
 			continue
 		}
 
@@ -288,15 +263,10 @@ func RunLatencyTests(
 			TestURL: testUrl,
 		}
 
-		testResults, err := batchRunner.RunLatencyTests(ctx, batchTags, ltSettings)
+		testResults, err := testRunner.RunLatencyTests(ctx, batchTags, ltSettings)
 		if err == nil {
 			allResults = append(allResults, testResults.Results...)
 		}
-
-		batchRunner.Close()
-		testMu.Lock()
-		testRunner = nil
-		testMu.Unlock()
 
 		if ctx.Err() != nil {
 			break
