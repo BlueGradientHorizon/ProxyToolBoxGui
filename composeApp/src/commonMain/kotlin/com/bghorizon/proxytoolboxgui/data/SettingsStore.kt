@@ -44,6 +44,10 @@ class SettingsRepository(private val dao: SettingsDao) {
     suspend fun updateSelectedWorker(name: String, path: String) {
         saveSettings(_settings.value.copy(selectedWorkerName = name, selectedWorker = path))
     }
+
+    suspend fun updateSelectedSpeedTestProvider(id: String) {
+        saveSettings(_settings.value.copy(speedTestProviderId = id))
+    }
 }
 
 private fun AppSettings.toEntity() = AppSettingsEntity(
@@ -64,6 +68,12 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
     lowMemMode = lowMemMode,
     sortProfilesByDelay = sortProfilesByDelay,
+    performSpeedTests = performSpeedTests,
+    speedTestRounds = speedTestRounds,
+    speedTestProvider = speedTestProviderId,
+    speedTestMode = speedTestMode,
+    speedTestTargetBytes = speedTestTargetBytes,
+    sortByLatencyDelay = sortByLatencyDelay,
 )
 
 private fun AppSettingsEntity.toModel() = AppSettings(
@@ -84,4 +94,10 @@ private fun AppSettingsEntity.toModel() = AppSettings(
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
     lowMemMode = lowMemMode,
     sortProfilesByDelay = sortProfilesByDelay,
+    performSpeedTests = performSpeedTests,
+    speedTestRounds = speedTestRounds,
+    speedTestProviderId = speedTestProvider,
+    speedTestMode = speedTestMode,
+    speedTestTargetBytes = speedTestTargetBytes,
+    sortByLatencyDelay = sortByLatencyDelay,
 )

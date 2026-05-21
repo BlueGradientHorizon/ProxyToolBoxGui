@@ -21,6 +21,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type PBSpeedTestMode int32
+
+const (
+	PBSpeedTestMode_DOWNLOAD PBSpeedTestMode = 0
+	PBSpeedTestMode_UPLOAD   PBSpeedTestMode = 1
+)
+
+// Enum value maps for PBSpeedTestMode.
+var (
+	PBSpeedTestMode_name = map[int32]string{
+		0: "DOWNLOAD",
+		1: "UPLOAD",
+	}
+	PBSpeedTestMode_value = map[string]int32{
+		"DOWNLOAD": 0,
+		"UPLOAD":   1,
+	}
+)
+
+func (x PBSpeedTestMode) Enum() *PBSpeedTestMode {
+	p := new(PBSpeedTestMode)
+	*p = x
+	return p
+}
+
+func (x PBSpeedTestMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PBSpeedTestMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_bridge_proto_enumTypes[0].Descriptor()
+}
+
+func (PBSpeedTestMode) Type() protoreflect.EnumType {
+	return &file_bridge_proto_enumTypes[0]
+}
+
+func (x PBSpeedTestMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PBSpeedTestMode.Descriptor instead.
+func (PBSpeedTestMode) EnumDescriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{0}
+}
+
 type PBWorkerInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -705,6 +751,254 @@ func (x *PBRunLatencyTestsResponse) GetError() string {
 	return ""
 }
 
+type PBDiscoverSpeedTestPresetsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Presets       *PBStringMap           `protobuf:"bytes,1,opt,name=presets,proto3" json:"presets,omitempty"`
+	Error         *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBDiscoverSpeedTestPresetsResponse) Reset() {
+	*x = PBDiscoverSpeedTestPresetsResponse{}
+	mi := &file_bridge_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBDiscoverSpeedTestPresetsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBDiscoverSpeedTestPresetsResponse) ProtoMessage() {}
+
+func (x *PBDiscoverSpeedTestPresetsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBDiscoverSpeedTestPresetsResponse.ProtoReflect.Descriptor instead.
+func (*PBDiscoverSpeedTestPresetsResponse) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *PBDiscoverSpeedTestPresetsResponse) GetPresets() *PBStringMap {
+	if x != nil {
+		return x.Presets
+	}
+	return nil
+}
+
+func (x *PBDiscoverSpeedTestPresetsResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+type PBRunSpeedTestsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tags          []string               `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
+	ProviderId    string                 `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Mode          PBSpeedTestMode        `protobuf:"varint,3,opt,name=mode,proto3,enum=com.bghorizon.proxytoolboxgui.proto.PBSpeedTestMode" json:"mode,omitempty"`
+	Rounds        int32                  `protobuf:"varint,4,opt,name=rounds,proto3" json:"rounds,omitempty"`
+	Timeout       int32                  `protobuf:"varint,5,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	TargetBytes   int64                  `protobuf:"varint,6,opt,name=target_bytes,json=targetBytes,proto3" json:"target_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBRunSpeedTestsRequest) Reset() {
+	*x = PBRunSpeedTestsRequest{}
+	mi := &file_bridge_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBRunSpeedTestsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBRunSpeedTestsRequest) ProtoMessage() {}
+
+func (x *PBRunSpeedTestsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBRunSpeedTestsRequest.ProtoReflect.Descriptor instead.
+func (*PBRunSpeedTestsRequest) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *PBRunSpeedTestsRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *PBRunSpeedTestsRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *PBRunSpeedTestsRequest) GetMode() PBSpeedTestMode {
+	if x != nil {
+		return x.Mode
+	}
+	return PBSpeedTestMode_DOWNLOAD
+}
+
+func (x *PBRunSpeedTestsRequest) GetRounds() int32 {
+	if x != nil {
+		return x.Rounds
+	}
+	return 0
+}
+
+func (x *PBRunSpeedTestsRequest) GetTimeout() int32 {
+	if x != nil {
+		return x.Timeout
+	}
+	return 0
+}
+
+func (x *PBRunSpeedTestsRequest) GetTargetBytes() int64 {
+	if x != nil {
+		return x.TargetBytes
+	}
+	return 0
+}
+
+type PBSpeedTestResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tag           string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	Speed         float64                `protobuf:"fixed64,2,opt,name=speed,proto3" json:"speed,omitempty"` // bytes/s
+	Error         *string                `protobuf:"bytes,3,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBSpeedTestResult) Reset() {
+	*x = PBSpeedTestResult{}
+	mi := &file_bridge_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBSpeedTestResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBSpeedTestResult) ProtoMessage() {}
+
+func (x *PBSpeedTestResult) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBSpeedTestResult.ProtoReflect.Descriptor instead.
+func (*PBSpeedTestResult) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PBSpeedTestResult) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *PBSpeedTestResult) GetSpeed() float64 {
+	if x != nil {
+		return x.Speed
+	}
+	return 0
+}
+
+func (x *PBSpeedTestResult) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+type PBRunSpeedTestsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*PBSpeedTestResult   `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	Error         *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PBRunSpeedTestsResponse) Reset() {
+	*x = PBRunSpeedTestsResponse{}
+	mi := &file_bridge_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PBRunSpeedTestsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PBRunSpeedTestsResponse) ProtoMessage() {}
+
+func (x *PBRunSpeedTestsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bridge_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PBRunSpeedTestsResponse.ProtoReflect.Descriptor instead.
+func (*PBRunSpeedTestsResponse) Descriptor() ([]byte, []int) {
+	return file_bridge_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *PBRunSpeedTestsResponse) GetResults() []*PBSpeedTestResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *PBRunSpeedTestsResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
 var File_bridge_proto protoreflect.FileDescriptor
 
 const file_bridge_proto_rawDesc = "" +
@@ -761,7 +1055,32 @@ const file_bridge_proto_rawDesc = "" +
 	"\x19PBRunLatencyTestsResponse\x12P\n" +
 	"\aconfigs\x18\x01 \x01(\v26.com.bghorizon.proxytoolboxgui.proto.PBProxyConfigListR\aconfigs\x12\x19\n" +
 	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
-	"\x06_errorBg\n" +
+	"\x06_error\"\x95\x01\n" +
+	"\"PBDiscoverSpeedTestPresetsResponse\x12J\n" +
+	"\apresets\x18\x01 \x01(\v20.com.bghorizon.proxytoolboxgui.proto.PBStringMapR\apresets\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\xec\x01\n" +
+	"\x16PBRunSpeedTestsRequest\x12\x12\n" +
+	"\x04tags\x18\x01 \x03(\tR\x04tags\x12\x1f\n" +
+	"\vprovider_id\x18\x02 \x01(\tR\n" +
+	"providerId\x12H\n" +
+	"\x04mode\x18\x03 \x01(\x0e24.com.bghorizon.proxytoolboxgui.proto.PBSpeedTestModeR\x04mode\x12\x16\n" +
+	"\x06rounds\x18\x04 \x01(\x05R\x06rounds\x12\x18\n" +
+	"\atimeout\x18\x05 \x01(\x05R\atimeout\x12!\n" +
+	"\ftarget_bytes\x18\x06 \x01(\x03R\vtargetBytes\"`\n" +
+	"\x11PBSpeedTestResult\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x14\n" +
+	"\x05speed\x18\x02 \x01(\x01R\x05speed\x12\x19\n" +
+	"\x05error\x18\x03 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\x90\x01\n" +
+	"\x17PBRunSpeedTestsResponse\x12P\n" +
+	"\aresults\x18\x01 \x03(\v26.com.bghorizon.proxytoolboxgui.proto.PBSpeedTestResultR\aresults\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error*+\n" +
+	"\x0fPBSpeedTestMode\x12\f\n" +
+	"\bDOWNLOAD\x10\x00\x12\n" +
+	"\n" +
+	"\x06UPLOAD\x10\x01Bg\n" +
 	"#com.bghorizon.proxytoolboxgui.protoP\x01Z>github.com/bluegradienthorizon/proxytoolboxgui/gowrapper/protob\x06proto3"
 
 var (
@@ -776,36 +1095,45 @@ func file_bridge_proto_rawDescGZIP() []byte {
 	return file_bridge_proto_rawDescData
 }
 
-var file_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_bridge_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_bridge_proto_goTypes = []any{
-	(*PBWorkerInfo)(nil),               // 0: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
-	(*PBWorkerInfoList)(nil),           // 1: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
-	(*PBProxyConfig)(nil),              // 2: com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
-	(*PBProxyConfigList)(nil),          // 3: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
-	(*PBStringMap)(nil),                // 4: com.bghorizon.proxytoolboxgui.proto.PBStringMap
-	(*PBDiscoverWorkersRequest)(nil),   // 5: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersRequest
-	(*PBDiscoverWorkersResponse)(nil),  // 6: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersResponse
-	(*PBInitializeRunnerRequest)(nil),  // 7: com.bghorizon.proxytoolboxgui.proto.PBInitializeRunnerRequest
-	(*PBInitializeRunnerResponse)(nil), // 8: com.bghorizon.proxytoolboxgui.proto.PBInitializeRunnerResponse
-	(*PBParseConfigsResponse)(nil),     // 9: com.bghorizon.proxytoolboxgui.proto.PBParseConfigsResponse
-	(*PBValidateConfigsResponse)(nil),  // 10: com.bghorizon.proxytoolboxgui.proto.PBValidateConfigsResponse
-	(*PBRunLatencyTestsRequest)(nil),   // 11: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsRequest
-	(*PBRunLatencyTestsResponse)(nil),  // 12: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsResponse
-	nil,                                // 13: com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
+	(PBSpeedTestMode)(0),                       // 0: com.bghorizon.proxytoolboxgui.proto.PBSpeedTestMode
+	(*PBWorkerInfo)(nil),                       // 1: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
+	(*PBWorkerInfoList)(nil),                   // 2: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
+	(*PBProxyConfig)(nil),                      // 3: com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
+	(*PBProxyConfigList)(nil),                  // 4: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
+	(*PBStringMap)(nil),                        // 5: com.bghorizon.proxytoolboxgui.proto.PBStringMap
+	(*PBDiscoverWorkersRequest)(nil),           // 6: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersRequest
+	(*PBDiscoverWorkersResponse)(nil),          // 7: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersResponse
+	(*PBInitializeRunnerRequest)(nil),          // 8: com.bghorizon.proxytoolboxgui.proto.PBInitializeRunnerRequest
+	(*PBInitializeRunnerResponse)(nil),         // 9: com.bghorizon.proxytoolboxgui.proto.PBInitializeRunnerResponse
+	(*PBParseConfigsResponse)(nil),             // 10: com.bghorizon.proxytoolboxgui.proto.PBParseConfigsResponse
+	(*PBValidateConfigsResponse)(nil),          // 11: com.bghorizon.proxytoolboxgui.proto.PBValidateConfigsResponse
+	(*PBRunLatencyTestsRequest)(nil),           // 12: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsRequest
+	(*PBRunLatencyTestsResponse)(nil),          // 13: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsResponse
+	(*PBDiscoverSpeedTestPresetsResponse)(nil), // 14: com.bghorizon.proxytoolboxgui.proto.PBDiscoverSpeedTestPresetsResponse
+	(*PBRunSpeedTestsRequest)(nil),             // 15: com.bghorizon.proxytoolboxgui.proto.PBRunSpeedTestsRequest
+	(*PBSpeedTestResult)(nil),                  // 16: com.bghorizon.proxytoolboxgui.proto.PBSpeedTestResult
+	(*PBRunSpeedTestsResponse)(nil),            // 17: com.bghorizon.proxytoolboxgui.proto.PBRunSpeedTestsResponse
+	nil,                                        // 18: com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
 }
 var file_bridge_proto_depIdxs = []int32{
-	0,  // 0: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
-	2,  // 1: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
-	13, // 2: com.bghorizon.proxytoolboxgui.proto.PBStringMap.items:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
-	1,  // 3: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersResponse.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
-	4,  // 4: com.bghorizon.proxytoolboxgui.proto.PBParseConfigsResponse.parse_errors:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
-	4,  // 5: com.bghorizon.proxytoolboxgui.proto.PBValidateConfigsResponse.validate_errors:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
-	3,  // 6: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsResponse.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	1,  // 0: com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfo
+	3,  // 1: com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfig
+	18, // 2: com.bghorizon.proxytoolboxgui.proto.PBStringMap.items:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap.ItemsEntry
+	2,  // 3: com.bghorizon.proxytoolboxgui.proto.PBDiscoverWorkersResponse.workers:type_name -> com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoList
+	5,  // 4: com.bghorizon.proxytoolboxgui.proto.PBParseConfigsResponse.parse_errors:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
+	5,  // 5: com.bghorizon.proxytoolboxgui.proto.PBValidateConfigsResponse.validate_errors:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
+	4,  // 6: com.bghorizon.proxytoolboxgui.proto.PBRunLatencyTestsResponse.configs:type_name -> com.bghorizon.proxytoolboxgui.proto.PBProxyConfigList
+	5,  // 7: com.bghorizon.proxytoolboxgui.proto.PBDiscoverSpeedTestPresetsResponse.presets:type_name -> com.bghorizon.proxytoolboxgui.proto.PBStringMap
+	0,  // 8: com.bghorizon.proxytoolboxgui.proto.PBRunSpeedTestsRequest.mode:type_name -> com.bghorizon.proxytoolboxgui.proto.PBSpeedTestMode
+	16, // 9: com.bghorizon.proxytoolboxgui.proto.PBRunSpeedTestsResponse.results:type_name -> com.bghorizon.proxytoolboxgui.proto.PBSpeedTestResult
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_bridge_proto_init() }
@@ -818,18 +1146,22 @@ func file_bridge_proto_init() {
 	file_bridge_proto_msgTypes[9].OneofWrappers = []any{}
 	file_bridge_proto_msgTypes[10].OneofWrappers = []any{}
 	file_bridge_proto_msgTypes[12].OneofWrappers = []any{}
+	file_bridge_proto_msgTypes[13].OneofWrappers = []any{}
+	file_bridge_proto_msgTypes[15].OneofWrappers = []any{}
+	file_bridge_proto_msgTypes[16].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bridge_proto_rawDesc), len(file_bridge_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   14,
+			NumEnums:      1,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_bridge_proto_goTypes,
 		DependencyIndexes: file_bridge_proto_depIdxs,
+		EnumInfos:         file_bridge_proto_enumTypes,
 		MessageInfos:      file_bridge_proto_msgTypes,
 	}.Build()
 	File_bridge_proto = out.File

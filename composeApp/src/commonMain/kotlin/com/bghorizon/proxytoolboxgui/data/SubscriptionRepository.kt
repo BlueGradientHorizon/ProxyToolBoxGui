@@ -20,6 +20,7 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
                     url = stats.url,
                     total = stats.total,
                     working = stats.working,
+                    speedPassed = stats.speedPassed,
                     updatedAt = stats.updatedAt,
                     duplicated = stats.duplicated,
                     parseErr = stats.parseErr,
@@ -50,7 +51,8 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
             ProxyConfig(
                 tag = "sub-${data.subId}-${data.configId}",
                 connURI = data.fixedConnURI ?: data.connURI,
-                delay = data.delay
+                delay = data.delay,
+                speed = data.speed
             )
         }
     }
@@ -61,7 +63,17 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
 
     suspend fun setConfigsUris(subId: String, uris: List<String>) {
         val entities = uris.mapIndexed { index, uri ->
-            SubscriptionDataEntity(subId = subId, configId = index, connURI = uri)
+            SubscriptionDataEntity(
+                subId = subId,
+                configId = index,
+                connURI = uri,
+                parseErr = false,
+                validErr = false,
+                fixedConnURI = null,
+                working = false,
+                delay = -1,
+                speed = -1
+            )
         }
         dao.setConfigsUris(subId, entities)
     }

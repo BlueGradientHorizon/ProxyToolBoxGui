@@ -25,6 +25,9 @@ sealed interface SettingsDialog : UiDialog {
     data object Port : SettingsDialog
     data object TestUrl : SettingsDialog
     data object ParallelDownloads : SettingsDialog
+    data object SpeedTestRounds : SettingsDialog
+    data object SpeedTestProvider : SettingsDialog
+    data object SpeedTestTargetBytes : SettingsDialog
 }
 
 sealed interface SettingsScreenUiMode : ScreenUiMode {
@@ -32,7 +35,7 @@ sealed interface SettingsScreenUiMode : ScreenUiMode {
 }
 
 data class SettingsScreenState(
-    override val mode: SettingsScreenUiMode = SettingsScreenUiMode.Normal
+    override val mode: SettingsScreenUiMode = SettingsScreenUiMode.Normal,
 ) : AppScreen {
     @Composable
     override fun TopBar(mainVm: MainViewModel) {
@@ -166,6 +169,14 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
 
         item {
             SettingsSection(title = stringResource(Res.string.category_testing)) {
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.low_mem_mode),
+                    subtitle = stringResource(Res.string.low_mem_mode_hint),
+                    checked = settings.lowMemMode,
+                    onCheckedChange = {
+                        settingsVm.updateSettings(settings.copy(lowMemMode = it))
+                    }
+                )
                 SettingsItem(
                     title = stringResource(Res.string.latency_test_rounds),
                     subtitle = stringResource(
@@ -195,24 +206,84 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                     enabled = settings.testByBatches,
                     onClick = { mainVm.updateDialog(SettingsDialog.BatchSize) }
                 )
-                SettingsSwitchItem(
-                    title = stringResource(Res.string.low_mem_mode),
-                    subtitle = stringResource(Res.string.low_mem_mode_hint),
-                    checked = settings.lowMemMode,
-                    onCheckedChange = {
-                        settingsVm.updateSettings(settings.copy(lowMemMode = it))
-                    }
-                )
                 SettingsItem(
                     title = stringResource(Res.string.latency_test_url),
                     subtitle = settings.testUrl,
                     onClick = { mainVm.updateDialog(SettingsDialog.TestUrl) }
                 )
                 SettingsSwitchItem(
-                    title = stringResource(Res.string.sort_by_delay),
+                    title = stringResource(Res.string.latency_test_sort_by_delay),
                     checked = settings.sortProfilesByDelay,
                     onCheckedChange = {
                         settingsVm.updateSettings(settings.copy(sortProfilesByDelay = it))
+                    }
+                )
+
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.perform_speed_test),
+                    checked = settings.performSpeedTests,
+                    onCheckedChange = {
+                        settingsVm.updateSettings(settings.copy(performSpeedTests = it))
+                    }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.speed_test_rounds),
+                    subtitle = stringResource(
+                        Res.string.hint_rounds_preview,
+                        settings.speedTestRounds
+                    ),
+                    enabled = settings.performSpeedTests,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestRounds) }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.speed_test_provider),
+                    subtitle = mainUiState.speedTestPresets[settings.speedTestProviderId]
+                        ?: settings.speedTestProviderId,
+                    enabled = settings.performSpeedTests,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestProvider) }
+                )
+                SettingsItem(
+                    title = stringResource(Res.string.speed_test_mode),
+                    customHeight = true,
+                    enabled = settings.performSpeedTests
+                ) {
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        listOf("download", "upload").forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = settings.speedTestMode == mode,
+                                onClick = {
+                                    settingsVm.updateSettings(settings.copy(speedTestMode = mode))
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = 2
+                                ),
+                                label = {
+                                    Text(
+                                        if (mode == "download") stringResource(Res.string.speed_test_mode_download)
+                                        else stringResource(Res.string.speed_test_mode_upload)
+                                    )
+                                },
+                                enabled = settings.performSpeedTests
+                            )
+                        }
+                    }
+                }
+                SettingsItem(
+                    title = stringResource(Res.string.speed_test_target_bytes),
+                    subtitle = settings.speedTestTargetBytes.toString(),
+                    enabled = settings.performSpeedTests,
+                    onClick = { mainVm.updateDialog(SettingsDialog.SpeedTestTargetBytes) }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.speed_test_sort_by_latency_delay),
+                    subtitle = if (!settings.sortProfilesByDelay) stringResource(Res.string.speed_test_sort_by_latency_delay_hint, stringResource(Res.string.latency_test_sort_by_delay)) else null,
+                    checked = settings.sortByLatencyDelay,
+                    enabled = settings.performSpeedTests && settings.sortProfilesByDelay,
+                    onCheckedChange = {
+                        settingsVm.updateSettings(settings.copy(sortByLatencyDelay = it))
                     }
                 )
             }
@@ -320,7 +391,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 ),
                 onDismiss = { mainVm.hideDialog() },
                 onSave = { settingsVm.savePort(it) },
-                isValid = { it in 1024..65535 },
+                isValid = { (it in 1024..65535) },
                 errorText = stringResource(Res.string.error_invalid_port)
             )
         }
@@ -351,6 +422,49 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                             parallelSubscriptionDownloads = it.coerceAtLeast(
                                 1
                             )
+                        )
+                    )
+                    true
+                }
+            )
+        }
+
+        SettingsDialog.SpeedTestRounds -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.speed_test_rounds),
+                initialValue = settings.speedTestRounds,
+                hint = stringResource(Res.string.hint_rounds),
+                onDismiss = { mainVm.hideDialog() },
+                onSave = {
+                    settingsVm.updateSettings(settings.copy(speedTestRounds = it.coerceAtLeast(1)))
+                    true
+                }
+            )
+        }
+
+        SettingsDialog.SpeedTestProvider -> {
+            val presets = mainUiState.speedTestPresets.map { (id, name) -> id to name }
+            SelectionDialog(
+                title = stringResource(Res.string.speed_test_provider),
+                items = presets,
+                selectedItem = presets.find { it.first == settings.speedTestProviderId },
+                onDismiss = { mainVm.hideDialog() },
+                onSelect = { settingsVm.updateSettings(settings.copy(speedTestProviderId = it.first)) },
+                emptyText = stringResource(Res.string.no_speed_test_providers_available),
+                itemLabel = { it.second }
+            )
+        }
+
+        SettingsDialog.SpeedTestTargetBytes -> {
+            NumberInputDialog(
+                title = stringResource(Res.string.speed_test_target_bytes),
+                initialValue = settings.speedTestTargetBytes.toInt(),
+                hint = stringResource(Res.string.hint_number),
+                onDismiss = { mainVm.hideDialog() },
+                onSave = {
+                    settingsVm.updateSettings(
+                        settings.copy(
+                            speedTestTargetBytes = it.toLong().coerceAtLeast(1)
                         )
                     )
                     true

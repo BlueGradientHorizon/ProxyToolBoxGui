@@ -7,7 +7,9 @@ internal expect object GoBridgeNative {
     fun nativeInitializeRunner(b: ByteArray): ByteArray
     fun nativeParseConfigs(b: ByteArray): ByteArray
     fun nativeValidateConfigs(): ByteArray
-    fun nativeRunLatencyTests(b: ByteArray, c: JniTestCallbackWrapper): ByteArray
+    fun nativeRunLatencyTests(b: ByteArray, c: JniLatencyTestCallbackWrapper): ByteArray
+    fun nativeDiscoverSpeedTestPresets(): ByteArray
+    fun nativeRunSpeedTests(b: ByteArray, c: JniSpeedTestCallbackWrapper): ByteArray
 
     fun nativeStopTests()
 }
@@ -23,13 +25,13 @@ object GoBridge {
             .build()
         val b = GoBridgeNative.nativeDiscoverWorkers(request.toByteArray())
         val r = PBDiscoverWorkersResponse.parseFrom(b)
-        if (r.hasError()) throw kotlin.Exception(r.error)
+        if (r.hasError()) throw Exception(r.error)
 
         return r.workers.workersList.map { proto ->
             WorkerInfo(
                 name = proto.name,
                 version = proto.version,
-                path = proto.path
+                path = proto.path,
             )
         }
     }
@@ -41,7 +43,7 @@ object GoBridge {
             .build()
         val b = GoBridgeNative.nativeInitializeRunner(request.toByteArray())
         val r = PBInitializeRunnerResponse.parseFrom(b)
-        if (r.hasError()) throw kotlin.Exception(r.error)
+        if (r.hasError()) throw Exception(r.error)
     }
 
     fun parseConfigs(inputConfigs: List<ProxyConfig>): Map<String, String> {
@@ -59,7 +61,7 @@ object GoBridge {
 
         val b = GoBridgeNative.nativeParseConfigs(protoInput.toByteArray())
         val r = PBParseConfigsResponse.parseFrom(b)
-        if (r.hasError()) throw kotlin.Exception(r.error)
+        if (r.hasError()) throw Exception(r.error)
 
         return r.parseErrors.itemsMap
     }
@@ -67,7 +69,7 @@ object GoBridge {
     fun validateConfigs(): Map<String, String> {
         val b = GoBridgeNative.nativeValidateConfigs()
         val r = PBValidateConfigsResponse.parseFrom(b)
-        if (r.hasError()) throw kotlin.Exception(r.error)
+        if (r.hasError()) throw Exception(r.error)
 
         return r.validateErrors.itemsMap
     }
@@ -75,9 +77,9 @@ object GoBridge {
     fun runLatencyTests(
         testUrl: String,
         settings: AppSettings,
-        callback: GoTestCallback,
+        callback: GoLatencyTestCallback,
     ): List<ProxyConfig> {
-        val wrapper = JniTestCallbackWrapper(callback)
+        val wrapper = JniLatencyTestCallbackWrapper(callback)
 
         val request = PBRunLatencyTestsRequest.newBuilder()
             .setTestUrl(testUrl)
@@ -93,7 +95,7 @@ object GoBridge {
         )
 
         val r = PBRunLatencyTestsResponse.parseFrom(b)
-        if (r.hasError()) throw kotlin.Exception(r.error)
+        if (r.hasError()) throw Exception(r.error)
 
         return r.configs.configsList.map { proto ->
             ProxyConfig(
@@ -104,13 +106,60 @@ object GoBridge {
         }
     }
 
+    fun discoverSpeedTestPresets(): Map<String, String> {
+        val b = GoBridgeNative.nativeDiscoverSpeedTestPresets()
+        val r = PBDiscoverSpeedTestPresetsResponse.parseFrom(b)
+        if (r.hasError()) throw Exception(r.error)
+
+        return r.presets.itemsMap
+    }
+
+    fun runSpeedTests(
+        workingTags: List<String>,
+        settings: AppSettings,
+        callback: GoSpeedTestCallback,
+    ): List<SpeedTestResult> {
+        val wrapper = JniSpeedTestCallbackWrapper(callback)
+
+        val request = PBRunSpeedTestsRequest.newBuilder()
+            .addAllTags(workingTags)
+            .setProviderId(settings.speedTestProviderId)
+            .setMode(if (settings.speedTestMode == "upload") PBSpeedTestMode.UPLOAD else PBSpeedTestMode.DOWNLOAD)
+            .setRounds(settings.speedTestRounds)
+            .setTimeout(settings.roundTimeout)
+            .setTargetBytes(settings.speedTestTargetBytes)
+            .build()
+
+        val b = GoBridgeNative.nativeRunSpeedTests(
+            request.toByteArray(),
+            wrapper,
+        )
+
+        val r = PBRunSpeedTestsResponse.parseFrom(b)
+        if (r.hasError()) throw Exception(r.error)
+
+        return r.resultsList.map { proto ->
+            SpeedTestResult(
+                tag = proto.tag,
+                speed = proto.speed,
+                error = if (proto.hasError()) proto.error else null
+            )
+        }
+    }
+
     fun stopTests() {
         GoBridgeNative.nativeStopTests()
     }
 }
 
-interface GoTestCallback {
+interface GoLatencyTestCallback {
     fun onRoundStarted(batch: Long, round: Long, total: Long)
     fun onProgress(tag: String, delay: Long, failed: Boolean)
+    fun onRoundEnded(batch: Long, round: Long)
+}
+
+interface GoSpeedTestCallback {
+    fun onRoundStarted(batch: Long, round: Long, total: Long)
+    fun onProgress(tag: String, speed: Double, failed: Boolean)
     fun onRoundEnded(batch: Long, round: Long)
 }

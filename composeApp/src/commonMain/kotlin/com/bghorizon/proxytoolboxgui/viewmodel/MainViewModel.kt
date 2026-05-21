@@ -47,8 +47,13 @@ class MainViewModel(val module: AppModule) : ViewModel() {
             }
         }
         viewModelScope.launch {
-            module.workerRepository.workers.collect { workers ->
+            module.runtimeSettingsManager.workers.collect { workers ->
                 _uiState.update { it.copy(workers = workers) }
+            }
+        }
+        viewModelScope.launch {
+            module.runtimeSettingsManager.speedTestPresets.collect { presets ->
+                _uiState.update { it.copy(speedTestPresets = presets) }
             }
         }
         viewModelScope.launch {
@@ -81,8 +86,23 @@ class MainViewModel(val module: AppModule) : ViewModel() {
         val settings = module.settingsRepository.settings.value
         var configs = module.subscriptionRepository.getWorkingConfigs()
 
+        if (settings.performSpeedTests) {
+            configs = configs.filter { it.speed > 0 }
+        }
+
         if (settings.sortProfilesByDelay) {
-            configs = configs.sortedWith(compareBy<ProxyConfig> { it.delay }.thenBy { it.tag })
+            configs = if (settings.performSpeedTests && !settings.sortByLatencyDelay) {
+                configs.sortedWith(
+                    compareByDescending<ProxyConfig> { it.speed }
+                        .thenBy { it.delay }
+                        .thenBy { it.tag }
+                )
+            } else {
+                configs.sortedWith(
+                    compareBy<ProxyConfig> { it.delay }
+                        .thenBy { it.tag }
+                )
+            }
         }
 
         return configs.joinToString("\n") { it.connURI }

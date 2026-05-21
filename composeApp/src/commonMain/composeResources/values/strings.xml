@@ -14,6 +14,7 @@
     <string name="lbl_parsing_errors">Parsing errors total: %1$d</string>
     <string name="lbl_validation_errors">Validation errors total: %1$d</string>
     <string name="lbl_working_profiles">Working profiles total: %1$d</string>
+    <string name="lbl_speed_passed">Passed the speed test total: %1$d</string>
     <string name="subscriptions">Subscriptions</string>
     <string name="btn_subs_update">Update</string>
     <string name="btn_subs_update_result">Total: %1$d\nFailed: %2$d\nSucceeded: %3$d</string>
@@ -34,7 +35,8 @@
     <string name="test_progress_status">Remaining: %1$d s • Batch %2$d/%3$d • Round %4$d/%5$d</string>
 
     <!-- Batch Table -->
-    <string name="batch_title">Batch %1$d</string>
+    <string name="latency_test_batch_title">Latency test batch %1$d</string>
+    <string name="speed_test_batch_title">Speed test batch</string>
     <string name="column_round">Round</string>
     <string name="column_total">Total</string>
     <string name="column_running">Running</string>
@@ -93,6 +95,7 @@
 
     <string name="current_worker">Current Worker Program</string>
     <string name="no_workers_available">No workers available</string>
+    <string name="no_speed_test_providers_available">No speed test providers available</string>
     <string name="sub_download_timeout">Subscription download timeout</string>
     <string name="parallel_sub_downloads">Parallel subscription downloads</string>
     <string name="perform_deduplication">Perform deduplication</string>
@@ -103,7 +106,16 @@
     <string name="low_mem_mode">Low memory mode</string>
     <string name="low_mem_mode_hint">Reduces RAM usage for large tests by creating a fresh worker for every batch</string>
     <string name="latency_test_url">Latency test URL</string>
-    <string name="sort_by_delay">Sort profiles by delay before sharing</string>
+    <string name="latency_test_sort_by_delay">Sort profiles by asc. latency for exporting</string>
+    <string name="perform_speed_test">Perform speed tests after latency tests</string>
+    <string name="speed_test_rounds">Speed test rounds</string>
+    <string name="speed_test_provider">Speed test provider</string>
+    <string name="speed_test_mode">Speed test mode</string>
+    <string name="speed_test_mode_download">Download</string>
+    <string name="speed_test_mode_upload">Upload</string>
+    <string name="speed_test_target_bytes">Target bytes</string>
+    <string name="speed_test_sort_by_latency_delay">Sort profiles in sequence of asc. latency for exporting</string>
+    <string name="speed_test_sort_by_latency_delay_hint">Setting "%1$s" should be enabled</string>
     <string name="web_server_auto_start">Auto-start web-server after test</string>
     <string name="web_server_port">Web-server port</string>
     <string name="web_server_localhost">Web-server listens only localhost</string>

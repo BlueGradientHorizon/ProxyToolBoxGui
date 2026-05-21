@@ -33,8 +33,12 @@ static void callOnRoundStarted(JNIEnv *env, jobject cb, jmethodID mid, jlong bat
     (*env)->CallVoidMethod(env, cb, mid, batch, round, total);
 }
 
-static void callOnProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, jlong delay, jboolean failed) {
+static void callLatencyOnProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, jlong delay, jboolean failed) {
     (*env)->CallVoidMethod(env, cb, mid, tag, delay, failed);
+}
+
+static void callSpeedOnProgress(JNIEnv *env, jobject cb, jmethodID mid, jstring tag, jdouble speed, jboolean failed) {
+    (*env)->CallVoidMethod(env, cb, mid, tag, speed, failed);
 }
 
 static void callOnRoundEnded(JNIEnv *env, jobject cb, jmethodID mid, jlong batch, jlong round) {
@@ -164,6 +168,18 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorker
 	return BytesToJByteArray(env, MarshalProto(resp))
 }
 
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverSpeedTestPresets
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverSpeedTestPresets(
+	env *C.JNIEnv,
+	clazz C.jclass,
+) C.jbyteArray {
+	presets := DiscoverSpeedTestPresets()
+	resp := &pb.PBDiscoverSpeedTestPresetsResponse{
+		Presets: &pb.PBStringMap{Items: presets},
+	}
+	return BytesToJByteArray(env, MarshalProto(resp))
+}
+
 //export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeStopTests
 func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeStopTests(env *C.JNIEnv, clazz C.jclass) {
 	StopTests()
@@ -287,7 +303,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 		C.free(unsafe.Pointer(cSigVJJ))
 	}()
 
-	callbacks := TestCallbacks{
+	callbacks := LatencyTestCallbacks{
 		OnRoundStarted: func(batch int, round int, total int) {
 			C.callOnRoundStarted(env, callback, midRoundStarted, C.jlong(batch), C.jlong(round), C.jlong(total))
 		},
@@ -297,7 +313,7 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 			if failed {
 				cFailed = 1
 			}
-			C.callOnProgress(env, callback, midProgress, jTag, C.jlong(delay), cFailed)
+			C.callLatencyOnProgress(env, callback, midProgress, jTag, C.jlong(delay), cFailed)
 			C.DeleteLocalRef(env, C.jobject(jTag))
 		},
 		OnRoundEnded: func(batch int, round int) {
@@ -328,6 +344,100 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 			})
 		}
 		resp.Configs = configsList
+	}
+	return BytesToJByteArray(env, MarshalProto(resp))
+}
+
+//export Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunSpeedTests
+func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunSpeedTests(
+	env *C.JNIEnv,
+	clazz C.jclass,
+	requestProto C.jbyteArray,
+	callback C.jobject,
+) C.jbyteArray {
+	requestBytes := JByteArrayToBytes(env, requestProto)
+
+	var req pb.PBRunSpeedTestsRequest
+	if err := proto.Unmarshal(requestBytes, &req); err != nil {
+		errStr := err.Error()
+		resp := &pb.PBRunSpeedTestsResponse{Error: &errStr}
+		return BytesToJByteArray(env, MarshalProto(resp))
+	}
+
+	cbClass := C.GetObjectClass(env, callback)
+	defer C.DeleteLocalRef(env, C.jobject(cbClass))
+
+	cOnRoundStarted := C.CString("onRoundStarted")
+	cOnProgress := C.CString("onProgress")
+	cOnRoundEnded := C.CString("onRoundEnded")
+
+	cSigVJJJ := C.CString("(JJJ)V")
+	cSigVJSZ := C.CString("(Ljava/lang/String;DZ)V")
+	cSigVJJ := C.CString("(JJ)V")
+
+	midRoundStarted := C.GetMethodID(env, cbClass, cOnRoundStarted, cSigVJJJ)
+	midProgress := C.GetMethodID(env, cbClass, cOnProgress, cSigVJSZ)
+	midRoundEnded := C.GetMethodID(env, cbClass, cOnRoundEnded, cSigVJJ)
+
+	defer func() {
+		C.free(unsafe.Pointer(cOnRoundStarted))
+		C.free(unsafe.Pointer(cOnProgress))
+		C.free(unsafe.Pointer(cOnRoundEnded))
+		C.free(unsafe.Pointer(cSigVJJJ))
+		C.free(unsafe.Pointer(cSigVJSZ))
+		C.free(unsafe.Pointer(cSigVJJ))
+	}()
+
+	callbacks := SpeedTestCallbacks{
+		OnRoundStarted: func(batch int, round int, total int) {
+			C.callOnRoundStarted(env, callback, midRoundStarted, C.jlong(batch), C.jlong(round), C.jlong(total))
+		},
+		OnProgress: func(tag string, speed float64, failed bool) {
+			jTag := StringToJString(env, tag)
+			var cFailed C.jboolean = 0
+			if failed {
+				cFailed = 1
+			}
+			C.callSpeedOnProgress(env, callback, midProgress, jTag, C.jdouble(speed), cFailed)
+			C.DeleteLocalRef(env, C.jobject(jTag))
+		},
+		OnRoundEnded: func(batch int, round int) {
+			C.callOnRoundEnded(env, callback, midRoundEnded, C.jlong(batch), C.jlong(round))
+		},
+	}
+
+	mode := "download"
+	if req.Mode == pb.PBSpeedTestMode_UPLOAD {
+		mode = "upload"
+	}
+
+	results, err := RunSpeedTests(
+		req.Tags,
+		req.ProviderId,
+		mode,
+		int(req.Rounds),
+		int(req.Timeout),
+		req.TargetBytes,
+		callbacks,
+	)
+
+	resp := &pb.PBRunSpeedTestsResponse{}
+	if err != nil {
+		errStr := err.Error()
+		resp.Error = &errStr
+	} else {
+		for _, r := range results {
+			var errStr *string
+			if r.Error != nil {
+				s := r.Error.Error()
+				errStr = &s
+			}
+			resp.Results = append(resp.Results, &pb.PBSpeedTestResult{
+				Tag:   r.Tag,
+				Speed: r.Speed,
+				Error: errStr,
+			})
+		}
 	}
 	return BytesToJByteArray(env, MarshalProto(resp))
 }

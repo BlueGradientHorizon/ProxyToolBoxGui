@@ -9,7 +9,7 @@ class ProxyTestManager(
 ) {
     suspend fun prepareTest(
         settings: AppSettings,
-        subscriptions: List<Subscription>
+        subscriptions: List<Subscription>,
     ): TestSetup = withContext(Dispatchers.IO) {
         val subs = subscriptions.map {
             it.copy(
@@ -43,13 +43,19 @@ class ProxyTestManager(
         }
 
         val totalBatches = if (settings.testByBatches && (settings.batchSize > 0)) {
-            (configs.size + settings.batchSize - 1) / settings.batchSize
+            ((configs.size + settings.batchSize) - 1) / settings.batchSize
         } else {
             1
         }
         val totalRounds = settings.latencyRounds
         val roundTimeout = settings.roundTimeout
-        val totalSeconds = totalBatches * totalRounds * roundTimeout
+        var totalSeconds = totalBatches * totalRounds * roundTimeout
+
+        if (settings.performSpeedTests) {
+            // Speed tests run in 1 batch for all working profiles
+            val speedTestRounds = settings.speedTestRounds
+            totalSeconds += 1 * speedTestRounds * roundTimeout
+        }
 
         TestSetup(configs, subs, totalBatches, totalRounds, totalSeconds)
     }
@@ -75,7 +81,7 @@ class ProxyTestManager(
         GoBridge.runLatencyTests(
             testUrl = settings.testUrl,
             settings = settings,
-            callback = object : GoTestCallback {
+            callback = object : GoLatencyTestCallback {
                 override fun onRoundStarted(batch: Long, round: Long, total: Long) {
                     onEvent(
                         LatencyTestEvent.RoundStarted(
@@ -92,6 +98,36 @@ class ProxyTestManager(
 
                 override fun onRoundEnded(batch: Long, round: Long) {
                     onEvent(LatencyTestEvent.RoundEnded(batch.toInt(), round.toInt()))
+                }
+            }
+        )
+    }
+
+    suspend fun runSpeedTests(
+        workingTags: List<String>,
+        settings: AppSettings,
+        onEvent: (SpeedTestEvent) -> Unit
+    ): List<SpeedTestResult> = withContext(Dispatchers.IO) {
+        GoBridge.runSpeedTests(
+            workingTags = workingTags,
+            settings = settings,
+            callback = object : GoSpeedTestCallback {
+                override fun onRoundStarted(batch: Long, round: Long, total: Long) {
+                    onEvent(
+                        SpeedTestEvent.RoundStarted(
+                            batch.toInt(),
+                            round.toInt(),
+                            total.toInt()
+                        )
+                    )
+                }
+
+                override fun onProgress(tag: String, speed: Double, failed: Boolean) {
+                    onEvent(SpeedTestEvent.Progress(tag, speed, failed))
+                }
+
+                override fun onRoundEnded(batch: Long, round: Long) {
+                    onEvent(SpeedTestEvent.RoundEnded(batch.toInt(), round.toInt()))
                 }
             }
         )
@@ -115,6 +151,12 @@ sealed class LatencyTestEvent {
     data class RoundStarted(val batch: Int, val round: Int, val total: Int) : LatencyTestEvent()
     data class Progress(val tag: String, val delay: Long, val failed: Boolean) : LatencyTestEvent()
     data class RoundEnded(val batch: Int, val round: Int) : LatencyTestEvent()
+}
+
+sealed class SpeedTestEvent {
+    data class RoundStarted(val batch: Int, val round: Int, val total: Int) : SpeedTestEvent()
+    data class Progress(val tag: String, val speed: Double, val failed: Boolean) : SpeedTestEvent()
+    data class RoundEnded(val batch: Int, val round: Int) : SpeedTestEvent()
 }
 
 data class TestSetup(

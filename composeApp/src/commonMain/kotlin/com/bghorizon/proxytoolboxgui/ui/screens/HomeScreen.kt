@@ -85,6 +85,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val totalParseErr = subs.sumOf { it.parseErr }
     val totalValidErr = subs.sumOf { it.validErr }
     val totalWorking = subs.sumOf { it.working }
+    val totalSpeedPassed = subs.sumOf { it.speedPassed }
 
     val scaffoldPadding = LocalScaffoldPadding.current
 
@@ -144,6 +145,12 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                 stringResource(Res.string.lbl_working_profiles, totalWorking),
                 isHighlighted = true
             )
+            if (mainUiState.settings.performSpeedTests) {
+                StatLine(
+                    stringResource(Res.string.lbl_speed_passed, totalSpeedPassed),
+                    isHighlighted = true
+                )
+            }
         }
 
         LazyColumn(
@@ -163,7 +170,36 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 
                 items(groupedBatches) { (batchNum, rounds) ->
                     BatchTable(
-                        title = stringResource(Res.string.batch_title, batchNum),
+                        title = stringResource(Res.string.latency_test_batch_title, batchNum),
+                        headers = listOf(
+                            stringResource(Res.string.column_round),
+                            stringResource(Res.string.column_total),
+                            stringResource(Res.string.column_running),
+                            stringResource(Res.string.column_failed),
+                            stringResource(Res.string.column_succeeded)
+                        ),
+                        headerWeights = listOf(0.7f, 1f, 1f, 1f, 1f),
+                        rows = rounds.sortedBy { it.roundNum }.map { round ->
+                            listOf(
+                                round.roundNum.toString(),
+                                round.total.toString(),
+                                round.running.toString(),
+                                round.failed.toString(),
+                                round.succeeded.toString()
+                            )
+                        }
+                    )
+                }
+            }
+
+            if (testProgress.speedBatchProgresses.isNotEmpty()) {
+                val groupedSpeedBatches =
+                    testProgress.speedBatchProgresses.groupBy { it.batchNum }.toList()
+                        .sortedBy { it.first }
+
+                items(groupedSpeedBatches) { (_, rounds) ->
+                    BatchTable(
+                        title = stringResource(Res.string.speed_test_batch_title),
                         headers = listOf(
                             stringResource(Res.string.column_round),
                             stringResource(Res.string.column_total),

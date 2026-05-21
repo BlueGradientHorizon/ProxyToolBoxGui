@@ -29,8 +29,7 @@ import com.bghorizon.proxytoolboxgui.data.ProxyTestManager
 import com.bghorizon.proxytoolboxgui.data.WebServerManager
 import com.bghorizon.proxytoolboxgui.data.SettingsRepository
 import com.bghorizon.proxytoolboxgui.data.SubscriptionRepository
-import com.bghorizon.proxytoolboxgui.data.WorkerManager
-import com.bghorizon.proxytoolboxgui.data.WorkerRepository
+import com.bghorizon.proxytoolboxgui.data.RuntimeSettingsManager
 import com.bghorizon.proxytoolboxgui.data.db.AppDatabase
 import com.bghorizon.proxytoolboxgui.data.db.SubscriptionDatabase
 import com.bghorizon.proxytoolboxgui.di.AppModule
@@ -57,10 +56,8 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     val testManager = remember { ProxyTestManager(subscriptionRepository) }
     val webServerManager = remember { WebServerManager(settingsRepository) }
     val appStatusManager = remember { AppStatusManager() }
-    val workerRepository = remember { WorkerRepository() }
-    val workerManager = remember {
-        WorkerManager(
-            workerRepository,
+    val runtimeSettingsManager = remember {
+        RuntimeSettingsManager(
             settingsRepository,
             appStatusManager,
             platform
@@ -71,8 +68,7 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
         AppModule(
             settingsRepository = settingsRepository,
             subscriptionRepository = subscriptionRepository,
-            workerRepository = workerRepository,
-            workerManager = workerManager,
+            runtimeSettingsManager = runtimeSettingsManager,
             testManager = testManager,
             webServerManager = webServerManager,
             appStatusManager = appStatusManager,
@@ -90,7 +86,8 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
     // of theme and configuration values.
     val appState by produceState<MainUiState?>(initialValue = null, viewModel) {
         settingsRepository.loadSettings(platform)
-        workerManager.discover()
+        appModule.runtimeSettingsManager.discoverWorkers()
+        appModule.runtimeSettingsManager.discoverSpeedtestPresets()
         viewModel.uiState.collect { value = it }
     }
 

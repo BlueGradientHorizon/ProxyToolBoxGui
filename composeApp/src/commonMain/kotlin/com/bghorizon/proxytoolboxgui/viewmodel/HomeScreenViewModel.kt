@@ -22,7 +22,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         subscriptions: List<Subscription>,
         onTestCompleted: () -> Unit = {},
     ) {
-        if ((module.workerRepository.workers.value.isEmpty()) || (testJob?.isActive == true)) return
+        if ((module.runtimeSettingsManager.workers.value.isEmpty()) || (testJob?.isActive == true)) return
 
         if (appStatus == AppStatus.UPDATING_SUBS) {
             viewModelScope.launch {
@@ -81,7 +81,12 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                                 (1..setup.totalRounds).map { r ->
                                     BatchProgress(batchNum = b, roundNum = r)
                                 }
-                            }
+                            },
+                            speedBatchProgresses = if (currentSettings.performSpeedTests) {
+                                (1..currentSettings.speedTestRounds).map { r ->
+                                    BatchProgress(batchNum = 1, roundNum = r)
+                                }
+                            } else emptyList(),
                         )
                     )
                 }
@@ -135,6 +140,30 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     }
                 }
                 module.subscriptionRepository.updateConfigTestResultsBatch(updates)
+
+                if (currentSettings.performSpeedTests && resultConfigs.isNotEmpty()) {
+                    val workingTags = resultConfigs.map { it.tag }
+                    val speedResults = module.testManager.runSpeedTests(
+                        workingTags = workingTags,
+                        settings = currentSettings
+                    ) { event ->
+                        if (!job.isActive) return@runSpeedTests
+                        handleSpeedTestEvent(event, currentSettings, setup)
+                    }
+
+                    if (job.isActive) {
+                        val speedUpdates = speedResults.mapNotNull { res ->
+                            module.testManager.extractIds(res.tag)?.let { (subId, configId) ->
+                                ConfigTestResultUpdate(
+                                    subId = subId,
+                                    configId = configId,
+                                    speed = res.speed.toLong()
+                                )
+                            }
+                        }
+                        module.subscriptionRepository.updateConfigTestResultsBatch(speedUpdates)
+                    }
+                }
 
                 module.appStatusManager.updateStatus(
                     if (resultConfigs.isNotEmpty()) AppStatus.COMPLETED else AppStatus.IDLE
@@ -229,6 +258,77 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
             }
 
             is LatencyTestEvent.RoundEnded -> {
+                timerJob?.cancel()
+                _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }
+            }
+        }
+    }
+
+    private fun handleSpeedTestEvent(
+        event: SpeedTestEvent,
+        settings: AppSettings,
+        setup: TestSetup
+    ) {
+        when (event) {
+            is SpeedTestEvent.RoundStarted -> {
+                val currentRoundAbsolute =
+                    (settings.latencyRounds * setup.totalBatches) + event.round
+                module.appStatusManager.updateStatus(AppStatus.TESTING)
+                _uiState.update { state ->
+                    val current = state.testProgress
+                    val updatedProgresses = current.speedBatchProgresses.toMutableList()
+                    val idx =
+                        updatedProgresses.indexOfFirst { it.batchNum == event.batch && it.roundNum == event.round }
+                    if (idx >= 0) {
+                        updatedProgresses[idx] = updatedProgresses[idx].copy(
+                            total = event.total,
+                            running = event.total,
+                        )
+                    }
+
+                    state.copy(
+                        testProgress = current.copy(
+                            currentBatch = event.batch,
+                            currentRound = event.round,
+                            elapsedSeconds = (currentRoundAbsolute - 1) * settings.roundTimeout,
+                            isRunning = true,
+                            isRoundActive = true,
+                            speedBatchProgresses = updatedProgresses,
+                        )
+                    )
+                }
+
+                timerJob?.cancel()
+                timerJob = viewModelScope.launch {
+                    while (isActive) {
+                        delay(1000)
+                        _uiState.update { it.copy(testProgress = it.testProgress.copy(elapsedSeconds = it.testProgress.elapsedSeconds + 1)) }
+                    }
+                }
+            }
+
+            is SpeedTestEvent.Progress -> {
+                _uiState.update { state ->
+                    val current = state.testProgress
+                    val updatedProgresses = current.speedBatchProgresses.toMutableList()
+                    val batchIndex = updatedProgresses.indexOfFirst {
+                        it.batchNum == current.currentBatch && it.roundNum == current.currentRound
+                    }
+
+                    if (batchIndex >= 0) {
+                        val bp = updatedProgresses[batchIndex]
+                        updatedProgresses[batchIndex] = bp.copy(
+                            running = bp.running - 1,
+                            failed = if (event.failed) bp.failed + 1 else bp.failed,
+                            succeeded = if (!event.failed) bp.succeeded + 1 else bp.succeeded
+                        )
+                    }
+
+                    state.copy(testProgress = current.copy(speedBatchProgresses = updatedProgresses))
+                }
+            }
+
+            is SpeedTestEvent.RoundEnded -> {
                 timerJob?.cancel()
                 _uiState.update { it.copy(testProgress = it.testProgress.copy(isRoundActive = false)) }
             }

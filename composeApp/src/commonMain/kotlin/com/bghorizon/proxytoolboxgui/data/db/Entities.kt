@@ -8,7 +8,7 @@ import androidx.room.ForeignKey
 data class AppSettingsEntity(
     @PrimaryKey val id: Int = 0,
     val theme: Int,
-    val dynamicColor: Boolean = false,
+    val dynamicColor: Boolean,
     val selectedWorker: String,
     val selectedWorkerName: String,
     val downloadTimeout: Int,
@@ -22,8 +22,14 @@ data class AppSettingsEntity(
     val webServerLocalhost: Boolean,
     val testUrl: String,
     val parallelSubscriptionDownloads: Int,
-    val lowMemMode: Boolean = false,
-    val sortProfilesByDelay: Boolean = false
+    val lowMemMode: Boolean,
+    val sortProfilesByDelay: Boolean,
+    val performSpeedTests: Boolean,
+    val speedTestRounds: Int,
+    val speedTestProvider: String,
+    val speedTestMode: String,
+    val speedTestTargetBytes: Long,
+    val sortByLatencyDelay: Boolean
 )
 
 @Entity(tableName = "subscriptions")
@@ -49,9 +55,10 @@ data class SubscriptionDataEntity(
     val subId: String,
     val configId: Int,
     val connURI: String,
-    val parseErr: Boolean = false,
-    val validErr: Boolean = false,
-    val fixedConnURI: String? = null,
-    val working: Boolean = false,
-    val delay: Long = -1
+    val parseErr: Boolean,
+    val validErr: Boolean,
+    val fixedConnURI: String?,
+    val working: Boolean,
+    val delay: Long,
+    val speed: Long
 )

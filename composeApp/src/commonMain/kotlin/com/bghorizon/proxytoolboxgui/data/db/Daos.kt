@@ -69,9 +69,24 @@ interface SubscriptionDao {
         delay: Long,
     )
 
+    @Query("UPDATE subscriptions_data SET speed = :speed WHERE subId = :subId AND configId = :configId")
+    suspend fun updateConfigSpeedResult(subId: String, configId: Int, speed: Long)
+
     @Transaction
     suspend fun updateConfigTestResultsBatch(results: List<ConfigTestResultUpdate>) {
-        results.forEach { updateConfigTestResult(it.subId, it.configId, it.working, it.fixedUri, it.delay) }
+        results.forEach {
+            if (it.speed != null) {
+                updateConfigSpeedResult(it.subId, it.configId, it.speed)
+            } else {
+                updateConfigTestResult(
+                    it.subId,
+                    it.configId,
+                    it.working ?: false,
+                    it.fixedUri,
+                    it.delay ?: -1
+                )
+            }
+        }
     }
 
     @Query("UPDATE subscriptions_data SET parseErr = 1 WHERE subId = :subId AND configId = :configId")
@@ -96,7 +111,7 @@ interface SubscriptionDao {
     @Query("UPDATE subscriptions_data SET validErr = 0")
     suspend fun resetValidErrorData()
 
-    @Query("UPDATE subscriptions_data SET working = 0, fixedConnURI = NULL")
+    @Query("UPDATE subscriptions_data SET working = 0, fixedConnURI = NULL, delay = -1, speed = -1")
     suspend fun resetWorkingData()
 
     @Query(
@@ -104,13 +119,15 @@ interface SubscriptionDao {
         SELECT s.*, 
                COUNT(d.configId) as total,
                SUM(CASE WHEN d.working = 1 THEN 1 ELSE 0 END) as working,
+               SUM(CASE WHEN d.speed > 0 THEN 1 ELSE 0 END) as speedPassed,
                SUM(CASE WHEN d.parseErr = 1 THEN 1 ELSE 0 END) as parseErr,
                SUM(CASE WHEN d.validErr = 1 THEN 1 ELSE 0 END) as validErr
         FROM subscriptions s 
         LEFT JOIN subscriptions_data d ON s.id = d.subId
         GROUP BY s.id
         ORDER BY s.rowid ASC
-    """)
+    """
+    )
     fun getSubscriptionsWithStatsFlow(): kotlinx.coroutines.flow.Flow<List<SubscriptionWithStats>>
 }
 
@@ -122,6 +139,7 @@ data class SubscriptionWithStats(
     val duplicated: Int,
     val total: Int,
     val working: Int,
+    val speedPassed: Int,
     val parseErr: Int,
     val validErr: Int
 )
@@ -129,7 +147,8 @@ data class SubscriptionWithStats(
 data class ConfigTestResultUpdate(
     val subId: String,
     val configId: Int,
-    val working: Boolean,
-    val fixedUri: String?,
-    val delay: Long
+    val working: Boolean? = null,
+    val fixedUri: String? = null,
+    val delay: Long? = null,
+    val speed: Long? = null
 )

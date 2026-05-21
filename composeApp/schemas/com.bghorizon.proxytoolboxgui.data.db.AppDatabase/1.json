@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "a981f7a527209e7cd0e76b4f37ca42da",
+    "identityHash": "38796cb57e7e19a2579be79d948a42c3",
     "entities": [
       {
         "tableName": "app_settings",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `theme` INTEGER NOT NULL, `dynamicColor` INTEGER NOT NULL, `selectedWorker` TEXT NOT NULL, `selectedWorkerName` TEXT NOT NULL, `downloadTimeout` INTEGER NOT NULL, `performDedup` INTEGER NOT NULL, `latencyRounds` INTEGER NOT NULL, `roundTimeout` INTEGER NOT NULL, `testByBatches` INTEGER NOT NULL, `batchSize` INTEGER NOT NULL, `autoStartWebServer` INTEGER NOT NULL, `webServerPort` INTEGER NOT NULL, `webServerLocalhost` INTEGER NOT NULL, `testUrl` TEXT NOT NULL, `parallelSubscriptionDownloads` INTEGER NOT NULL, `lowMemMode` INTEGER NOT NULL, `sortProfilesByDelay` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `theme` INTEGER NOT NULL, `dynamicColor` INTEGER NOT NULL, `selectedWorker` TEXT NOT NULL, `selectedWorkerName` TEXT NOT NULL, `downloadTimeout` INTEGER NOT NULL, `performDedup` INTEGER NOT NULL, `latencyRounds` INTEGER NOT NULL, `roundTimeout` INTEGER NOT NULL, `testByBatches` INTEGER NOT NULL, `batchSize` INTEGER NOT NULL, `autoStartWebServer` INTEGER NOT NULL, `webServerPort` INTEGER NOT NULL, `webServerLocalhost` INTEGER NOT NULL, `testUrl` TEXT NOT NULL, `parallelSubscriptionDownloads` INTEGER NOT NULL, `lowMemMode` INTEGER NOT NULL, `sortProfilesByDelay` INTEGER NOT NULL, `performSpeedTests` INTEGER NOT NULL, `speedTestRounds` INTEGER NOT NULL, `speedTestProvider` TEXT NOT NULL, `speedTestMode` TEXT NOT NULL, `speedTestTargetBytes` INTEGER NOT NULL, `sortByLatencyDelay` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -115,6 +115,42 @@
             "columnName": "sortProfilesByDelay",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "performSpeedTests",
+            "columnName": "performSpeedTests",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speedTestRounds",
+            "columnName": "speedTestRounds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speedTestProvider",
+            "columnName": "speedTestProvider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speedTestMode",
+            "columnName": "speedTestMode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speedTestTargetBytes",
+            "columnName": "speedTestTargetBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortByLatencyDelay",
+            "columnName": "sortByLatencyDelay",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -127,7 +163,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a981f7a527209e7cd0e76b4f37ca42da')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '38796cb57e7e19a2579be79d948a42c3')"
     ]
   }
 }

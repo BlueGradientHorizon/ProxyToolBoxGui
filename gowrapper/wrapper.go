@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/bluegradienthorizon/proxytoolbox/parsers"
+	"github.com/bluegradienthorizon/proxytoolbox/presets"
 	"github.com/bluegradienthorizon/proxytoolbox/registry"
 	"github.com/bluegradienthorizon/proxytoolbox/runner"
+	"github.com/bluegradienthorizon/proxytoolbox/worker"
 )
 
 type WorkerInfo struct {
@@ -24,9 +26,15 @@ type ProxyConfig struct {
 	Delay   int64  `json:"delay"`
 }
 
-type TestCallbacks struct {
+type LatencyTestCallbacks struct {
 	OnRoundStarted func(batch int, round int, total int)
 	OnProgress     func(tag string, delay int64, failed bool)
+	OnRoundEnded   func(batch int, round int)
+}
+
+type SpeedTestCallbacks struct {
+	OnRoundStarted func(batch int, round int, total int)
+	OnProgress     func(tag string, speed float64, failed bool)
 	OnRoundEnded   func(batch int, round int)
 }
 
@@ -39,7 +47,24 @@ var (
 	currentWorkerPath    string
 	currentParsedConfigs []parsers.ProxyConfig
 	currentValidConfigs  []parsers.ProxyConfig
+
+	speedTestProviders = map[string]worker.SpeedTestProvider{
+		"cloudflare": presets.CloudflareProvider,
+	}
 )
+
+func DiscoverSpeedTestPresets() map[string]string {
+	presetsMap := make(map[string]string)
+	for id := range speedTestProviders {
+		switch id {
+		case "cloudflare":
+			presetsMap[id] = "Cloudflare"
+		default:
+			presetsMap[id] = id
+		}
+	}
+	return presetsMap
+}
 
 func DiscoverWorkers(libraryPath string) ([]WorkerInfo, error) {
 	reg := registry.NewRegistry()
@@ -203,7 +228,7 @@ func RunLatencyTests(
 	roundTimeout int,
 	testByBatches bool,
 	batchSize int,
-	callbacks TestCallbacks,
+	callbacks LatencyTestCallbacks,
 ) ([]ProxyConfig, error) {
 	testMu.Lock()
 	validConfigs := currentValidConfigs
@@ -331,4 +356,116 @@ func RunLatencyTests(
 	}
 
 	return workingConfigs, nil
+}
+
+func RunSpeedTests(
+	tags []string,
+	providerId string,
+	mode string,
+	rounds int,
+	timeout int,
+	targetBytes int64,
+	callbacks SpeedTestCallbacks,
+) ([]runner.SpeedTestResult, error) {
+	testMu.Lock()
+	allValidConfigs := currentValidConfigs
+	globalTR := testRunner
+	testMu.Unlock()
+
+	if !lowMemMode && globalTR == nil {
+		return nil, fmt.Errorf("Test runner not initialized")
+	}
+
+	tagMap := make(map[string]bool)
+	for _, t := range tags {
+		tagMap[t] = true
+	}
+
+	var validConfigs []parsers.ProxyConfig
+	for _, cfg := range allValidConfigs {
+		if cfg.Config != nil && tagMap[cfg.Config.Tag] {
+			validConfigs = append(validConfigs, cfg)
+		}
+	}
+
+	if len(validConfigs) == 0 {
+		return nil, fmt.Errorf("No valid configs to test")
+	}
+
+	provider, ok := speedTestProviders[providerId]
+	if !ok {
+		return nil, fmt.Errorf("Unknown speed test provider: %s", providerId)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	testMu.Lock()
+	testCancel = cancel
+	testMu.Unlock()
+	defer func() {
+		testMu.Lock()
+		testCancel = nil
+		testMu.Unlock()
+		cancel()
+	}()
+
+	var allResults []runner.SpeedTestResult
+
+	var batchTags []string
+	for _, c := range validConfigs {
+		if c.Config != nil {
+			batchTags = append(batchTags, c.Config.Tag)
+		}
+	}
+
+	var tr *runner.TestRunner
+	if lowMemMode {
+		var err error
+		tr, err = runner.NewTestRunner(runner.RunnerSettings{
+			WorkerPath: currentWorkerPath,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Failed to initialize temporary runner for speed test: %v", err)
+		}
+		_, _, _ = tr.Validate(ctx, validConfigs, runner.DefaultConfigTaggerFunc)
+	} else {
+		tr = globalTR
+	}
+
+	stSettings := runner.SpeedTestRunnerSettings{
+		BaseTestRunnerSettings: runner.BaseTestRunnerSettings{
+			SortResults:  true,
+			FilterFailed: false,
+			Timeout:      time.Duration(timeout) * time.Second,
+			Rounds:       rounds,
+			RoundStartedCallback: func(round int, outboundsLen int) {
+				if callbacks.OnRoundStarted != nil {
+					callbacks.OnRoundStarted(1, round+1, len(validConfigs))
+				}
+			},
+			ProgressCallback: func(result runner.SpeedTestResult) {
+				if callbacks.OnProgress != nil {
+					callbacks.OnProgress(result.Tag, result.Speed, result.Error != nil)
+				}
+			},
+			RoundEndedCallback: func(round int) {
+				if callbacks.OnRoundEnded != nil {
+					callbacks.OnRoundEnded(1, round+1)
+				}
+			},
+		},
+		TargetBytes: targetBytes,
+		Mode:        worker.SpeedTestMode(mode),
+		Provider:    provider,
+	}
+
+	testResults, err := tr.RunSpeedTests(ctx, batchTags, stSettings)
+	if err == nil {
+		allResults = append(allResults, testResults.Results...)
+	}
+
+	if lowMemMode && tr != nil {
+		tr.Close()
+	}
+
+	return allResults, nil
 }

@@ -1,9 +1,6 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNamingStrategy
 
 @Serializable
 data class WorkerInfo(
@@ -19,6 +16,7 @@ data class Subscription(
     val url: String,
     val total: Int = 0,
     val working: Int = 0,
+    val speedPassed: Int = 0,
     val updatedAt: Long = 0L,
     val duplicated: Int = 0,
     val parseErr: Int = 0,
@@ -43,6 +41,7 @@ data class TestProgress(
     val currentRound: Int = 0,
     val totalRounds: Int = 0,
     val batchProgresses: List<BatchProgress> = emptyList(),
+    val speedBatchProgresses: List<BatchProgress> = emptyList(),
     val elapsedSeconds: Int = 0,
     val totalSeconds: Int = 0,
     val isRunning: Boolean = false,
@@ -61,15 +60,23 @@ data class SubsUpdateProgress(
 data class ProxyConfig(
     val tag: String,
     val connURI: String,
-    val delay: Long = -1
+    val delay: Long = -1,
+    val speed: Long = -1
+)
+
+@Serializable
+data class SpeedTestResult(
+    val tag: String,
+    val speed: Double, // bytes/s
+    val error: String? = null
 )
 
 @Serializable
 data class AppSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = false,
-    val selectedWorker: String = "",
-    val selectedWorkerName: String = "",
+    val selectedWorker: String = "", // runtime
+    val selectedWorkerName: String = "", // runtime
     val downloadTimeout: Int = 10,
     val performDedup: Boolean = true,
     val latencyRounds: Int = 3,
@@ -82,7 +89,13 @@ data class AppSettings(
     val testUrl: String = "https://www.google.com/generate_204",
     val parallelSubscriptionDownloads: Int = 5,
     val lowMemMode: Boolean = false,
-    val sortProfilesByDelay: Boolean = false
+    val sortProfilesByDelay: Boolean = false,
+    val performSpeedTests: Boolean = true,
+    val speedTestRounds: Int = 1,
+    val speedTestProviderId: String = "", // runtime
+    val speedTestMode: String = "download",
+    val speedTestTargetBytes: Long = 1024,
+    val sortByLatencyDelay: Boolean = false
 )
 
 enum class ThemeMode {
@@ -91,13 +104,4 @@ enum class ThemeMode {
 
 enum class AppStatus {
     IDLE, UPDATING_SUBS, PARSING, VALIDATING, TESTING, COMPLETED, STOPPED, ERROR
-}
-
-object JsonConfig {
-    @OptIn(ExperimentalSerializationApi::class)
-    val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-        namingStrategy = JsonNamingStrategy.SnakeCase
-    }
 }

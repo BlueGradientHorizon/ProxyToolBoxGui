@@ -71,3 +71,33 @@ message PBRunLatencyTestsResponse {
     PBProxyConfigList configs = 1;
     optional string error = 2;
 }
+
+message PBDiscoverSpeedTestPresetsResponse {
+    PBStringMap presets = 1;
+    optional string error = 2;
+}
+
+enum PBSpeedTestMode {
+    DOWNLOAD = 0;
+    UPLOAD = 1;
+}
+
+message PBRunSpeedTestsRequest {
+    repeated string tags = 1;
+    string provider_id = 2;
+    PBSpeedTestMode mode = 3;
+    int32 rounds = 4;
+    int32 timeout = 5;
+    int64 target_bytes = 6;
+}
+
+message PBSpeedTestResult {
+    string tag = 1;
+    double speed = 2; // bytes/s
+    optional string error = 3;
+}
+
+message PBRunSpeedTestsResponse {
+    repeated PBSpeedTestResult results = 1;
+    optional string error = 2;
+}

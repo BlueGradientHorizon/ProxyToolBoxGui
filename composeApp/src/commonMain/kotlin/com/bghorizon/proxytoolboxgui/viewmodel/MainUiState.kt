@@ -34,6 +34,7 @@ data class MainUiState(
     val webServerRunning: Boolean = false,
     val settings: AppSettings = AppSettings(),
     val workers: List<WorkerInfo> = emptyList(),
+    val speedTestPresets: Map<String, String> = emptyMap(),
     val activeDialog: UiDialog? = null,
     val isDynamicColorSupported: Boolean = false,
     val isQrScannerSupported: Boolean = false,
