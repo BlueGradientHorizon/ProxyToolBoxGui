@@ -31,6 +31,11 @@ android {
             isMinifyEnabled = false
         }
     }
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
@@ -47,6 +52,8 @@ kotlin {
 dependencies {
     implementation(projects.composeApp)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.core.ktx)
     implementation(libs.compose.uiToolingPreview)
     implementation(libs.androidx.room.runtime)
     coreLibraryDesugaring(libs.desugar.jdk.libs)

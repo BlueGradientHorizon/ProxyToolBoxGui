@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class WorkerInfo(
     val name: String,
     val version: String,
-    val path: String
+    val path: String,
 )
 
 @Serializable
@@ -95,11 +95,16 @@ data class AppSettings(
     val speedTestProviderId: String = "", // runtime
     val speedTestMode: String = "download",
     val speedTestTargetBytes: Long = 1024,
-    val sortByLatencyDelay: Boolean = false
+    val sortByLatencyDelay: Boolean = false,
+    val language: AppLanguage = AppLanguage.SYSTEM
 )
 
 enum class ThemeMode {
     LIGHT, DARK, SYSTEM
+}
+
+enum class AppLanguage {
+    SYSTEM, ENGLISH, RUSSIAN
 }
 
 enum class AppStatus {

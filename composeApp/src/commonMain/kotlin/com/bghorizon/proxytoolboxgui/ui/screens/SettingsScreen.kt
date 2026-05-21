@@ -10,6 +10,7 @@ import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.data.ThemeMode
+import com.bghorizon.proxytoolboxgui.data.AppLanguage
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 import com.bghorizon.proxytoolboxgui.viewmodel.*
@@ -28,6 +29,7 @@ sealed interface SettingsDialog : UiDialog {
     data object SpeedTestRounds : SettingsDialog
     data object SpeedTestProvider : SettingsDialog
     data object SpeedTestTargetBytes : SettingsDialog
+    data object Language : SettingsDialog
 }
 
 sealed interface SettingsScreenUiMode : ScreenUiMode {
@@ -70,7 +72,7 @@ fun SettingsScreenTopBar(settingsVm: SettingsScreenViewModel) {
 @Composable
 private fun NormalSettingsScreenTopBar() {
     TopAppBar(
-        title = { Text(stringResource(Res.string.title_settings)) }
+        title = { Text(stringResource(Res.string.title_settings)) },
     )
 }
 
@@ -88,7 +90,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
             .padding(horizontal = ScreenPadding),
         contentPadding = PaddingValues(
             top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
-            bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
+            bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding,
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -107,13 +109,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                                     count = ThemeMode.entries.size
                                 ),
                                 label = {
-                                    Text(
-                                        when (theme) {
-                                            ThemeMode.LIGHT -> stringResource(Res.string.app_theme_light)
-                                            ThemeMode.DARK -> stringResource(Res.string.app_theme_dark)
-                                            ThemeMode.SYSTEM -> stringResource(Res.string.app_theme_system)
-                                        }
-                                    )
+                                    Text(stringResource(settingsVm.getThemeLabel(theme)))
                                 }
                             )
                         }
@@ -127,6 +123,22 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                     },
                     enabled = mainUiState.isDynamicColorSupported,
                     subtitle = if (!mainUiState.isDynamicColorSupported) stringResource(Res.string.monet_not_supported) else null
+                )
+                val nativeName = settingsVm.getLanguageNativeName(settings.language)
+                val title = if (settings.language != AppLanguage.ENGLISH) {
+                    "${stringResource(Res.string.app_language)} (Language)"
+                } else {
+                    stringResource(Res.string.app_language)
+                }
+
+                SettingsItem(
+                    title = title,
+                    subtitle = if (nativeName == null) {
+                        stringResource(Res.string.app_language_system)
+                    } else {
+                        stringResource(nativeName)
+                    },
+                    onClick = { mainVm.updateDialog(SettingsDialog.Language) }
                 )
             }
         }
@@ -260,10 +272,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                                     count = 2
                                 ),
                                 label = {
-                                    Text(
-                                        if (mode == "download") stringResource(Res.string.speed_test_mode_download)
-                                        else stringResource(Res.string.speed_test_mode_upload)
-                                    )
+                                    Text(stringResource(settingsVm.getSpeedTestModeLabel(mode)))
                                 },
                                 enabled = settings.performSpeedTests
                             )
@@ -337,8 +346,8 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 initialValue = settings.downloadTimeout,
                 hint = stringResource(Res.string.hint_seconds, settings.downloadTimeout),
                 onDismiss = { mainVm.hideDialog() },
-                onSave = {
-                    settingsVm.updateSettings(settings.copy(downloadTimeout = it.coerceAtLeast(1)))
+                onSave = { value ->
+                    settingsVm.updateSettings(settings.copy(downloadTimeout = value.coerceAtLeast(1)))
                     true
                 }
             )
@@ -350,8 +359,8 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 initialValue = settings.latencyRounds,
                 hint = stringResource(Res.string.hint_rounds),
                 onDismiss = { mainVm.hideDialog() },
-                onSave = {
-                    settingsVm.updateSettings(settings.copy(latencyRounds = it.coerceAtLeast(1)))
+                onSave = { value ->
+                    settingsVm.updateSettings(settings.copy(latencyRounds = value.coerceAtLeast(1)))
                     true
                 }
             )
@@ -363,8 +372,8 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 initialValue = settings.roundTimeout,
                 hint = stringResource(Res.string.hint_seconds, settings.roundTimeout),
                 onDismiss = { mainVm.hideDialog() },
-                onSave = {
-                    settingsVm.updateSettings(settings.copy(roundTimeout = it.coerceAtLeast(1)))
+                onSave = { value ->
+                    settingsVm.updateSettings(settings.copy(roundTimeout = value.coerceAtLeast(1)))
                     true
                 }
             )
@@ -376,8 +385,8 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 initialValue = settings.batchSize,
                 hint = stringResource(Res.string.hint_number),
                 onDismiss = { mainVm.hideDialog() },
-                onSave = {
-                    settingsVm.updateSettings(settings.copy(batchSize = it.coerceAtLeast(1)))
+                onSave = { value ->
+                    settingsVm.updateSettings(settings.copy(batchSize = value.coerceAtLeast(1)))
                     true
                 }
             )
@@ -392,8 +401,8 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                     stringResource(Res.string.hint_allowed_ports)
                 ),
                 onDismiss = { mainVm.hideDialog() },
-                onSave = { settingsVm.savePort(it) },
-                isValid = { (it in 1024..65535) },
+                onSave = { value -> settingsVm.savePort(value) },
+                isValid = { it in 1024..65535 },
                 errorText = stringResource(Res.string.error_invalid_port)
             )
         }
@@ -470,6 +479,21 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                         )
                     )
                     true
+                }
+            )
+        }
+
+        SettingsDialog.Language -> {
+            val languages = AppLanguage.entries
+            SelectionDialog(
+                title = stringResource(Res.string.app_language),
+                items = languages,
+                selectedItem = settings.language,
+                onDismiss = { mainVm.hideDialog() },
+                onSelect = { settingsVm.updateSettings(settings.copy(language = it)) },
+                itemLabel = { lang ->
+                    settingsVm.getLanguageNativeName(lang)?.let { stringResource(it) }
+                        ?: stringResource(Res.string.app_language_system)
                 }
             )
         }

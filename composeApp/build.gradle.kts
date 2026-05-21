@@ -45,6 +45,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.appcompat)
+            implementation(libs.androidx.core.ktx)
 
             implementation(libs.androidx.camera.core)
             implementation(libs.androidx.camera.camera2)

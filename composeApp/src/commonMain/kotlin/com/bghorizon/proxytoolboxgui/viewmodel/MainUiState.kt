@@ -38,4 +38,5 @@ data class MainUiState(
     val activeDialog: UiDialog? = null,
     val isDynamicColorSupported: Boolean = false,
     val isQrScannerSupported: Boolean = false,
+    val isInitialized: Boolean = false,
 )

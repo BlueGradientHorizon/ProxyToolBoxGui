@@ -74,6 +74,7 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
     speedTestMode = speedTestMode,
     speedTestTargetBytes = speedTestTargetBytes,
     sortByLatencyDelay = sortByLatencyDelay,
+    language = language.ordinal,
 )
 
 private fun AppSettingsEntity.toModel() = AppSettings(
@@ -100,4 +101,5 @@ private fun AppSettingsEntity.toModel() = AppSettings(
     speedTestMode = speedTestMode,
     speedTestTargetBytes = speedTestTargetBytes,
     sortByLatencyDelay = sortByLatencyDelay,
+    language = AppLanguage.entries.getOrElse(language) { AppLanguage.SYSTEM },
 )

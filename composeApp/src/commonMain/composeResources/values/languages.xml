@@ -1,0 +1,5 @@
+<resources>
+    <!-- Native language names (Never translated, always fallback to these) -->
+    <string name="app_language_english_native">English</string>
+    <string name="app_language_russian_native">Русский</string>
+</resources>

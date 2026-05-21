@@ -32,6 +32,12 @@ class MainViewModel(val module: AppModule) : ViewModel() {
 
     init {
         viewModelScope.launch {
+            module.settingsRepository.loadSettings(module.platform)
+            module.runtimeSettingsManager.discoverWorkers()
+            module.runtimeSettingsManager.discoverSpeedtestPresets()
+            _uiState.update { it.copy(isInitialized = true) }
+        }
+        viewModelScope.launch {
             module.appStatusManager.statusInfo.collect { info ->
                 _uiState.update {
                     it.copy(

@@ -1,0 +1,155 @@
+<resources>
+    <string name="app_name">ProxyToolBoxGUI</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_btn_cancel">Отмена</string>
+    <string name="dialog_btn_save">Сохранить</string>
+    <string name="dialog_btn_delete">Удалить</string>
+    <string name="dialog_btn_close">Закрыть</string>
+
+    <!-- Main Screen -->
+    <string name="home">Главная</string>
+    <string name="lbl_profiles_found">Всего найдено профилей: %1$d</string>
+    <string name="lbl_profiles_duplicated">Всего дубликатов: %1$d</string>
+    <string name="lbl_parsing_errors">Ошибок парсинга: %1$d</string>
+    <string name="lbl_validation_errors">Ошибок валидации: %1$d</string>
+    <string name="lbl_working_profiles">Рабочих профилей: %1$d</string>
+    <string name="lbl_speed_passed">Прошли проверку скорости: %1$d</string>
+    <string name="subscriptions">Подписки</string>
+    <string name="btn_subs_update">Обновить</string>
+    <string name="btn_subs_update_result">Всего: %1$d\nНеудачно: %2$d\nУспешно: %3$d</string>
+    <string name="btn_copy">Копировать</string>
+    <string name="btn_export">Экспорт</string>
+    <string name="btn_web_server">Веб-сервер</string>
+    <string name="btn_test">ТЕСТ</string>
+    <string name="btn_test_stop">СТОП</string>
+    <string name="no_workers_found">Воркеры не найдены</string>
+    <string name="ready">Готово</string>
+    <string name="updating_subs">Обновление...</string>
+    <string name="parsing">Парсинг...</string>
+    <string name="validating">Валидация...</string>
+    <string name="testing">Тестирование...</string>
+    <string name="completed">Завершено</string>
+    <string name="stopped">Остановлено</string>
+    <string name="error">Ошибка</string>
+    <string name="test_progress_status">Осталось: %1$d сек • Пакет %2$d/%3$d • Раунд %4$d/%5$d</string>
+
+    <!-- Batch Table -->
+    <string name="latency_test_batch_title">Пакет проверки задержки %1$d</string>
+    <string name="speed_test_batch_title">Пакет проверки скорости</string>
+    <string name="column_round">Раунд</string>
+    <string name="column_total">Всего</string>
+    <string name="column_running">Выполняется</string>
+    <string name="column_failed">Ошибка</string>
+    <string name="column_succeeded">Успешно</string>
+
+    <!-- Subscriptions Screen -->
+    <string name="title_manage_subscriptions">Управление подписками</string>
+    <string name="title_select_subscriptions">Выберите подписки</string>
+    <string name="title_export_subscriptions">Экспорт подписок</string>
+    <string name="back">Назад</string>
+    <string name="sub_add">Добавить подписку</string>
+    <string name="sub_add_clipboard">Из буфера обмена</string>
+    <string name="sub_add_qr">Из QR-кода</string>
+    <string name="sub_add_qr_file">Импорт из изображения</string>
+    <string name="sub_qr_not_supported">Сканер QR-кодов не поддерживается на этой платформе</string>
+    <string name="sub_add_manual">Ручной ввод</string>
+    <string name="sub_edit">Изменить подписку</string>
+    <string name="sub_edit_note">Заметка</string>
+    <string name="sub_edit_link">Ссылка</string>
+    <string name="sub_update_confirm">Обновление подписок очистит все текущие результаты тестов. Продолжить?</string>
+    <string name="sub_del_confirm">Удалить подписку "%1$s"?</string>
+    <string name="sub_del_multiple_confirm">Удалить %1$d выбранных подписок?</string>
+    <string name="sub_item_total_working">Всего: %1$d | Рабочих: %2$d</string>
+    <string name="sub_unnamed">Без названия</string>
+    <string name="sub_not_updated">Еще не обновлялось</string>
+    <string name="sub_select_mode">Выбор</string>
+    <string name="sub_export_share">Поделиться</string>
+    <string name="btn_export_options">Опции экспорта</string>
+    <string name="export_show_qr">Показать QR-код</string>
+    <string name="export_to_clipboard">Экспорт в буфер обмена</string>
+    <string name="export_include_notes">Включить заметки</string>
+    <string name="sub_select_all">Выбрать все</string>
+    <string name="sub_deselect_all">Снять выделение</string>
+    <string name="title_qr_code">QR-код</string>
+    <!--    <string name="sub_add">Add</string>-->
+
+    <!-- Settings Screen -->
+    <string name="title_settings">Настройки</string>
+
+    <!-- Hints -->
+    <string name="hint_allowed_ports">1024-65535</string>
+    <string name="hint_number">Число</string>
+    <string name="hint_number_specify">Число (%1$s)</string>
+    <string name="hint_seconds">Секунды</string>
+    <string name="hint_seconds_preview">%1$d сек.</string>
+    <string name="hint_rounds">Раунды</string>
+    <string name="hint_rounds_preview">%1$d раунд(ов)</string>
+
+    <string name="app_theme">Тема</string>
+    <string name="app_theme_light">Светлая</string>
+    <string name="app_theme_dark">Темная</string>
+    <string name="app_theme_system">Системная</string>
+    <string name="app_language">Язык</string>
+    <string name="app_language_system">Системный</string>
+    <string name="use_monet">Использовать Monet</string>
+    <string name="monet_not_supported">Поддерживается только на Android 12 и выше</string>
+
+    <string name="current_worker">Текущий воркер</string>
+    <string name="no_workers_available">Нет доступных воркеров</string>
+    <string name="no_speed_test_providers_available">Нет доступных провайдеров проверки скорости</string>
+    <string name="sub_download_timeout">Таймаут загрузки подписки</string>
+    <string name="parallel_sub_downloads">Параллельные загрузки подписок</string>
+    <string name="perform_deduplication">Выполнять дедупликацию</string>
+    <string name="latency_test_rounds">Раунды проверки задержки</string>
+    <string name="round_timeout">Таймаут раунда</string>
+    <string name="test_by_batches">Тестировать пакетами</string>
+    <string name="batch_size">Размер пакета</string>
+    <string name="low_mem_mode">Режим экономии памяти</string>
+    <string name="low_mem_mode_hint">Снижает использование ОЗУ при больших тестах путем создания нового воркера для каждого пакета</string>
+    <string name="latency_test_url">URL для проверки задержки</string>
+    <string name="latency_test_sort_by_delay">Сортировать профили по возр. задержки при экспорте</string>
+    <string name="perform_speed_test">Выполнять проверку скорости после проверки задержки</string>
+    <string name="speed_test_rounds">Раунды проверки скорости</string>
+    <string name="speed_test_provider">Провайдер проверки скорости</string>
+    <string name="speed_test_mode">Режим проверки скорости</string>
+    <string name="speed_test_mode_download">Загрузка</string>
+    <string name="speed_test_mode_upload">Отдача</string>
+    <string name="speed_test_target_bytes">Целевой объем данных (байт)</string>
+    <string name="speed_test_sort_by_latency_delay">Сортировать профили в последовательности возр. задержки при экспорте</string>
+    <string name="speed_test_sort_by_latency_delay_hint">Настройка "%1$s" должна быть включена</string>
+    <string name="web_server_auto_start">Автостарт веб-сервера после успешного завершения теста</string>
+    <string name="web_server_port">Порт веб-сервера</string>
+    <string name="web_server_localhost">Веб-сервер слушает только localhost</string>
+
+    <!-- Settings Categories -->
+    <string name="category_appearance">Внешний вид</string>
+    <string name="category_worker">Воркер</string>
+    <string name="category_download">Загрузка</string>
+    <string name="category_testing">Тестирование</string>
+    <string name="category_web_server">Веб-сервер</string>
+
+    <!-- Web Server -->
+    <string name="web_server_started">Веб-сервер запущен на порту %1$d</string>
+    <string name="web_server_stopped">Веб-сервер остановлен</string>
+    <string name="web_server_failed">Не удалось запустить веб-сервер: %1$s</string>
+
+    <!-- Messages / Toasts -->
+    <string name="msg_exported_to">Экспортировано в %1$s</string>
+    <string name="msg_export_failed">Ошибка экспорта</string>
+    <string name="msg_copied_to_clipboard">Скопировано в буфер обмена</string>
+    <string name="msg_imported_subs">Импортировано подписок: %1$d</string>
+    <string name="msg_no_subs_found">Подписки не найдены</string>
+    <string name="msg_no_configs_to_test">Конфигурации для тестирования не найдены</string>
+    <string name="msg_select_worker">Пожалуйста, выберите воркер в настройках</string>
+    <string name="msg_test_error">Ошибка теста: %1$s</string>
+    <string name="msg_cannot_test_while_updating">Невозможно запустить тест во время обновления подписок</string>
+    <string name="label_proxy_configs">Конфигурации прокси</string>
+
+    <!-- Errors -->
+    <string name="error_no_worker">Воркер не выбран</string>
+    <string name="error_invalid_port">Порт должен быть в диапазоне от 1024 до 65535</string>
+    <string name="error_empty_fields">Заметка и ссылка не могут быть пустыми</string>
+    <string name="error_no_content">Нет содержимого</string>
+    <string name="error_generating_qr">Ошибка генерации QR-кода: %1$s</string>
+</resources>

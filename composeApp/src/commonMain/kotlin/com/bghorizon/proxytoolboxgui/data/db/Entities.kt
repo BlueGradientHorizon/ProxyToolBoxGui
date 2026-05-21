@@ -29,7 +29,8 @@ data class AppSettingsEntity(
     val speedTestProvider: String,
     val speedTestMode: String,
     val speedTestTargetBytes: Long,
-    val sortByLatencyDelay: Boolean
+    val sortByLatencyDelay: Boolean,
+    val language: Int
 )
 
 @Entity(tableName = "subscriptions")
