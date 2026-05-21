@@ -90,11 +90,11 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
             top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
             bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
         ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             SettingsSection(title = stringResource(Res.string.category_appearance)) {
-                SettingsItem(title = stringResource(Res.string.app_theme), customHeight = true) {
+                SettingsItem(title = stringResource(Res.string.app_theme)) {
                     SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -244,7 +244,6 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 )
                 SettingsItem(
                     title = stringResource(Res.string.speed_test_mode),
-                    customHeight = true,
                     enabled = settings.performSpeedTests
                 ) {
                     SingleChoiceSegmentedButtonRow(
@@ -279,7 +278,10 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 )
                 SettingsSwitchItem(
                     title = stringResource(Res.string.speed_test_sort_by_latency_delay),
-                    subtitle = if (!settings.sortProfilesByDelay) stringResource(Res.string.speed_test_sort_by_latency_delay_hint, stringResource(Res.string.latency_test_sort_by_delay)) else null,
+                    subtitle = if (!settings.sortProfilesByDelay) stringResource(
+                        Res.string.speed_test_sort_by_latency_delay_hint,
+                        stringResource(Res.string.latency_test_sort_by_delay)
+                    ) else null,
                     checked = settings.sortByLatencyDelay,
                     enabled = settings.performSpeedTests && settings.sortProfilesByDelay,
                     onCheckedChange = {

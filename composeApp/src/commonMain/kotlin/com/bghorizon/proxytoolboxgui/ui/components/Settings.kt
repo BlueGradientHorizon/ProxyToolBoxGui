@@ -3,9 +3,11 @@ package com.bghorizon.proxytoolboxgui.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -37,14 +39,13 @@ fun SettingsItem(
     subtitle: String? = null,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
-    customHeight: Boolean = false,
     trailingContent: @Composable (() -> Unit)? = null,
     content: @Composable (() -> Unit)? = null
 ) {
     Card(
         onClick = onClick ?: {},
         modifier = modifier.fillMaxWidth(),
-        enabled = (enabled && onClick != null),
+        enabled = enabled && onClick != null,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -54,14 +55,9 @@ fun SettingsItem(
     ) {
         Column(
             modifier = Modifier
-                .then(
-                    if (customHeight) Modifier else Modifier.height(64.dp)
-                )
                 .fillMaxWidth()
-                .padding(
-                    vertical = if (customHeight) 12.dp else 0.dp,
-                    horizontal = 12.dp
-                )
+                .heightIn(min = 64.dp)
+                .padding(horizontal = 12.dp, vertical = 12.dp)
                 .alpha(if (enabled) 1f else ListItemDefaults.colors().disabledHeadlineColor.alpha),
             verticalArrangement = Arrangement.Center
         ) {
@@ -69,7 +65,10 @@ fun SettingsItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyLarge
@@ -84,7 +83,11 @@ fun SettingsItem(
                 }
                 trailingContent?.invoke()
             }
-            content?.invoke()
+
+            if (content != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                content()
+            }
         }
     }
 }
@@ -103,11 +106,13 @@ fun SettingsSwitchItem(
         onClick = { onCheckedChange(!checked) },
         enabled = enabled,
         trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = enabled
-            )
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange,
+                    enabled = enabled
+                )
+            }
         }
     )
 }
