@@ -15,7 +15,7 @@ class SettingsRepository(private val dao: SettingsDao) {
         val entity = dao.getSettings()
         val loadedSettings = if (entity == null) {
             // Initial defaults based on platform
-            val defaults = AppSettings(dynamicColor = platform.isDynamicColorSupported)
+            val defaults = AppSettings()
             dao.saveSettings(defaults.toEntity())
             defaults
         } else {
