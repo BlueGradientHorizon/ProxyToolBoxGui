@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,12 +22,11 @@ import androidx.compose.ui.window.DialogProperties
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.rounded.Close
 import com.composables.icons.materialsymbols.rounded.Photo_library
-import io.github.alexzhirkevich.qrose.options.QrBrush
-import io.github.alexzhirkevich.qrose.options.QrCodeMatrix
-import io.github.alexzhirkevich.qrose.options.QrCodeShape
-import io.github.alexzhirkevich.qrose.options.solid
-import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import io.github.alexzhirkevich.qrose.QrCodePainter
+import io.github.alexzhirkevich.qrose.options.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -316,6 +316,7 @@ private class QuietZoneShape(private val modules: Int = 4) : QrCodeShape {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ShowQrCodeDialog(
     content: String,
@@ -325,31 +326,54 @@ fun ShowQrCodeDialog(
         title = stringResource(Res.string.title_qr_code),
         onDismiss = onDismiss
     ) {
-        if (content.isNotBlank()) {
-            val painter = rememberQrCodePainter(content) {
-                shapes {
-                    pattern = QuietZoneShape(4)
-                }
-                background {
-                    fill = SolidColor(Color.White)
-                }
-                colors {
-                    light = QrBrush.solid(Color.White)
-                    dark = QrBrush.solid(Color.Black)
-                    frame = QrBrush.solid(Color.Black)
-                    ball = QrBrush.solid(Color.Black)
+        if (content.isBlank()) {
+            Text(stringResource(Res.string.error_no_content))
+            return@FullScreenDialog
+        }
+
+        var errorMessage by remember { mutableStateOf<String?>(null) }
+        val painter by produceState<Painter?>(null, content) {
+            value = null
+            errorMessage = null
+            withContext(Dispatchers.Default) {
+                try {
+                    val options = QrOptions {
+                        shapes {
+                            pattern = QuietZoneShape(4)
+                        }
+                        background {
+                            fill = SolidColor(Color.White)
+                        }
+                        colors {
+                            light = QrBrush.solid(Color.White)
+                            dark = QrBrush.solid(Color.Black)
+                            frame = QrBrush.solid(Color.Black)
+                            ball = QrBrush.solid(Color.Black)
+                        }
+                    }
+                    value = QrCodePainter(content, options)
+                } catch (e: Exception) {
+                    errorMessage = e.message
                 }
             }
+        }
 
+        if (errorMessage != null) {
+            Text(
+                text = stringResource(Res.string.error_generating_qr, errorMessage!!),
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp)
+            )
+        } else if (painter == null) {
+            ContainedLoadingIndicator()
+        } else {
             Image(
-                painter = painter,
+                painter = painter!!,
                 contentDescription = stringResource(Res.string.title_qr_code),
-                modifier = Modifier
-                    .fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
-        } else {
-            Text(stringResource(Res.string.error_no_content))
         }
     }
 }
