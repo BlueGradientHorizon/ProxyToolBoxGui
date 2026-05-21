@@ -41,6 +41,7 @@ message PBDiscoverWorkersResponse {
 
 message PBInitializeRunnerRequest {
     string worker_path = 1;
+    bool low_mem_mode = 2;
 }
 
 message PBInitializeRunnerResponse {

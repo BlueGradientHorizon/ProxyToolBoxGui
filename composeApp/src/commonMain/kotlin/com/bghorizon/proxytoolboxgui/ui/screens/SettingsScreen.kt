@@ -195,6 +195,14 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                     enabled = settings.testByBatches,
                     onClick = { mainVm.updateDialog(SettingsDialog.BatchSize) }
                 )
+                SettingsSwitchItem(
+                    title = stringResource(Res.string.low_mem_mode),
+                    subtitle = stringResource(Res.string.low_mem_mode_hint),
+                    checked = settings.lowMemMode,
+                    onCheckedChange = {
+                        settingsVm.updateSettings(settings.copy(lowMemMode = it))
+                    }
+                )
                 SettingsItem(
                     title = stringResource(Res.string.latency_test_url),
                     subtitle = settings.testUrl,

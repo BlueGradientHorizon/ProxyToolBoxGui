@@ -139,7 +139,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorker
 
 	var req pb.PBDiscoverWorkersRequest
 	if err := proto.Unmarshal(requestBytes, &req); err != nil {
-		resp := &pb.PBDiscoverWorkersResponse{Error: new(err.Error())}
+		errStr := err.Error()
+		resp := &pb.PBDiscoverWorkersResponse{Error: &errStr}
 		return BytesToJByteArray(env, MarshalProto(resp))
 	}
 
@@ -147,7 +148,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeDiscoverWorker
 
 	resp := &pb.PBDiscoverWorkersResponse{}
 	if err != nil {
-		resp.Error = new(err.Error())
+		errStr := err.Error()
+		resp.Error = &errStr
 	} else {
 		workerList := &pb.PBWorkerInfoList{}
 		for _, w := range workers {
@@ -177,11 +179,12 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeInitializeRunn
 
 	var req pb.PBInitializeRunnerRequest
 	if err := proto.Unmarshal(requestBytes, &req); err != nil {
-		resp := &pb.PBInitializeRunnerResponse{Error: new(err.Error())}
+		errStr := err.Error()
+		resp := &pb.PBInitializeRunnerResponse{Error: &errStr}
 		return BytesToJByteArray(env, MarshalProto(resp))
 	}
 
-	err := InitializeRunner(req.WorkerPath)
+	err := InitializeRunner(req.WorkerPath, req.LowMemMode)
 
 	resp := &pb.PBInitializeRunnerResponse{}
 	if err != nil {
@@ -203,7 +206,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeParseConfigs(
 
 	var inputConfigsProto pb.PBProxyConfigList
 	if err := proto.Unmarshal(configsBytes, &inputConfigsProto); err != nil {
-		resp := &pb.PBParseConfigsResponse{Error: new(err.Error())}
+		errStr := err.Error()
+		resp := &pb.PBParseConfigsResponse{Error: &errStr}
 		return BytesToJByteArray(env, MarshalProto(resp))
 	}
 
@@ -254,7 +258,8 @@ func Java_com_bghorizon_proxytoolboxgui_data_GoBridgeNative_nativeRunLatencyTest
 
 	var req pb.PBRunLatencyTestsRequest
 	if err := proto.Unmarshal(requestBytes, &req); err != nil {
-		resp := &pb.PBRunLatencyTestsResponse{Error: new(err.Error())}
+		errStr := err.Error()
+		resp := &pb.PBRunLatencyTestsResponse{Error: &errStr}
 		return BytesToJByteArray(env, MarshalProto(resp))
 	}
 

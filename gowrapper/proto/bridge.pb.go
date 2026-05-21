@@ -372,6 +372,7 @@ func (x *PBDiscoverWorkersResponse) GetError() string {
 type PBInitializeRunnerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkerPath    string                 `protobuf:"bytes,1,opt,name=worker_path,json=workerPath,proto3" json:"worker_path,omitempty"`
+	LowMemMode    bool                   `protobuf:"varint,2,opt,name=low_mem_mode,json=lowMemMode,proto3" json:"low_mem_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -411,6 +412,13 @@ func (x *PBInitializeRunnerRequest) GetWorkerPath() string {
 		return x.WorkerPath
 	}
 	return ""
+}
+
+func (x *PBInitializeRunnerRequest) GetLowMemMode() bool {
+	if x != nil {
+		return x.LowMemMode
+	}
+	return false
 }
 
 type PBInitializeRunnerResponse struct {
@@ -725,10 +733,12 @@ const file_bridge_proto_rawDesc = "" +
 	"\x19PBDiscoverWorkersResponse\x12O\n" +
 	"\aworkers\x18\x01 \x01(\v25.com.bghorizon.proxytoolboxgui.proto.PBWorkerInfoListR\aworkers\x12\x19\n" +
 	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
-	"\x06_error\"<\n" +
+	"\x06_error\"^\n" +
 	"\x19PBInitializeRunnerRequest\x12\x1f\n" +
 	"\vworker_path\x18\x01 \x01(\tR\n" +
-	"workerPath\"[\n" +
+	"workerPath\x12 \n" +
+	"\flow_mem_mode\x18\x02 \x01(\bR\n" +
+	"lowMemMode\"[\n" +
 	"\x1aPBInitializeRunnerResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x19\n" +
 	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +

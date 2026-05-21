@@ -54,9 +54,10 @@ class ProxyTestManager(
         TestSetup(configs, subs, totalBatches, totalRounds, totalSeconds)
     }
 
-    suspend fun initializeRunner(workerPath: String) = withContext(Dispatchers.IO) {
-        GoBridge.initializeRunner(workerPath)
-    }
+    suspend fun initializeRunner(workerPath: String, lowMemMode: Boolean) =
+        withContext(Dispatchers.IO) {
+            GoBridge.initializeRunner(workerPath, lowMemMode)
+        }
 
     suspend fun parseConfigs(configs: List<ProxyConfig>): Map<String, String> =
         withContext(Dispatchers.IO) {

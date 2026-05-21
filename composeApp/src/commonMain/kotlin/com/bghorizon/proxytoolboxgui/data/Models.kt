@@ -81,6 +81,7 @@ data class AppSettings(
     val webServerLocalhost: Boolean = true,
     val testUrl: String = "https://www.google.com/generate_204",
     val parallelSubscriptionDownloads: Int = 5,
+    val lowMemMode: Boolean = false,
     val sortProfilesByDelay: Boolean = false
 )
 

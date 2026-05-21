@@ -70,7 +70,7 @@
     <string name="sub_select_all">Select all</string>
     <string name="sub_deselect_all">Deselect all</string>
     <string name="title_qr_code">QR Code</string>
-<!--    <string name="sub_add">Add</string>-->
+    <!--    <string name="sub_add">Add</string>-->
 
     <!-- Settings Screen -->
     <string name="title_settings">Settings</string>
@@ -100,6 +100,8 @@
     <string name="round_timeout">Round timeout</string>
     <string name="test_by_batches">Test by batches</string>
     <string name="batch_size">Batch size</string>
+    <string name="low_mem_mode">Low memory mode</string>
+    <string name="low_mem_mode_hint">Reduces RAM usage for large tests by creating a fresh worker for every batch</string>
     <string name="latency_test_url">Latency test URL</string>
     <string name="sort_by_delay">Sort profiles by delay before sharing</string>
     <string name="web_server_auto_start">Auto-start web-server after test</string>

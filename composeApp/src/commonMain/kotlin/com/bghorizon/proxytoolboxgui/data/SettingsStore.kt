@@ -62,6 +62,7 @@ private fun AppSettings.toEntity() = AppSettingsEntity(
     webServerLocalhost = webServerLocalhost,
     testUrl = testUrl,
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
+    lowMemMode = lowMemMode,
     sortProfilesByDelay = sortProfilesByDelay,
 )
 
@@ -81,5 +82,6 @@ private fun AppSettingsEntity.toModel() = AppSettings(
     webServerLocalhost = webServerLocalhost,
     testUrl = testUrl,
     parallelSubscriptionDownloads = parallelSubscriptionDownloads,
+    lowMemMode = lowMemMode,
     sortProfilesByDelay = sortProfilesByDelay,
 )

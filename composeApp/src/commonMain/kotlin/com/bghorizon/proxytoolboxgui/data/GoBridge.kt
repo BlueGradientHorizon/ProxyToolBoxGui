@@ -34,9 +34,10 @@ object GoBridge {
         }
     }
 
-    fun initializeRunner(workerPath: String) {
+    fun initializeRunner(workerPath: String, lowMemMode: Boolean) {
         val request = PBInitializeRunnerRequest.newBuilder()
             .setWorkerPath(workerPath)
+            .setLowMemMode(lowMemMode)
             .build()
         val b = GoBridgeNative.nativeInitializeRunner(request.toByteArray())
         val r = PBInitializeRunnerResponse.parseFrom(b)

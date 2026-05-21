@@ -22,6 +22,7 @@ data class AppSettingsEntity(
     val webServerLocalhost: Boolean,
     val testUrl: String,
     val parallelSubscriptionDownloads: Int,
+    val lowMemMode: Boolean = false,
     val sortProfilesByDelay: Boolean = false
 )
 

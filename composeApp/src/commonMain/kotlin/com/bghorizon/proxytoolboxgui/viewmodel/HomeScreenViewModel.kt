@@ -86,7 +86,10 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                     )
                 }
 
-                module.testManager.initializeRunner(currentSettings.selectedWorker)
+                module.testManager.initializeRunner(
+                    workerPath = currentSettings.selectedWorker,
+                    lowMemMode = currentSettings.lowMemMode
+                )
 
                 module.appStatusManager.updateStatus(AppStatus.PARSING)
                 val parseErrors = module.testManager.parseConfigs(setup.configs)

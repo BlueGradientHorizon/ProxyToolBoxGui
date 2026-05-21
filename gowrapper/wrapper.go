@@ -35,6 +35,7 @@ var (
 	testCancel context.CancelFunc
 	testRunner *runner.TestRunner
 
+	lowMemMode           bool
 	currentWorkerPath    string
 	currentParsedConfigs []parsers.ProxyConfig
 	currentValidConfigs  []parsers.ProxyConfig
@@ -70,15 +71,17 @@ func StopTests() {
 	}
 }
 
-func InitializeRunner(workerPath string) error {
+func InitializeRunner(workerPath string, lowMem bool) error {
 	testMu.Lock()
 	defer testMu.Unlock()
 
 	if testRunner != nil {
 		testRunner.Close()
+		testRunner = nil
 	}
 
 	currentWorkerPath = workerPath
+	lowMemMode = lowMem
 
 	// Verify if we can create a runner
 	tr, err := runner.NewTestRunner(runner.RunnerSettings{
@@ -87,7 +90,12 @@ func InitializeRunner(workerPath string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to initialize test runner: %v", err)
 	}
-	testRunner = tr
+
+	if lowMemMode {
+		tr.Close()
+	} else {
+		testRunner = tr
+	}
 	return nil
 }
 
@@ -136,9 +144,19 @@ func ParseConfigs(inputConfigs []ProxyConfig) (map[string]string, error) {
 
 func ValidateConfigs() (map[string]string, error) {
 	testMu.Lock()
+	tr := testRunner
 	testMu.Unlock()
 
-	if testRunner == nil {
+	if lowMemMode {
+		var err error
+		tr, err = runner.NewTestRunner(runner.RunnerSettings{
+			WorkerPath: currentWorkerPath,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Failed to initialize temporary runner: %v", err)
+		}
+		defer tr.Close()
+	} else if tr == nil {
 		return nil, fmt.Errorf("Test runner not initialized")
 	}
 
@@ -149,7 +167,7 @@ func ValidateConfigs() (map[string]string, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	taggedConfigs, validationErrors, err := testRunner.Validate(ctx, currentParsedConfigs, runner.DefaultConfigTaggerFunc)
+	taggedConfigs, validationErrors, err := tr.Validate(ctx, currentParsedConfigs, runner.DefaultConfigTaggerFunc)
 	if err != nil {
 		return nil, fmt.Errorf("Validation error: %v", err)
 	}
@@ -189,9 +207,10 @@ func RunLatencyTests(
 ) ([]ProxyConfig, error) {
 	testMu.Lock()
 	validConfigs := currentValidConfigs
+	globalTR := testRunner
 	testMu.Unlock()
 
-	if testRunner == nil {
+	if !lowMemMode && globalTR == nil {
 		return nil, fmt.Errorf("Test runner not initialized")
 	}
 
@@ -238,6 +257,21 @@ func RunLatencyTests(
 			continue
 		}
 
+		var tr *runner.TestRunner
+		if lowMemMode {
+			var err error
+			tr, err = runner.NewTestRunner(runner.RunnerSettings{
+				WorkerPath: currentWorkerPath,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("Failed to initialize temporary runner for batch: %v", err)
+			}
+			// mandatory to call validate
+			_, _, _ = tr.Validate(ctx, batchConfigs, runner.DefaultConfigTaggerFunc)
+		} else {
+			tr = globalTR
+		}
+
 		ltSettings := runner.LatencyTestRunnerSettings{
 			BaseTestRunnerSettings: runner.BaseTestRunnerSettings{
 				SortResults:  true,
@@ -263,9 +297,13 @@ func RunLatencyTests(
 			TestURL: testUrl,
 		}
 
-		testResults, err := testRunner.RunLatencyTests(ctx, batchTags, ltSettings)
+		testResults, err := tr.RunLatencyTests(ctx, batchTags, ltSettings)
 		if err == nil {
 			allResults = append(allResults, testResults.Results...)
+		}
+
+		if lowMemMode && tr != nil {
+			tr.Close()
 		}
 
 		if ctx.Err() != nil {
