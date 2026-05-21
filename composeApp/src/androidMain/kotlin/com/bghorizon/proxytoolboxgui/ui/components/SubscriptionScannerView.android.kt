@@ -33,7 +33,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 
 @Composable
-actual fun SubscriptionScannerView(
+actual fun QrScannerView(
     modifier: Modifier,
     onCodeScanned: (String) -> Unit
 ) {

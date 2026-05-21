@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -7,19 +8,27 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.rounded.Close
+import com.composables.icons.materialsymbols.rounded.Photo_library
+import io.github.alexzhirkevich.qrose.options.QrBrush
+import io.github.alexzhirkevich.qrose.options.QrCodeMatrix
+import io.github.alexzhirkevich.qrose.options.QrCodeShape
+import io.github.alexzhirkevich.qrose.options.solid
+import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import proxytoolboxgui.composeapp.generated.resources.Res
-import proxytoolboxgui.composeapp.generated.resources.dialog_btn_cancel
-import proxytoolboxgui.composeapp.generated.resources.dialog_btn_close
-import proxytoolboxgui.composeapp.generated.resources.dialog_btn_save
+import proxytoolboxgui.composeapp.generated.resources.*
 
 @Composable
 fun SimpleAlertDialog(
@@ -239,6 +248,108 @@ fun <T> SelectionDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ScanQrCodeDialog(
+    onDismiss: () -> Unit,
+    onCodeScanned: (String) -> Unit,
+    isScannerSupported: Boolean,
+    onPickImage: suspend () -> String?,
+    title: String = stringResource(Res.string.sub_add_qr),
+    scannerSupportedText: String = stringResource(Res.string.sub_qr_not_supported),
+    pickImageText: String = stringResource(Res.string.sub_add_qr_file)
+) {
+    val scope = rememberCoroutineScope()
+
+    SimpleAlertDialog(
+        onDismiss = onDismiss,
+        title = title,
+    ) {
+        if (isScannerSupported) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(MaterialTheme.shapes.medium)
+            ) {
+                QrScannerView(
+                    modifier = Modifier.fillMaxSize(),
+                    onCodeScanned = onCodeScanned
+                )
+            }
+        } else {
+            Text(scannerSupportedText, textAlign = TextAlign.Center)
+        }
+
+        Button(
+            onClick = {
+                scope.launch {
+                    onPickImage()?.let { result ->
+                        onCodeScanned(result)
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(MaterialSymbols.Rounded.Photo_library, null)
+            Spacer(Modifier.width(8.dp))
+            Text(pickImageText)
+        }
+    }
+}
+
+private class QuietZoneShape(private val modules: Int = 4) : QrCodeShape {
+    override val shapeSizeIncrease: Float = 1f
+
+    override fun QrCodeMatrix.transform(): QrCodeMatrix {
+        val newSize = size + 2 * modules
+        val newMatrix = QrCodeMatrix(newSize, QrCodeMatrix.PixelType.LightPixel)
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                newMatrix[modules + i, modules + j] = this[i, j]
+            }
+        }
+        return newMatrix
+    }
+}
+
+@Composable
+fun ShowQrCodeDialog(
+    content: String,
+    onDismiss: () -> Unit
+) {
+    FullScreenDialog(
+        title = stringResource(Res.string.title_qr_code),
+        onDismiss = onDismiss
+    ) {
+        if (content.isNotBlank()) {
+            val painter = rememberQrCodePainter(content) {
+                shapes {
+                    pattern = QuietZoneShape(4)
+                }
+                background {
+                    fill = SolidColor(Color.White)
+                }
+                colors {
+                    light = QrBrush.solid(Color.White)
+                    dark = QrBrush.solid(Color.Black)
+                    frame = QrBrush.solid(Color.Black)
+                    ball = QrBrush.solid(Color.Black)
+                }
+            }
+
+            Image(
+                painter = painter,
+                contentDescription = stringResource(Res.string.title_qr_code),
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            Text(stringResource(Res.string.error_no_content))
         }
     }
 }

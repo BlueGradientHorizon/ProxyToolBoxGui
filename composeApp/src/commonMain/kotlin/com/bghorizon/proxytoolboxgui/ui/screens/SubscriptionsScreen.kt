@@ -25,7 +25,6 @@ import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 import com.bghorizon.proxytoolboxgui.viewmodel.*
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 import kotlin.time.Instant
@@ -346,13 +345,14 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
         }
 
         SubscriptionsScreenDialog.Scan -> {
-            QrScannerDialog(
-                mainVm = mainVm,
+            ScanQrCodeDialog(
                 onDismiss = { mainVm.hideDialog() },
                 onCodeScanned = { result ->
                     mainVm.hideDialog()
                     subVm.importFromUrl(result)
-                }
+                },
+                isScannerSupported = mainUiState.isQrScannerSupported,
+                onPickImage = { mainVm.module.platform.pickImageAndScanQr() }
             )
         }
 
@@ -405,7 +405,7 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
         }
 
         is SubscriptionsScreenDialog.QrCode -> {
-            QrCodeDialog(
+            ShowQrCodeDialog(
                 content = dialog.content,
                 onDismiss = { mainVm.hideDialog() }
             )
@@ -549,53 +549,6 @@ private fun SubscriptionItem(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun QrScannerDialog(
-    mainVm: MainViewModel,
-    onDismiss: () -> Unit,
-    onCodeScanned: (String) -> Unit
-) {
-    val mainUiState by mainVm.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
-    val platform = mainVm.module.platform
-
-    SimpleAlertDialog(
-        onDismiss = onDismiss,
-        title = stringResource(Res.string.sub_add_qr),
-    ) {
-        if (mainUiState.isQrScannerSupported) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(MaterialTheme.shapes.medium)
-            ) {
-                SubscriptionScannerView(
-                    modifier = Modifier.fillMaxSize(),
-                    onCodeScanned = { result -> onCodeScanned(result) }
-                )
-            }
-        } else {
-            Text(stringResource(Res.string.sub_qr_not_supported))
-        }
-
-        Button(
-            onClick = {
-                scope.launch {
-                    platform.pickImageAndScanQr()?.let { result ->
-                        onCodeScanned(result)
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(MaterialSymbols.Rounded.Photo_library, null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(Res.string.sub_add_qr_file))
         }
     }
 }

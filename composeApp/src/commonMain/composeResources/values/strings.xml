@@ -134,4 +134,5 @@
     <string name="error_no_worker">No worker program selected</string>
     <string name="error_invalid_port">Port must be between 1024 and 65535</string>
     <string name="error_empty_fields">Note and link cannot be empty</string>
+    <string name="error_no_content">No content</string>
 </resources>

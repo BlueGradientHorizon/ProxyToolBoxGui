@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 @Composable
-expect fun SubscriptionScannerView(
+expect fun QrScannerView(
     modifier: Modifier = Modifier,
     onCodeScanned: (String) -> Unit,
 )
