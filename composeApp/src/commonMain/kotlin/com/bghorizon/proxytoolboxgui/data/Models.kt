@@ -79,10 +79,10 @@ data class AppSettings(
     val selectedWorkerName: String = "", // runtime
     val downloadTimeout: Int = 10,
     val performDedup: Boolean = true,
-    val latencyRounds: Int = 3,
+    val latencyRounds: Int = 2,
     val roundTimeout: Int = 10,
     val testByBatches: Boolean = true,
-    val batchSize: Int = 5000,
+    val batchSize: Int = 2500,
     val autoStartWebServer: Boolean = true,
     val webServerPort: Int = 35240,
     val webServerLocalhost: Boolean = true,
