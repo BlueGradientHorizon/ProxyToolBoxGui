@@ -3,6 +3,6 @@ module github.com/bluegradienthorizon/proxytoolboxgui/gowrapper
 go 1.26
 
 require (
-	github.com/bluegradienthorizon/proxytoolbox v0.0.1
-	google.golang.org/protobuf v1.36.5
+	github.com/bluegradienthorizon/proxytoolbox v0.0.2
+	google.golang.org/protobuf v1.36.11
 )
