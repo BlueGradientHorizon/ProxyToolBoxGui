@@ -5,6 +5,7 @@
 xcuserdata
 !src/**/build/
 local.properties
+keystore.properties
 .idea
 .DS_Store
 captures
@@ -22,6 +23,7 @@ node_modules/
 *.dll
 *.exe
 *.txt
+*.jks
 .vscode/
 bin/
 composeApp/libscomposeApp/src/jvmMain/resources/*

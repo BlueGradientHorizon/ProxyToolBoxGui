@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -11,6 +12,21 @@ val appVersion: String by project
 android {
     namespace = "com.bghorizon.proxytoolboxgui"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(keystorePropertiesFile.inputStream())
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("KEY_ALIAS")
+            keyPassword = keystoreProperties.getProperty("KEY_PASSWORD")
+            storeFile = keystoreProperties.getProperty("STORE_FILE")?.let { rootProject.file(it) }
+            storePassword = keystoreProperties.getProperty("STORE_PASSWORD")
+        }
+    }
 
     defaultConfig {
         applicationId = "com.bghorizon.proxytoolboxgui"
@@ -33,6 +49,7 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -64,8 +81,8 @@ androidComponents {
             val abi = output.filters.find {
                 it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI
             }?.identifier ?: "universal"
-            // Debug is signed by default, release is unsigned until a signingConfig is added
-            val signedStatus = if (variant.name == "debug") "signed" else "unsigned"
+            // Check if the variant has a signing configuration
+            val signedStatus = if (variant.name == "debug" || variant.buildType == "release") "signed" else "unsigned"
             output.outputFileName.set("${rootProject.name}_${output.versionName.get()}_${abi}_${variant.name}_$signedStatus.apk")
         }
     }
