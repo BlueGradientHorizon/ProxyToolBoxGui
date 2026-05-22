@@ -88,14 +88,14 @@ data class AppSettings(
     val webServerLocalhost: Boolean = true,
     val testUrl: String = "https://www.google.com/generate_204",
     val parallelSubscriptionDownloads: Int = 5,
-    val lowMemMode: Boolean = false,
-    val sortProfilesByDelay: Boolean = false,
+    val lowMemMode: Boolean = true,
+    val sortProfilesByDelay: Boolean = true,
     val performSpeedTests: Boolean = true,
     val speedTestRounds: Int = 1,
     val speedTestProviderId: String = "", // runtime
     val speedTestMode: String = "download",
     val speedTestTargetBytes: Long = 1024,
-    val sortByLatencyDelay: Boolean = false,
+    val sortByLatencyDelay: Boolean = true,
     val language: AppLanguage = AppLanguage.SYSTEM
 )
 

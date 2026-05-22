@@ -46,7 +46,8 @@ class RuntimeSettingsManager(
 
             val matchedWorker = workers.find { it.path == savedPath }
                 ?: workers.find { it.name == savedName }
-                ?: if (workers.isNotEmpty()) workers[0] else null
+                ?: workers.find { it.name == "xray-core" } // xray-core is more preferred
+                ?: workers.firstOrNull()
 
             if (matchedWorker != null && ((matchedWorker.path != savedPath) || savedName.isBlank())) {
                 settingsRepository.updateSelectedWorker(
