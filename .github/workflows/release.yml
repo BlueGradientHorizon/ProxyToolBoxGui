@@ -72,11 +72,29 @@ jobs:
       - name: Build Android APK (Release)
         run: ./gradlew :androidApp:assembleRelease --no-daemon
 
-      - name: Upload Android Artifact
+      - name: Upload Android arm64-v8a
         uses: actions/upload-artifact@v4
         with:
-          name: proxytoolboxgui-android-release
-          path: androidApp/build/outputs/apk/release/*.apk
+          name: proxytoolboxgui-android-arm64-v8a-release
+          path: androidApp/build/outputs/apk/release/*_arm64-v8a_*.apk
+
+      - name: Upload Android armeabi-v7a
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxytoolboxgui-android-armeabi-v7a-release
+          path: androidApp/build/outputs/apk/release/*_armeabi-v7a_*.apk
+
+      - name: Upload Android x86
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxytoolboxgui-android-x86-release
+          path: androidApp/build/outputs/apk/release/*_x86_*.apk
+
+      - name: Upload Android x86_64
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxytoolboxgui-android-x86_64-release
+          path: androidApp/build/outputs/apk/release/*_x86_64_*.apk
 
   build-desktop-linux:
     runs-on: ubuntu-latest
