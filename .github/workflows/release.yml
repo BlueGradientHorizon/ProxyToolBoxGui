@@ -179,10 +179,28 @@ jobs:
       - name: Build Android APK (Release)
         run: ./gradlew :androidApp:assembleRelease --no-daemon
 
-      - name: Upload Artifacts
+      - name: Upload Artifacts (arm64-v8a)
         uses: actions/upload-artifact@v7
         with:
-          path: androidApp/build/outputs/apk/release/*.apk
+          path: androidApp/build/outputs/apk/release/*_arm64-v8a_*.apk
+          archive: false
+
+      - name: Upload Artifacts (armeabi-v7a)
+        uses: actions/upload-artifact@v7
+        with:
+          path: androidApp/build/outputs/apk/release/*_armeabi-v7a_*.apk
+          archive: false
+
+      - name: Upload Artifacts (x86_64)
+        uses: actions/upload-artifact@v7
+        with:
+          path: androidApp/build/outputs/apk/release/*_x86_64_*.apk
+          archive: false
+
+      - name: Upload Artifacts (x86)
+        uses: actions/upload-artifact@v7
+        with:
+          path: androidApp/build/outputs/apk/release/*_x86_*.apk
           archive: false
 
   create-release:
