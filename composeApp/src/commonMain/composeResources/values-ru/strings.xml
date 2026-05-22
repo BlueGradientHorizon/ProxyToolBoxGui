@@ -19,12 +19,12 @@
     <string name="btn_subs_update">Обновить</string>
     <string name="btn_subs_update_result">Всего: %1$d\nНеудачно: %2$d\nУспешно: %3$d</string>
     <string name="btn_copy">Копировать</string>
-    <string name="btn_export">Экспорт</string>
+    <string name="btn_export">Экспорт в файл</string>
     <string name="btn_web_server">Веб-сервер</string>
     <string name="btn_test">ТЕСТ</string>
     <string name="btn_test_stop">СТОП</string>
     <string name="no_workers_found">Воркеры не найдены</string>
-    <string name="ready">Готово</string>
+    <string name="ready">Готов</string>
     <string name="updating_subs">Обновление...</string>
     <string name="parsing">Парсинг...</string>
     <string name="validating">Валидация...</string>
@@ -125,7 +125,7 @@
     <!-- Settings Categories -->
     <string name="category_appearance">Внешний вид</string>
     <string name="category_worker">Воркер</string>
-    <string name="category_download">Загрузка</string>
+    <string name="category_subscriptions">Подписки</string>
     <string name="category_testing">Тестирование</string>
     <string name="category_web_server">Веб-сервер</string>
 

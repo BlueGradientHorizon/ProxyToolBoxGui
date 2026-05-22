@@ -155,7 +155,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
         }
 
         item {
-            SettingsSection(title = stringResource(Res.string.category_download)) {
+            SettingsSection(title = stringResource(Res.string.category_subscriptions)) {
                 SettingsItem(
                     title = stringResource(Res.string.sub_download_timeout),
                     subtitle = stringResource(
