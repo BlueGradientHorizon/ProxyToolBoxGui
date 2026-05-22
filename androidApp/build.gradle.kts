@@ -18,6 +18,7 @@ android {
         versionName = "1.0"
         proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -26,20 +27,45 @@ android {
             useLegacyPackaging = true
         }
     }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
         }
     }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     bundle {
         language {
             enableSplit = false
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
         isCoreLibraryDesugaringEnabled = true
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val abi = output.filters.find {
+                it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI
+            }?.identifier ?: "universal"
+            // Debug is signed by default, release is unsigned until a signingConfig is added
+            val signedStatus = if (variant.name == "debug") "signed" else "unsigned"
+            output.outputFileName.set("${rootProject.name}_${output.versionName.get()}_${abi}_${variant.name}_$signedStatus.apk")
+        }
     }
 }
 
