@@ -3,7 +3,7 @@ name: Release Build
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
 
 env:
@@ -12,6 +12,113 @@ env:
   PROTOC_VERSION: '29.3'
 
 jobs:
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: ${{ env.PROTOC_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install protoc-gen-go
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Cache Gradle
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-linux-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-linux-
+
+      - name: Build Desktop (Linux x64)
+        run: ./gradlew :composeApp:packageDistributionForCurrentOS --no-daemon -Pcompose.desktop.buildTypes=release
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          path: composeApp/build/compose/binaries/main/deb/*.deb
+          archive: false
+          if-no-files-found: warn
+
+  build-windows-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: ${{ env.PROTOC_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install protoc-gen-go
+        shell: bash
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
+
+      - name: Cache Gradle
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-windows-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-windows-
+
+      - name: Build Desktop (Windows x64)
+        shell: cmd
+        run: gradlew.bat :composeApp:packageDistributionForCurrentOS --no-daemon -Pcompose.desktop.buildTypes=release
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          path: composeApp/build/compose/binaries/main/msi/*.msi
+          archive: false
+          if-no-files-found: warn
+
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -72,134 +179,11 @@ jobs:
       - name: Build Android APK (Release)
         run: ./gradlew :androidApp:assembleRelease --no-daemon
 
-      - name: Upload Android arm64-v8a
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: proxytoolboxgui-android-arm64-v8a-release
-          path: androidApp/build/outputs/apk/release/*_arm64-v8a_*.apk
-
-      - name: Upload Android armeabi-v7a
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-android-armeabi-v7a-release
-          path: androidApp/build/outputs/apk/release/*_armeabi-v7a_*.apk
-
-      - name: Upload Android x86
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-android-x86-release
-          path: androidApp/build/outputs/apk/release/*_x86_*.apk
-
-      - name: Upload Android x86_64
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-android-x86_64-release
-          path: androidApp/build/outputs/apk/release/*_x86_64_*.apk
-
-  build-desktop-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Setup JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v5
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Setup protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          version: ${{ env.PROTOC_VERSION }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install protoc-gen-go
-        run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: Cache Gradle
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-linux-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-linux-
-
-      - name: Build Desktop (Linux x64)
-        run: ./gradlew :composeApp:packageDistributionForCurrentOS --no-daemon -Pcompose.desktop.buildTypes=release
-
-      - name: Upload Linux Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-linux-x64-release
-          path: composeApp/build/compose/binaries/main/deb/*.deb
-
-  build-desktop-windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
-
-      - name: Setup JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v5
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Setup protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          version: ${{ env.PROTOC_VERSION }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install protoc-gen-go
-        shell: bash
-        run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: mingw-w64-x86_64-gcc
-
-      - name: Cache Gradle
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-windows-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-windows-
-
-      - name: Build Desktop (Windows x64)
-        shell: cmd
-        run: gradlew.bat :composeApp:packageDistributionForCurrentOS --no-daemon -Pcompose.desktop.buildTypes=release
-
-      - name: Upload Windows Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-windows-x64-release
-          path: composeApp/build/compose/binaries/main/msi/*.msi
+          path: androidApp/build/outputs/apk/release/*.apk
+          archive: false
 
   create-release:
     needs: [ build-android, build-desktop-linux, build-desktop-windows ]
@@ -219,12 +203,10 @@ jobs:
         run: ls -R artifacts
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             artifacts/**/*.apk
             artifacts/**/*.deb
             artifacts/**/*.msi
           generate_release_notes: true
-          draft: false
-          prerelease: false

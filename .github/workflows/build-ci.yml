@@ -55,11 +55,11 @@ jobs:
       - name: Build Desktop (Linux x64)
         run: ./gradlew :composeApp:packageDistributionForCurrentOS --no-daemon -Pcompose.desktop.buildTypes=debug
 
-      - name: Upload Linux Artifact
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: proxytoolboxgui-linux-x64
           path: composeApp/build/compose/binaries/main/deb/*.deb
+          archive: false
           if-no-files-found: warn
 
   build-windows-x64:
@@ -113,11 +113,11 @@ jobs:
         shell: cmd
         run: gradlew.bat :composeApp:packageDistributionForCurrentOS --no-daemon -Pcompose.desktop.buildTypes=debug
 
-      - name: Upload Windows Artifact
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: proxytoolboxgui-windows-x64
           path: composeApp/build/compose/binaries/main/msi/*.msi
+          archive: false
           if-no-files-found: warn
 
   build-android:
@@ -169,26 +169,8 @@ jobs:
       - name: Build Android APK (Debug)
         run: ./gradlew :androidApp:assembleDebug --no-daemon
 
-      - name: Upload Android arm64-v8a
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: proxytoolboxgui-android-arm64-v8a
-          path: androidApp/build/outputs/apk/debug/*_arm64-v8a_*.apk
-
-      - name: Upload Android armeabi-v7a
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-android-armeabi-v7a
-          path: androidApp/build/outputs/apk/debug/*_armeabi-v7a_*.apk
-
-      - name: Upload Android x86
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-android-x86
-          path: androidApp/build/outputs/apk/debug/*_x86_*.apk
-
-      - name: Upload Android x86_64
-        uses: actions/upload-artifact@v7
-        with:
-          name: proxytoolboxgui-android-x86_64
-          path: androidApp/build/outputs/apk/debug/*_x86_64_*.apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          archive: false
