@@ -5,6 +5,7 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlin.io.encoding.Base64
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -26,7 +27,19 @@ object SubscriptionDownloader {
         if (response.status != HttpStatusCode.OK) {
             throw Exception("HTTP ${response.status}")
         }
-        return response.bodyAsText()
+        return tryDecodeBase64(response.bodyAsText())
+    }
+
+    private fun tryDecodeBase64(content: String): String {
+        if (content.isEmpty()) return content
+
+        return try {
+            Base64
+                .withPadding(Base64.PaddingOption.ABSENT_OPTIONAL)
+                .decode(content).decodeToString()
+        } catch (_: Exception) {
+            content
+        }
     }
 
     suspend fun <T> downloadParallel(
