@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
+val appVersion: String by project
+
 android {
     namespace = "com.bghorizon.proxytoolboxgui"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -15,7 +17,7 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
-        versionName = "1.0"
+        versionName = appVersion
         proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
 

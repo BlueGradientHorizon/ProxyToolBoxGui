@@ -10,6 +10,14 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+    alias(libs.plugins.buildConfig)
+}
+
+val appVersion: String by project
+
+buildConfig {
+    packageName("com.bghorizon.proxytoolboxgui")
+    buildConfigField("APP_VERSION", appVersion)
 }
 
 room {
@@ -109,7 +117,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "com.bghorizon.proxytoolboxgui"
-            packageVersion = "1.0.0"
+            packageVersion = appVersion
 
             linux {
                 iconFile.set(project.file("src/jvmMain/resources/icon.png"))

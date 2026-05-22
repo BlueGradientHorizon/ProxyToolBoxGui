@@ -3,6 +3,7 @@ package com.bghorizon.proxytoolboxgui.ui.components
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -297,6 +299,64 @@ fun ScanQrCodeDialog(
             Icon(MaterialSymbols.Rounded.Photo_library, null)
             Spacer(Modifier.width(8.dp))
             Text(pickImageText)
+        }
+    }
+}
+
+@Composable
+fun AboutDialog(
+    onDismiss: () -> Unit,
+    appName: String,
+    appVersion: String,
+    appDescription: String,
+    githubUrl: String,
+    appIcon: Painter
+) {
+    val uriHandler = LocalUriHandler.current
+
+    SimpleAlertDialog(
+        title = stringResource(Res.string.about),
+        onDismiss = onDismiss,
+        confirmText = stringResource(Res.string.dialog_btn_close)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Image(
+                painter = appIcon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.Fit
+            )
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = appName,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = stringResource(Res.string.app_version, appVersion),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Text(
+                text = appDescription,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+
+            TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
+                Text(
+                    text = stringResource(Res.string.github_repository),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

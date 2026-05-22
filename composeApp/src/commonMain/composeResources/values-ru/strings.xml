@@ -92,6 +92,10 @@
     <string name="app_theme_system">Системная</string>
     <string name="app_language">Язык</string>
     <string name="app_language_system">Системный</string>
+    <string name="about">О программе</string>
+    <string name="app_version">Версия %1$s</string>
+    <string name="app_description">Мощный инструмент для управления и тестирования прокси-подписок.</string>
+    <string name="github_repository">Репозиторий GitHub</string>
     <string name="use_monet">Использовать Monet</string>
     <string name="monet_not_supported">Поддерживается только на Android 12 и выше</string>
 
@@ -128,6 +132,7 @@
     <string name="category_subscriptions">Подписки</string>
     <string name="category_testing">Тестирование</string>
     <string name="category_web_server">Веб-сервер</string>
+    <string name="category_other">Другое</string>
 
     <!-- Web Server -->
     <string name="web_server_started">Веб-сервер запущен на порту %1$d</string>

@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.bghorizon.proxytoolboxgui.BuildConfig
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.ui.components.*
@@ -14,6 +17,7 @@ import com.bghorizon.proxytoolboxgui.data.AppLanguage
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bghorizon.proxytoolboxgui.di.LocalAppModule
 import com.bghorizon.proxytoolboxgui.viewmodel.*
+import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.stringResource
 import proxytoolboxgui.composeapp.generated.resources.*
 
@@ -30,6 +34,7 @@ sealed interface SettingsDialog : UiDialog {
     data object SpeedTestProvider : SettingsDialog
     data object SpeedTestTargetBytes : SettingsDialog
     data object Language : SettingsDialog
+    data object About : SettingsDialog
 }
 
 sealed interface SettingsScreenUiMode : ScreenUiMode {
@@ -323,6 +328,15 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 )
             }
         }
+
+        item {
+            SettingsSection(title = stringResource(Res.string.category_other)) {
+                SettingsItem(
+                    title = stringResource(Res.string.about),
+                    onClick = { mainVm.updateDialog(SettingsDialog.About) }
+                )
+            }
+        }
     }
 
     when (activeDialog as? SettingsDialog) {
@@ -494,6 +508,23 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
                 itemLabel = { lang ->
                     settingsVm.getLanguageNativeName(lang)?.let { stringResource(it) }
                         ?: stringResource(Res.string.app_language_system)
+                }
+            )
+        }
+
+        SettingsDialog.About -> {
+            val iconBitmap = imageResource(Res.drawable.ic_launcher_playstore)
+            AboutDialog(
+                onDismiss = { mainVm.hideDialog() },
+                appName = stringResource(Res.string.app_name),
+                appVersion = BuildConfig.APP_VERSION,
+                appDescription = stringResource(Res.string.app_description),
+                githubUrl = "https://github.com/BlueGradientHorizon/proxytoolboxgui",
+                appIcon = remember(iconBitmap) {
+                    BitmapPainter(
+                        iconBitmap,
+                        filterQuality = FilterQuality.High
+                    )
                 }
             )
         }

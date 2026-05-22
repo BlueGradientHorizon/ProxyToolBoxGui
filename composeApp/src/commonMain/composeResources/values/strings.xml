@@ -92,6 +92,10 @@
     <string name="app_theme_system">System</string>
     <string name="app_language">Language</string>
     <string name="app_language_system">System</string>
+    <string name="about">About</string>
+    <string name="app_version">Version %1$s</string>
+    <string name="app_description">A powerful tool for managing and testing proxy subscriptions.</string>
+    <string name="github_repository">GitHub Repository</string>
     <string name="use_monet">Use Monet</string>
     <string name="monet_not_supported">Only supported on Android 12 and higher</string>
 
@@ -128,6 +132,7 @@
     <string name="category_subscriptions">Subscriptions</string>
     <string name="category_testing">Testing</string>
     <string name="category_web_server">Web Server</string>
+    <string name="category_other">Other</string>
 
     <!-- Web Server -->
     <string name="web_server_started">Web server started on port %1$d</string>
