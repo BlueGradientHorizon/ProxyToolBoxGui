@@ -186,7 +186,7 @@ jobs:
           archive: false
 
   create-release:
-    needs: [ build-android, build-desktop-linux, build-desktop-windows ]
+    needs: [ build-android, build-linux-x64, build-windows-x64 ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
