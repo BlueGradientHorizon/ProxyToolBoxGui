@@ -201,8 +201,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: |
-            androidApp/build/outputs/apk/debug/*_x86_*.apk
-            !androidApp/build/outputs/apk/debug/*_x86_64_*.apk
+            androidApp/build/outputs/apk/release/*_x86_*.apk
+            !androidApp/build/outputs/apk/release/*_x86_64_*.apk
           archive: false
 
   create-release:
