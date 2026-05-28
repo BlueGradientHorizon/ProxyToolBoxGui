@@ -32,7 +32,7 @@ android {
         applicationId = "com.bghorizon.proxytoolboxgui"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
+        versionCode = 2
         versionName = appVersion
         proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
@@ -82,7 +82,8 @@ androidComponents {
                 it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI
             }?.identifier ?: "universal"
             // Check if the variant has a signing configuration
-            val signedStatus = if (variant.name == "debug" || variant.buildType == "release") "signed" else "unsigned"
+            val signedStatus =
+                if (variant.name == "debug" || variant.buildType == "release") "signed" else "unsigned"
             output.outputFileName.set("${rootProject.name}_${output.versionName.get()}_${abi}_${variant.name}_$signedStatus.apk")
         }
     }
