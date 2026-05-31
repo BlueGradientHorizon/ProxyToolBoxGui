@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.ui.components
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -9,6 +10,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun StatsCard(
     modifier: Modifier = Modifier,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(4.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -18,8 +20,10 @@ fun StatsCard(
         )
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .padding(12.dp)
+                .animateContentSize(),
+            verticalArrangement = verticalArrangement,
             content = content
         )
     }

@@ -1,5 +1,6 @@
 package com.bghorizon.proxytoolboxgui.ui.screens
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -88,6 +89,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val totalSpeedPassed = subs.sumOf { it.speedPassed }
 
     val scaffoldPadding = LocalScaffoldPadding.current
+    val statsCardArrangement = Arrangement.spacedBy(4.dp)
 
     Column(
         modifier = Modifier
@@ -97,7 +99,8 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
         StatsCard(
             modifier = Modifier
                 .padding(horizontal = ScreenPadding)
-                .padding(top = ScreenPadding, bottom = 8.dp)
+                .padding(top = ScreenPadding, bottom = 8.dp),
+            verticalArrangement = statsCardArrangement
         ) {
             Text(
                 text = when (appStatus) {
@@ -128,14 +131,22 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                 )
             }
 
-            if (testProgress.isRunning) {
-                TestProgressBar(testProgress)
-            }
+            Column {
+                AnimatedVisibility(
+                    visible = testProgress.isRunning && appStatus == AppStatus.TESTING,
+                    enter = slideInVertically { -it } + expandVertically() + fadeIn(),
+                    exit = slideOutVertically { -it } + shrinkVertically() + fadeOut()
+                ) {
+                    Column {
+                        TestProgressBar(testProgress)
+                        Spacer(Modifier.height(statsCardArrangement.spacing))
+                    }
+                }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 4.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+            }
 
             StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
             StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
