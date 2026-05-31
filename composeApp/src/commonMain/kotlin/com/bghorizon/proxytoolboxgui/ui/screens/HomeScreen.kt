@@ -93,9 +93,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val statsCardArrangement = Arrangement.spacedBy(4.dp)
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = scaffoldPadding.calculateTopPadding())
+        modifier = Modifier.fillMaxSize()
     ) {
         StatsCard(
             modifier = Modifier

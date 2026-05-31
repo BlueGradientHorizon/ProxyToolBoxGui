@@ -314,7 +314,7 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
             .fillMaxSize()
             .padding(horizontal = ScreenPadding),
         contentPadding = PaddingValues(
-            top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
+            top = ScreenPadding,
             bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp)

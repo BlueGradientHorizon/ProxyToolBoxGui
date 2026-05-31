@@ -124,7 +124,6 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                         Scaffold(
                             // Track scaffold coordinates to enable relative measurement of the FAB position
                             modifier = Modifier.onGloballyPositioned { scaffoldCoords = it },
-                            topBar = { uiState.screen.TopBar(viewModel) },
                             bottomBar = {
                                 if (!isExpanded) {
                                     NavigationBar(modifier = Modifier.height(80.dp)) {
@@ -179,75 +178,76 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 ) {
                                     uiState.screen.FAB(viewModel)
                                 }
-                            }
+                            },
+                            contentWindowInsets = WindowInsets(0, 0, 0, 0)
                         ) { padding ->
                             val layoutDirection = LocalLayoutDirection.current
-                            Row(
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(
-                                        start = padding.calculateStartPadding(layoutDirection),
-                                        end = padding.calculateEndPadding(layoutDirection)
-                                    )
-                            ) {
-                                if (isExpanded) {
-                                    val navDrawItemHorizontalPadding = 12.dp
-                                    val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
-                                    val navRailSpacer: @Composable () -> Unit = {
-                                        Spacer(Modifier.height(navRailItemsSpacerHeight))
-                                    }
-                                    NavigationRail(
-                                        modifier = Modifier.width(IntrinsicSize.Max),
-                                        containerColor = MaterialTheme.colorScheme.surface,
-                                        windowInsets = WindowInsets(0, 0, 0, 0)
-                                    ) {
-                                        Spacer(Modifier.height(padding.calculateTopPadding()))
-                                        NavigationDrawerItem(
-                                            label = { Text(stringResource(Res.string.home)) },
-                                            icon = { Icon(MaterialSymbols.Rounded.Home, null) },
-                                            selected = uiState.screen is HomeScreenState,
-                                            onClick = { viewModel.navigateTo(HomeScreenState()) },
-                                            modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                            Column(Modifier.fillMaxSize()) {
+                                uiState.screen.TopBar(viewModel)
+                                Row(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .weight(1f)
+                                        .padding(
+                                            start = padding.calculateStartPadding(layoutDirection),
+                                            end = padding.calculateEndPadding(layoutDirection)
                                         )
-                                        navRailSpacer()
-                                        NavigationDrawerItem(
-                                            label = { Text(stringResource(Res.string.subscriptions)) },
-                                            icon = { Icon(MaterialSymbols.Rounded.List, null) },
-                                            selected = uiState.screen is SubscriptionsScreenState,
-                                            onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
-                                            modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                                        )
-                                        navRailSpacer()
-                                        NavigationDrawerItem(
-                                            label = { Text(stringResource(Res.string.title_settings)) },
-                                            icon = { Icon(MaterialSymbols.Rounded.Settings, null) },
-                                            selected = uiState.screen is SettingsScreenState,
-                                            onClick = { viewModel.navigateTo(SettingsScreenState()) },
-                                            modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
-                                        )
-                                    }
-                                }
-                                Box(Modifier.fillMaxSize().weight(1f)) {
-                                    // Inject adjusted padding into LocalScaffoldPadding.
-                                    // All screens use this to ensure content clears both the bottom bar and the FAB.
-                                    val adjustedPadding = PaddingValues(
-                                        start = padding.calculateStartPadding(layoutDirection),
-                                        top = padding.calculateTopPadding(),
-                                        end = padding.calculateEndPadding(layoutDirection),
-                                        bottom = maxOf(
-                                            padding.calculateBottomPadding(),
-                                            animatedFabPadding
-                                        )
-                                    )
-                                    CompositionLocalProvider(LocalScaffoldPadding provides adjustedPadding) {
-                                        LaunchedEffect(uiState.screen) {
-                                            viewModel.navigationStartTimeMark?.let { startMark ->
-                                                val duration = startMark.elapsedNow()
-                                                println("Navigation to ${uiState.screen::class.simpleName} took ${duration.inWholeMilliseconds}ms")
-                                                viewModel.clearNavigationStartTimeMark()
-                                            }
+                                ) {
+                                    if (isExpanded) {
+                                        val navDrawItemHorizontalPadding = 12.dp
+                                        val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
+                                        val navRailSpacer: @Composable () -> Unit = {
+                                            Spacer(Modifier.height(navRailItemsSpacerHeight))
                                         }
-                                        uiState.screen.Content(viewModel)
+                                        NavigationRail(
+                                            modifier = Modifier.width(IntrinsicSize.Max),
+                                            containerColor = MaterialTheme.colorScheme.surface,
+                                            windowInsets = WindowInsets(0, 0, 0, 0)
+                                        ) {
+                                            NavigationDrawerItem(
+                                                label = { Text(stringResource(Res.string.home)) },
+                                                icon = { Icon(MaterialSymbols.Rounded.Home, null) },
+                                                selected = uiState.screen is HomeScreenState,
+                                                onClick = { viewModel.navigateTo(HomeScreenState()) },
+                                                modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                            )
+                                            navRailSpacer()
+                                            NavigationDrawerItem(
+                                                label = { Text(stringResource(Res.string.subscriptions)) },
+                                                icon = { Icon(MaterialSymbols.Rounded.List, null) },
+                                                selected = uiState.screen is SubscriptionsScreenState,
+                                                onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
+                                                modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                            )
+                                            navRailSpacer()
+                                            NavigationDrawerItem(
+                                                label = { Text(stringResource(Res.string.title_settings)) },
+                                                icon = { Icon(MaterialSymbols.Rounded.Settings, null) },
+                                                selected = uiState.screen is SettingsScreenState,
+                                                onClick = { viewModel.navigateTo(SettingsScreenState()) },
+                                                modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
+                                            )
+                                        }
+                                    }
+                                    Box(Modifier.fillMaxSize().weight(1f)) {
+                                        // Inject adjusted padding into LocalScaffoldPadding.
+                                        // All screens use this to ensure content clears both the bottom bar and the FAB.
+                                        val adjustedPadding = PaddingValues(
+                                            bottom = maxOf(
+                                                padding.calculateBottomPadding(),
+                                                animatedFabPadding
+                                            )
+                                        )
+                                        CompositionLocalProvider(LocalScaffoldPadding provides adjustedPadding) {
+                                            LaunchedEffect(uiState.screen) {
+                                                viewModel.navigationStartTimeMark?.let { startMark ->
+                                                    val duration = startMark.elapsedNow()
+                                                    println("Navigation to ${uiState.screen::class.simpleName} took ${duration.inWholeMilliseconds}ms")
+                                                    viewModel.clearNavigationStartTimeMark()
+                                                }
+                                            }
+                                            uiState.screen.Content(viewModel)
+                                        }
                                     }
                                 }
                             }

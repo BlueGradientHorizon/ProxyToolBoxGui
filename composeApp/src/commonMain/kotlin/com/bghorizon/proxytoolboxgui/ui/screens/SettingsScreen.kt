@@ -94,7 +94,7 @@ fun SettingsScreen(mainVm: MainViewModel, settingsVm: SettingsScreenViewModel) {
             .fillMaxSize()
             .padding(horizontal = ScreenPadding),
         contentPadding = PaddingValues(
-            top = scaffoldPadding.calculateTopPadding() + ScreenPadding,
+            top = ScreenPadding,
             bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding,
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
