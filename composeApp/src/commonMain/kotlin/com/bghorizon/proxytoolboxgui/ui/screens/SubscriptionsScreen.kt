@@ -20,6 +20,7 @@ import com.composables.icons.materialsymbols.rounded.*
 import com.bghorizon.proxytoolboxgui.LocalScaffoldPadding
 import com.bghorizon.proxytoolboxgui.ScreenPadding
 import com.bghorizon.proxytoolboxgui.data.Subscription
+import com.bghorizon.proxytoolboxgui.data.DownloadProgress
 import com.bghorizon.proxytoolboxgui.ui.components.*
 import com.bghorizon.proxytoolboxgui.ui.removeFabMenuPaddings
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -325,6 +326,7 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
                 uiMode = subUiState.mode,
                 isSelected = subUiState.selectedIds.contains(sub.id),
                 isUpdating = subUiState.updatingIds.contains(sub.id),
+                downloadProgress = subUiState.updateProgress.downloadProgress[sub.id],
                 isAnyUpdating = subUiState.updateProgress.isRunning,
                 onSelectionChange = { subVm.toggleSelection(sub.id) },
                 onEdit = { mainVm.updateDialog(SubscriptionsScreenDialog.Edit(sub)) },
@@ -457,6 +459,7 @@ private fun SubscriptionItem(
     uiMode: ScreenUiMode?,
     isSelected: Boolean,
     isUpdating: Boolean,
+    downloadProgress: DownloadProgress?,
     isAnyUpdating: Boolean,
     onSelectionChange: () -> Unit,
     onEdit: () -> Unit,
@@ -531,10 +534,36 @@ private fun SubscriptionItem(
 
                 else -> {
                     if (isUpdating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp).padding(4.dp),
-                            strokeWidth = 2.dp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (downloadProgress != null) {
+                                val unitIdx = if (downloadProgress.totalBytes > 0) 
+                                    getUnitIndex(downloadProgress.totalBytes) 
+                                else getUnitIndex(downloadProgress.downloadedBytes)
+                                
+                                val downloadedStr = formatBytes(downloadProgress.downloadedBytes, unitIdx)
+                                val totalStr = if (downloadProgress.totalBytes > 0)
+                                    formatBytes(downloadProgress.totalBytes, unitIdx)
+                                else "?"
+                                Text(
+                                    text = "$downloadedStr / $totalStr",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                Text(
+                                    text = stringResource(Res.string.sub_in_queue),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp).padding(4.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             IconButton(onClick = onEdit, enabled = !isAnyUpdating) {
@@ -652,4 +681,37 @@ private fun AddSubscriptionDialog(
             singleLine = true
         )
     }
+}
+
+private fun formatBytes(bytes: Long, unitIndex: Int = -1): String {
+    val units = listOf("B", "KB", "MB", "GB", "TB")
+    if (unitIndex != -1) {
+        var value = bytes.toDouble()
+        repeat(unitIndex) { value /= 1024.0 }
+        return if (unitIndex == 0) "${value.toLong()} B" else {
+            val rounded = (value * 10).toLong() / 10.0
+            "$rounded ${units[unitIndex]}"
+        }
+    }
+
+    if (bytes < 1024) return "$bytes B"
+    var value = bytes.toDouble() / 1024.0
+    var i = 1
+    while (value >= 1024 && i < units.size - 1) {
+        value /= 1024.0
+        i++
+    }
+    val rounded = (value * 10).toLong() / 10.0
+    return "$rounded ${units[i]}"
+}
+
+private fun getUnitIndex(bytes: Long): Int {
+    if (bytes < 1024) return 0
+    var value = bytes.toDouble() / 1024.0
+    var i = 1
+    while (value >= 1024 && i < 4) {
+        value /= 1024.0
+        i++
+    }
+    return i
 }

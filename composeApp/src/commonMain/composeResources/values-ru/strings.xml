@@ -63,6 +63,7 @@
     <string name="sub_item_total_working">Всего: %1$d | Рабочих: %2$d</string>
     <string name="sub_unnamed">Без названия</string>
     <string name="sub_not_updated">Еще не обновлялось</string>
+    <string name="sub_in_queue">В очереди</string>
     <string name="sub_select_mode">Выбор</string>
     <string name="sub_export_share">Поделиться</string>
     <string name="btn_export_options">Опции экспорта</string>

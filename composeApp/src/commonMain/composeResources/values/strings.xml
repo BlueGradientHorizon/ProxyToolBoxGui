@@ -63,6 +63,7 @@
     <string name="sub_item_total_working">Total: %1$d | Working: %2$d</string>
     <string name="sub_unnamed">Unnamed</string>
     <string name="sub_not_updated">Not updated yet</string>
+    <string name="sub_in_queue">In queue</string>
     <string name="sub_select_mode">Select</string>
     <string name="sub_export_share">Share</string>
     <string name="btn_export_options">Export options</string>

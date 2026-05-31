@@ -49,11 +49,18 @@ data class TestProgress(
 )
 
 @Serializable
+data class DownloadProgress(
+    val downloadedBytes: Long = 0,
+    val totalBytes: Long = -1 // -1 means unknown
+)
+
+@Serializable
 data class SubsUpdateProgress(
     val total: Int = 0,
     val succeeded: Int = 0,
     val failed: Int = 0,
-    val isRunning: Boolean = false
+    val isRunning: Boolean = false,
+    val downloadProgress: Map<String, DownloadProgress> = emptyMap()
 )
 
 @Serializable

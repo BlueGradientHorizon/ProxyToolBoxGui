@@ -60,7 +60,8 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                     updatingIds = subs.map { sub -> sub.id }.toSet(),
                     updateProgress = SubsUpdateProgress(
                         total = subs.size,
-                        isRunning = true
+                        isRunning = true,
+                        downloadProgress = emptyMap()
                     )
                 )
             }
@@ -73,6 +74,15 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                     getUrl = { it.url },
                     timeoutSeconds = settings.downloadTimeout,
                     maxParallel = settings.parallelSubscriptionDownloads,
+                    onStart = { sub ->
+                        _uiState.update { state ->
+                            state.copy(
+                                updateProgress = state.updateProgress.copy(
+                                    downloadProgress = state.updateProgress.downloadProgress + (sub.id to DownloadProgress(0, -1))
+                                )
+                            )
+                        }
+                    },
                     onDownloadComplete = { sub, content ->
                         val lines = content.lines().filter { it.isNotBlank() }
 
@@ -87,7 +97,8 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                             it.copy(
                                 updatingIds = it.updatingIds - sub.id,
                                 updateProgress = it.updateProgress.copy(
-                                    succeeded = it.updateProgress.succeeded + 1
+                                    succeeded = it.updateProgress.succeeded + 1,
+                                    downloadProgress = it.updateProgress.downloadProgress - sub.id
                                 )
                             )
                         }
@@ -98,7 +109,17 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                             it.copy(
                                 updatingIds = it.updatingIds - sub.id,
                                 updateProgress = it.updateProgress.copy(
-                                    failed = it.updateProgress.failed + 1
+                                    failed = it.updateProgress.failed + 1,
+                                    downloadProgress = it.updateProgress.downloadProgress - sub.id
+                                )
+                            )
+                        }
+                    },
+                    onProgress = { sub, downloaded, total ->
+                        _uiState.update { state ->
+                            state.copy(
+                                updateProgress = state.updateProgress.copy(
+                                    downloadProgress = state.updateProgress.downloadProgress + (sub.id to DownloadProgress(downloaded, total))
                                 )
                             )
                         }
