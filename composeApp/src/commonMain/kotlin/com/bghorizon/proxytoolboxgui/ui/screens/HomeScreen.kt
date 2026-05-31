@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
@@ -102,25 +103,35 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                 .padding(top = ScreenPadding, bottom = 8.dp),
             verticalArrangement = statsCardArrangement
         ) {
-            Text(
-                text = when (appStatus) {
-                    AppStatus.IDLE -> stringResource(Res.string.ready)
-                    AppStatus.COMPLETED -> stringResource(Res.string.completed)
-                    AppStatus.STOPPED -> stringResource(Res.string.stopped)
-                    AppStatus.UPDATING_SUBS -> stringResource(Res.string.updating_subs)
-                    AppStatus.PARSING -> stringResource(Res.string.parsing)
-                    AppStatus.VALIDATING -> stringResource(Res.string.validating)
-                    AppStatus.ERROR -> stringResource(Res.string.error)
-                    else -> stringResource(Res.string.testing)
+            AnimatedContent(
+                targetState = appStatus,
+                transitionSpec = {
+                    (slideInVertically { -it } togetherWith slideOutVertically { it })
+                        .using(null)
                 },
-                style = MaterialTheme.typography.titleMedium,
-                color = when (appStatus) {
-                    AppStatus.ERROR -> MaterialTheme.colorScheme.error
-                    AppStatus.STOPPED -> MaterialTheme.colorScheme.outline
-                    AppStatus.TESTING, AppStatus.PARSING, AppStatus.VALIDATING, AppStatus.UPDATING_SUBS -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
-            )
+                label = "AppStatusAnimation",
+                modifier = Modifier.clipToBounds()
+            ) { targetStatus ->
+                Text(
+                    text = when (targetStatus) {
+                        AppStatus.IDLE -> stringResource(Res.string.ready)
+                        AppStatus.COMPLETED -> stringResource(Res.string.completed)
+                        AppStatus.STOPPED -> stringResource(Res.string.stopped)
+                        AppStatus.UPDATING_SUBS -> stringResource(Res.string.updating_subs)
+                        AppStatus.PARSING -> stringResource(Res.string.parsing)
+                        AppStatus.VALIDATING -> stringResource(Res.string.validating)
+                        AppStatus.ERROR -> stringResource(Res.string.error)
+                        else -> stringResource(Res.string.testing)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = when (targetStatus) {
+                        AppStatus.ERROR -> MaterialTheme.colorScheme.error
+                        AppStatus.STOPPED -> MaterialTheme.colorScheme.outline
+                        AppStatus.TESTING, AppStatus.PARSING, AppStatus.VALIDATING, AppStatus.UPDATING_SUBS -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
 
             statusDescription?.let {
                 Text(
