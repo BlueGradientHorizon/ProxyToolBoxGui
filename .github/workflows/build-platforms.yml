@@ -63,6 +63,9 @@ jobs:
           key: gradle-linux-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-linux-
 
+      - name: Build Native Components
+        run: make desktop
+
       - name: Build Desktop (Linux x64)
         run: ./gradlew :composeApp:packageDistributionForCurrentOS --no-daemon -Pcompose.desktop.buildTypes=${{ inputs.build_profile }}
 
@@ -119,6 +122,9 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-windows-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-windows-
+
+      - name: Build Native Components
+        run: make desktop
 
       - name: Build Desktop (Windows x64)
         shell: cmd
@@ -189,6 +195,9 @@ jobs:
           echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> keystore.properties
           echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> keystore.properties
           echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+
+      - name: Build Native Components
+        run: make android
 
       - name: Build Android APK
         run: ./gradlew :androidApp:assemble${{ inputs.build_profile == 'release' && 'Release' || 'Debug' }} --no-daemon

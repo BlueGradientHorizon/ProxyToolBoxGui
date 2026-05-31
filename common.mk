@@ -4,13 +4,13 @@ ifeq ($(OS),Windows_NT)
     SHELL := cmd.exe
     EXE := .exe
     LIB := .dll
-    MKDIR = (if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))")
+    MKDIR = cmd /c if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
     # /Q (Quiet mode), /F (Force delete read-only files)
-    RM = (if exist "$(subst /,\,$(1))" del /Q /F "$(subst /,\,$(1))")
+    RM = cmd /c if exist "$(subst /,\,$(1))" del /Q /F "$(subst /,\,$(1))"
     # /S (Recursive), /Q (Quiet mode)
-    RMDIR = (if exist "$(subst /,\,$(1))" rmdir /S /Q "$(subst /,\,$(1))")
+    RMDIR = cmd /c if exist "$(subst /,\,$(1))" rmdir /S /Q "$(subst /,\,$(1))"
     # /Y (Suppress overwrite prompt)
-    CP = (copy /Y "$(subst /,\,$(1))" "$(subst /,\,$(2))")
+    CP = cmd /c copy /Y "$(subst /,\,$(1))" "$(subst /,\,$(2))"
     ENV_SET = set "$(1)=$(2)"&&
     NDK_HOST_TAG := windows-x86_64
     CLANG_EXT := .cmd
