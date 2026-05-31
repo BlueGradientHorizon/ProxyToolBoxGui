@@ -159,8 +159,22 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 
             StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
             StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
-            StatLine(stringResource(Res.string.lbl_parsing_errors, totalParseErr))
-            StatLine(stringResource(Res.string.lbl_validation_errors, totalValidErr))
+            StatLine(
+                text = if (testProgress.isRunning && appStatus == AppStatus.PARSING) {
+                    stringResource(Res.string.lbl_parsing_errors_prefix)
+                } else {
+                    stringResource(Res.string.lbl_parsing_errors, totalParseErr)
+                },
+                isLoading = testProgress.isRunning && appStatus == AppStatus.PARSING
+            )
+            StatLine(
+                text = if (testProgress.isRunning && (appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)) {
+                    stringResource(Res.string.lbl_validation_errors_prefix)
+                } else {
+                    stringResource(Res.string.lbl_validation_errors, totalValidErr)
+                },
+                isLoading = testProgress.isRunning && (appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
+            )
             StatLine(
                 stringResource(Res.string.lbl_working_profiles, totalWorking),
                 isHighlighted = true

@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -30,15 +31,27 @@ fun StatsCard(
 }
 
 @Composable
-fun StatLine(text: String, isHighlighted: Boolean = false) {
-    Text(
-        text = text,
-        style = if (isHighlighted) {
-            MaterialTheme.typography.bodyLarge.copy(
-                color = MaterialTheme.colorScheme.primary
+fun StatLine(text: String, isHighlighted: Boolean = false, isLoading: Boolean = false) {
+    val style = if (isHighlighted) {
+        MaterialTheme.typography.bodyLarge.copy(
+            color = MaterialTheme.colorScheme.primary
+        )
+    } else MaterialTheme.typography.bodyMedium
+    val color = if (isHighlighted) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.onSurfaceVariant
+
+    if (isLoading) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(text = text, style = style, color = color)
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                strokeWidth = 2.dp
             )
-        } else MaterialTheme.typography.bodyMedium,
-        color = if (isHighlighted) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.onSurfaceVariant
-    )
+        }
+    } else {
+        Text(text = text, style = style, color = color)
+    }
 }

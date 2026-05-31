@@ -12,7 +12,9 @@
     <string name="lbl_profiles_found">Profiles found total: %1$d</string>
     <string name="lbl_profiles_duplicated">Profiles duplicated total: %1$d</string>
     <string name="lbl_parsing_errors">Parsing errors total: %1$d</string>
+    <string name="lbl_parsing_errors_prefix">Parsing errors total:</string>
     <string name="lbl_validation_errors">Validation errors total: %1$d</string>
+    <string name="lbl_validation_errors_prefix">Validation errors total:</string>
     <string name="lbl_working_profiles">Working profiles total: %1$d</string>
     <string name="lbl_speed_passed">Passed the speed test total: %1$d</string>
     <string name="subscriptions">Subscriptions</string>
