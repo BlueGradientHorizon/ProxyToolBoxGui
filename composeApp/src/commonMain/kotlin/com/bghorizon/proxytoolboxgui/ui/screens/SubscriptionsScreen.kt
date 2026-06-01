@@ -297,10 +297,10 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
     }
 
     val scaffoldPadding = LocalScaffoldPadding.current
-    val totalFound = subscriptions.sumOf { it.total }
     val totalDuplicate = subscriptions.sumOf { it.duplicated }
+    val totalFound = subscriptions.sumOf { it.total } + totalDuplicate
     val profilesToTest =
-        subscriptions.filter { it.includeInTest }.sumOf { it.total } - totalDuplicate
+        subscriptions.filter { it.includeInTest }.sumOf { it.total }
 
     val updateProgress = subUiState.updateProgress
     LaunchedEffect(updateProgress.isRunning) {

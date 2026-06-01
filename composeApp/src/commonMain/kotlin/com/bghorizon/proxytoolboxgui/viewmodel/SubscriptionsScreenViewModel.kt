@@ -86,7 +86,9 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                         _uiState.update { state ->
                             state.copy(
                                 updateProgress = state.updateProgress.copy(
-                                    downloadProgress = state.updateProgress.downloadProgress + (sub.id to DownloadProgress(0, -1))
+                                    downloadProgress =
+                                        state.updateProgress.downloadProgress +
+                                                (sub.id to DownloadProgress(0, -1))
                                 )
                             )
                         }
@@ -127,12 +129,37 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
                         _uiState.update { state ->
                             state.copy(
                                 updateProgress = state.updateProgress.copy(
-                                    downloadProgress = state.updateProgress.downloadProgress + (sub.id to DownloadProgress(downloaded, total))
+                                    downloadProgress =
+                                        state.updateProgress.downloadProgress +
+                                                (sub.id to DownloadProgress(downloaded, total))
                                 )
                             )
                         }
                     }
                 )
+
+                module.subscriptionRepository.resetDuplicatedData()
+
+                if (settings.performDedup) {
+                    val allSubs = module.subscriptionRepository.getAllSubs()
+                    val seenUris = mutableSetOf<String>()
+                    allSubs.forEach { sub ->
+                        val configs = module.subscriptionRepository.getConfigs(sub.id)
+                            .filter { it.connURI.isNotBlank() }
+                        val uniqueConfigs = ConfigUtils.naiveDeduplicateByConnUri(
+                            configs,
+                            { it.connURI },
+                            seenUris
+                        )
+                        val duplicatedCount = configs.size - uniqueConfigs.size
+                        module.subscriptionRepository.saveSub(sub.copy(duplicated = duplicatedCount))
+
+                        val reindexedConfigs = uniqueConfigs.mapIndexed { index, config ->
+                            config.copy(configId = index)
+                        }
+                        module.subscriptionRepository.setConfigs(sub.id, reindexedConfigs)
+                    }
+                }
             } finally {
                 _uiState.update {
                     it.copy(updateProgress = it.updateProgress.copy(isRunning = false))

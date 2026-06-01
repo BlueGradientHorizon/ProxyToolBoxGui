@@ -1,6 +1,5 @@
 package com.bghorizon.proxytoolboxgui.data
 
-import com.bghorizon.proxytoolboxgui.utils.ConfigUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -13,30 +12,17 @@ class ProxyTestManager(
     ): TestSetup = withContext(Dispatchers.IO) {
         val subs = subscriptions.map {
             it.copy(
-                duplicated = 0,
                 parseErr = 0,
                 validErr = 0
             )
-        }.toMutableList()
+        }
         val configs = mutableListOf<ProxyConfig>()
-        val seenUris = mutableSetOf<String>()
 
-        for (i in subs.indices) {
-            val sub = subs[i]
+        for (sub in subs) {
             val allConfigs =
                 subscriptionRepository.getConfigs(sub.id).filter { it.connURI.isNotBlank() }
 
-            val uniqueConfigs = if (settings.performDedup) {
-                ConfigUtils.naiveDeduplicateByConnUri(allConfigs, { it.connURI }, seenUris)
-            } else {
-                allConfigs
-            }
-
-            if (settings.performDedup) {
-                subs[i] = subs[i].copy(duplicated = allConfigs.size - uniqueConfigs.size)
-            }
-
-            for (cfg in uniqueConfigs) {
+            for (cfg in allConfigs) {
                 val tag = "sub-${sub.id}-${cfg.configId}"
                 configs.add(ProxyConfig(tag = tag, connURI = cfg.connURI))
             }

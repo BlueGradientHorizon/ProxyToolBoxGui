@@ -83,7 +83,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val statusDescription = mainUiState.statusDescription
 
     val subsForTest = subs.filter { it.includeInTest }
-    val profilesToTest = subsForTest.sumOf { it.total } - subs.sumOf { it.duplicated }
+    val profilesToTest = subsForTest.sumOf { it.total }
     val totalParseErr = subsForTest.sumOf { it.parseErr }
     val totalValidErr = subsForTest.sumOf { it.validErr }
     val totalWorking = subs.sumOf { it.working }

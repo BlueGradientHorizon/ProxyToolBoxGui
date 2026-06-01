@@ -39,6 +39,19 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
         dao.upsertSubscriptions(subscriptions.map { it.toEntity() })
     }
 
+    suspend fun getAllSubs(): List<Subscription> {
+        return dao.getAllSubs().map { entity ->
+            Subscription(
+                id = entity.id,
+                note = entity.note,
+                url = entity.url,
+                updatedAt = entity.updatedAt,
+                duplicated = entity.duplicated,
+                includeInTest = entity.includeInTest
+            )
+        }
+    }
+
     suspend fun deleteSub(id: String) {
         dao.deleteSubscription(id)
     }
@@ -60,6 +73,10 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
 
     suspend fun getConfigs(subId: String): List<SubscriptionDataEntity> {
         return dao.getConfigs(subId)
+    }
+
+    suspend fun setConfigs(subId: String, configs: List<SubscriptionDataEntity>) {
+        dao.setConfigsUris(subId, configs)
     }
 
     suspend fun setConfigsUris(subId: String, uris: List<String>) {
@@ -101,6 +118,10 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
 
     suspend fun resetWorkingData() {
         dao.resetWorkingData()
+    }
+
+    suspend fun resetDuplicatedData() {
+        dao.resetDuplicatedData()
     }
 }
 

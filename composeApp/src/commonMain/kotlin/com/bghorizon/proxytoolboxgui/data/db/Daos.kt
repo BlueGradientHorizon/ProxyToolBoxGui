@@ -114,6 +114,9 @@ interface SubscriptionDao {
     @Query("UPDATE subscriptions_data SET working = 0, fixedConnURI = NULL, delay = -1, speed = -1")
     suspend fun resetWorkingData()
 
+    @Query("UPDATE subscriptions SET duplicated = 0")
+    suspend fun resetDuplicatedData()
+
     @Query(
         """
         SELECT s.*, 
