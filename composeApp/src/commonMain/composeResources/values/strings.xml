@@ -11,6 +11,9 @@
     <string name="home">Home</string>
     <string name="lbl_profiles_found">Profiles found total: %1$d</string>
     <string name="lbl_profiles_duplicated">Profiles duplicated total: %1$d</string>
+    <string name="lbl_profiles_to_test">Profiles to test: %1$d</string>
+    <string name="lbl_passed_checks">Passed the checks: %1$d</string>
+    <string name="lbl_passed_checks_prefix">Passed the checks:</string>
     <string name="lbl_parsing_errors">Parsing errors total: %1$d</string>
     <string name="lbl_parsing_errors_prefix">Parsing errors total:</string>
     <string name="lbl_validation_errors">Validation errors total: %1$d</string>
@@ -66,6 +69,7 @@
     <string name="sub_unnamed">Unnamed</string>
     <string name="sub_not_updated">Not updated yet</string>
     <string name="sub_in_queue">In queue</string>
+    <string name="sub_include_in_test">Include in test</string>
     <string name="sub_select_mode">Select</string>
     <string name="sub_export_share">Share</string>
     <string name="btn_export_options">Export options</string>

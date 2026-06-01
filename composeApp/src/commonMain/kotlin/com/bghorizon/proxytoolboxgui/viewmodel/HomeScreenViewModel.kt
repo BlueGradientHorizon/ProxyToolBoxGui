@@ -20,6 +20,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
     fun startTest(
         appStatus: AppStatus,
         subscriptions: List<Subscription>,
+        onChecksPassed: () -> Unit = {},
         onTestCompleted: (Boolean) -> Unit = {},
     ) {
         if ((module.runtimeSettingsManager.workers.value.isEmpty()) || (testJob?.isActive == true)) return
@@ -49,6 +50,7 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
             _uiState.update {
                 it.copy(
                     testProgress = it.testProgress.copy(isRunning = true),
+                    passedChecks = 0
                 )
             }
 
@@ -115,6 +117,10 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
                         module.testManager.extractIds(tag)
                     }
                     module.subscriptionRepository.markConfigsValidErrBatch(batch)
+                }
+
+                withContext(Dispatchers.Main) {
+                    onChecksPassed()
                 }
 
                 val resultConfigs = module.testManager.runLatencyTests(
@@ -337,6 +343,10 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
         }
     }
 
+    fun updatePassedChecks(passedChecks: Int) {
+        _uiState.update { it.copy(passedChecks = passedChecks) }
+    }
+
     fun stopTest(newAppStatus: AppStatus = AppStatus.STOPPED, description: String? = null) {
         testJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
@@ -353,5 +363,6 @@ class HomeScreenViewModel(private val module: AppModule) : ViewModel() {
 }
 
 data class HomeScreenUiState(
-    val testProgress: TestProgress = TestProgress()
+    val testProgress: TestProgress = TestProgress(),
+    val passedChecks: Int = 0
 )

@@ -35,7 +35,7 @@ sealed interface HomeScreenUiMode : ScreenUiMode {
 }
 
 data class HomeScreenState(
-    override val mode: HomeScreenUiMode = HomeScreenUiMode.Normal
+    override val mode: HomeScreenUiMode = HomeScreenUiMode.Normal,
 ) : AppScreen {
     @Composable
     override fun TopBar(mainVm: MainViewModel) {
@@ -82,12 +82,22 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val appStatus = mainUiState.appStatus
     val statusDescription = mainUiState.statusDescription
 
-    val totalFound = subs.sumOf { it.total }
-    val totalDuplicate = subs.sumOf { it.duplicated }
-    val totalParseErr = subs.sumOf { it.parseErr }
-    val totalValidErr = subs.sumOf { it.validErr }
+    val subsForTest = subs.filter { it.includeInTest }
+    val profilesToTest = subsForTest.sumOf { it.total }
+    val totalParseErr = subsForTest.sumOf { it.parseErr }
+    val totalValidErr = subsForTest.sumOf { it.validErr }
     val totalWorking = subs.sumOf { it.working }
     val totalSpeedPassed = subs.sumOf { it.speedPassed }
+
+    fun calcPassedChecks() {
+        homeVm.updatePassedChecks(profilesToTest - totalParseErr - totalValidErr)
+    }
+
+    LaunchedEffect(appStatus) {
+        if (appStatus == AppStatus.TESTING) {
+            calcPassedChecks()
+        }
+    }
 
     val scaffoldPadding = LocalScaffoldPadding.current
     val statsCardArrangement = Arrangement.spacedBy(4.dp)
@@ -142,7 +152,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
 
             Column {
                 AnimatedVisibility(
-                    visible = testProgress.isRunning && appStatus == AppStatus.TESTING,
+                    visible = (testProgress.isRunning && appStatus == AppStatus.TESTING),
                     enter = slideInVertically { -it } + expandVertically() + fadeIn(),
                     exit = slideOutVertically { -it } + shrinkVertically() + fadeOut()
                 ) {
@@ -157,8 +167,6 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                 )
             }
 
-            StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
-            StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
             StatLine(
                 text = if (testProgress.isRunning && appStatus == AppStatus.PARSING) {
                     stringResource(Res.string.lbl_parsing_errors_prefix)
@@ -172,6 +180,14 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
                     stringResource(Res.string.lbl_validation_errors_prefix)
                 } else {
                     stringResource(Res.string.lbl_validation_errors, totalValidErr)
+                },
+                isLoading = testProgress.isRunning && (appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
+            )
+            StatLine(
+                text = if (testProgress.isRunning && (appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)) {
+                    stringResource(Res.string.lbl_passed_checks_prefix)
+                } else {
+                    stringResource(Res.string.lbl_passed_checks, homeUiState.passedChecks)
                 },
                 isLoading = testProgress.isRunning && (appStatus == AppStatus.PARSING || appStatus == AppStatus.VALIDATING)
             )
@@ -280,7 +296,11 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
         onCopyWorkingConfigs = { mainVm.copyWorkingConfigs() },
         onStopTest = { homeVm.stopTest() },
         onStartTest = {
-            homeVm.startTest(mainUiState.appStatus, subs) { isSuccess ->
+            homeVm.startTest(
+                appStatus = mainUiState.appStatus,
+                subscriptions = subs.filter { it.includeInTest },
+                onChecksPassed = {  }
+            ) { isSuccess ->
                 if (isSuccess && mainUiState.settings.autoStartWebServer) {
                     mainVm.startWebServer()
                 }

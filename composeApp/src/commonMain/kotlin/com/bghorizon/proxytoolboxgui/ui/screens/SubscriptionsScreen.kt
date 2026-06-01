@@ -14,6 +14,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.rounded.*
@@ -295,6 +297,9 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
     }
 
     val scaffoldPadding = LocalScaffoldPadding.current
+    val totalFound = subscriptions.sumOf { it.total }
+    val totalDuplicate = subscriptions.sumOf { it.duplicated }
+    val profilesToTest = subscriptions.filter { it.includeInTest }.sumOf { it.total }
 
     val updateProgress = subUiState.updateProgress
     LaunchedEffect(updateProgress.isRunning) {
@@ -310,17 +315,28 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
         }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = ScreenPadding),
-        contentPadding = PaddingValues(
-            top = ScreenPadding,
-            bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
-        ),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(subscriptions) { sub ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        StatsCard(
+            modifier = Modifier
+                .padding(horizontal = ScreenPadding)
+                .padding(top = ScreenPadding, bottom = 8.dp),
+        ) {
+            StatLine(stringResource(Res.string.lbl_profiles_found, totalFound))
+            StatLine(stringResource(Res.string.lbl_profiles_duplicated, totalDuplicate))
+            StatLine(stringResource(Res.string.lbl_profiles_to_test, profilesToTest))
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = ScreenPadding),
+            contentPadding = PaddingValues(
+                bottom = scaffoldPadding.calculateBottomPadding() + ScreenPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(subscriptions) { sub ->
             SubscriptionItem(
                 subscription = sub,
                 uiMode = subUiState.mode,
@@ -328,6 +344,9 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
                 isUpdating = subUiState.updatingIds.contains(sub.id),
                 downloadProgress = subUiState.updateProgress.downloadProgress[sub.id],
                 isAnyUpdating = subUiState.updateProgress.isRunning,
+                onIncludeInTestChange = { include ->
+                    subVm.setIncludeInTest(sub.id, include)
+                },
                 onSelectionChange = { subVm.toggleSelection(sub.id) },
                 onEdit = { mainVm.updateDialog(SubscriptionsScreenDialog.Edit(sub)) },
                 onDelete = { mainVm.updateDialog(SubscriptionsScreenDialog.Delete(sub)) },
@@ -338,6 +357,7 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
                     }
                 }
             )
+        }
         }
     }
 
@@ -461,6 +481,7 @@ private fun SubscriptionItem(
     isUpdating: Boolean,
     downloadProgress: DownloadProgress?,
     isAnyUpdating: Boolean,
+    onIncludeInTestChange: (Boolean) -> Unit,
     onSelectionChange: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -533,17 +554,19 @@ private fun SubscriptionItem(
                 }
 
                 else -> {
+                    val includeInTestLabel = stringResource(Res.string.sub_include_in_test)
                     if (isUpdating) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             if (downloadProgress != null) {
-                                val unitIdx = if (downloadProgress.totalBytes > 0) 
-                                    getUnitIndex(downloadProgress.totalBytes) 
+                                val unitIdx = if (downloadProgress.totalBytes > 0)
+                                    getUnitIndex(downloadProgress.totalBytes)
                                 else getUnitIndex(downloadProgress.downloadedBytes)
-                                
-                                val downloadedStr = formatBytes(downloadProgress.downloadedBytes, unitIdx)
+
+                                val downloadedStr =
+                                    formatBytes(downloadProgress.downloadedBytes, unitIdx)
                                 val totalStr = if (downloadProgress.totalBytes > 0)
                                     formatBytes(downloadProgress.totalBytes, unitIdx)
                                 else "?"
@@ -565,7 +588,10 @@ private fun SubscriptionItem(
                             )
                         }
                     } else {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             IconButton(onClick = onEdit, enabled = !isAnyUpdating) {
                                 Icon(
                                     imageVector = MaterialSymbols.Rounded.Edit,
@@ -578,6 +604,14 @@ private fun SubscriptionItem(
                                     contentDescription = stringResource(Res.string.dialog_btn_delete)
                                 )
                             }
+                            Switch(
+                                checked = subscription.includeInTest,
+                                onCheckedChange = onIncludeInTestChange,
+                                enabled = !isAnyUpdating,
+                                modifier = Modifier.semantics {
+                                    contentDescription = includeInTestLabel
+                                },
+                            )
                         }
                     }
                 }

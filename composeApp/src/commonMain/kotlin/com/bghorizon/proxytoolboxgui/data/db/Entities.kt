@@ -39,7 +39,8 @@ data class SubscriptionEntity(
     val note: String,
     val url: String,
     val updatedAt: Long,
-    val duplicated: Int
+    val duplicated: Int,
+    val includeInTest: Boolean = true,
 )
 
 @Entity(

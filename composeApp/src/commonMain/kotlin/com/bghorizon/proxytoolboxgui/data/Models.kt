@@ -20,7 +20,8 @@ data class Subscription(
     val updatedAt: Long = 0L,
     val duplicated: Int = 0,
     val parseErr: Int = 0,
-    val validErr: Int = 0
+    val validErr: Int = 0,
+    val includeInTest: Boolean = true,
 )
 
 @Serializable

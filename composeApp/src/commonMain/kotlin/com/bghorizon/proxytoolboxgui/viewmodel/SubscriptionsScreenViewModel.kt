@@ -49,6 +49,14 @@ class SubscriptionsScreenViewModel(private val module: AppModule) : ViewModel() 
         _uiState.update { it.copy(selectedIds = emptySet()) }
     }
 
+    fun setIncludeInTest(id: String, includeInTest: Boolean) {
+        viewModelScope.launch {
+            val sub = subscriptions.value.find { it.id == id } ?: return@launch
+            if (sub.includeInTest == includeInTest) return@launch
+            module.subscriptionRepository.saveSub(sub.copy(includeInTest = includeInTest))
+        }
+    }
+
     fun updateSubscriptions() {
         if (downloadJob?.isActive == true) return
 

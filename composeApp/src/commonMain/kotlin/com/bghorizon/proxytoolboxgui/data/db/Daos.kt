@@ -137,6 +137,7 @@ data class SubscriptionWithStats(
     val url: String,
     val updatedAt: Long,
     val duplicated: Int,
+    val includeInTest: Boolean,
     val total: Int,
     val working: Int,
     val speedPassed: Int,

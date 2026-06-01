@@ -25,6 +25,7 @@ class SubscriptionRepository(private val dao: SubscriptionDao) {
                     duplicated = stats.duplicated,
                     parseErr = stats.parseErr,
                     validErr = stats.validErr,
+                    includeInTest = stats.includeInTest,
                 )
             }
         }
@@ -108,5 +109,6 @@ private fun Subscription.toEntity() = SubscriptionEntity(
     note = note,
     url = url,
     updatedAt = updatedAt,
-    duplicated = duplicated
+    duplicated = duplicated,
+    includeInTest = includeInTest,
 )
