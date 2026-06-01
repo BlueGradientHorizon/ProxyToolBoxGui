@@ -109,12 +109,12 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
             AppLanguage.SYSTEM -> null
         }
     }
-
-    LanguageWrapper(languageCode) {
-        AppTheme(
-            themeMode = uiState.settings.theme,
-            dynamicColor = uiState.settings.dynamicColor
-        ) {
+    
+    AppTheme(
+        themeMode = uiState.settings.theme,
+        dynamicColor = uiState.settings.dynamicColor
+    ) {
+        LanguageWrapper(languageCode) {
             CompositionLocalProvider(LocalAppModule provides appModule) {
                 Surface {
                     BoxWithConstraints {
@@ -138,7 +138,11 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                             label = stringResource(Res.string.subscriptions),
                                             icon = MaterialSymbols.Rounded.List,
                                             selected = uiState.screen is SubscriptionsScreenState,
-                                            onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
+                                            onClick = {
+                                                viewModel.navigateTo(
+                                                    SubscriptionsScreenState()
+                                                )
+                                            },
                                             isCompact = isCompact
                                         )
                                         AdaptiveNavigationItem(
@@ -195,7 +199,8 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                 ) {
                                     if (isExpanded) {
                                         val navDrawItemHorizontalPadding = 12.dp
-                                        val navRailItemsSpacerHeight = navDrawItemHorizontalPadding / 2
+                                        val navRailItemsSpacerHeight =
+                                            navDrawItemHorizontalPadding / 2
                                         val navRailSpacer: @Composable () -> Unit = {
                                             Spacer(Modifier.height(navRailItemsSpacerHeight))
                                         }
@@ -216,13 +221,22 @@ fun App(appDb: AppDatabase, subDb: SubscriptionDatabase) {
                                                 label = { Text(stringResource(Res.string.subscriptions)) },
                                                 icon = { Icon(MaterialSymbols.Rounded.List, null) },
                                                 selected = uiState.screen is SubscriptionsScreenState,
-                                                onClick = { viewModel.navigateTo(SubscriptionsScreenState()) },
+                                                onClick = {
+                                                    viewModel.navigateTo(
+                                                        SubscriptionsScreenState()
+                                                    )
+                                                },
                                                 modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)
                                             )
                                             navRailSpacer()
                                             NavigationDrawerItem(
                                                 label = { Text(stringResource(Res.string.title_settings)) },
-                                                icon = { Icon(MaterialSymbols.Rounded.Settings, null) },
+                                                icon = {
+                                                    Icon(
+                                                        MaterialSymbols.Rounded.Settings,
+                                                        null
+                                                    )
+                                                },
                                                 selected = uiState.screen is SettingsScreenState,
                                                 onClick = { viewModel.navigateTo(SettingsScreenState()) },
                                                 modifier = Modifier.padding(horizontal = navDrawItemHorizontalPadding)

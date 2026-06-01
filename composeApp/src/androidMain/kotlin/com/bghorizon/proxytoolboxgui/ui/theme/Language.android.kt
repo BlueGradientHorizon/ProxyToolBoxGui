@@ -21,10 +21,5 @@ actual fun LanguageWrapper(languageCode: String?, content: @Composable () -> Uni
         }
     }
 
-    // We use a key to ensure the entire tree is recomposed when the languageCode changes.
-    // This provides a fallback for any resources that might not have updated 
-    // automatically or if the activity wasn't recreated for some reason.
-    key(languageCode) {
-        content()
-    }
+    content()
 }
