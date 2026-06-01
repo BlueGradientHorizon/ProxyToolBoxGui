@@ -15,7 +15,7 @@ include ../common.mk
 REPOS := proxytoolbox
 
 proxytoolbox_URL     := https://github.com/bluegradienthorizon/proxytoolbox
-proxytoolbox_BRANCH  := v0.0.4
+proxytoolbox_BRANCH  := v0.0.5
 #proxytoolbox_COMMIT  := 067941e1ffcd4fe619a1489b9e2687fbad9c512d
 proxytoolbox_WORKERS := internal/workers/xraycore internal/workers/singbox
 

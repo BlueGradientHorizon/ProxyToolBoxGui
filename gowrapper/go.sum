@@ -1,5 +1,5 @@
-github.com/bluegradienthorizon/proxytoolbox v0.0.4 h1:DIvPR2HksIeqBozc7V6mEnPUW1gquPah9N/bkp1URdM=
-github.com/bluegradienthorizon/proxytoolbox v0.0.4/go.mod h1:j7WObY3PvyTv/kQaH3YcUzujkEgP5fG48uc/G0jda4w=
+github.com/bluegradienthorizon/proxytoolbox v0.0.5 h1:X4xgkGN7Wm+NJTJ4xVcVnxy9YqOUqbZzq9MfOlcdLDQ=
+github.com/bluegradienthorizon/proxytoolbox v0.0.5/go.mod h1:j7WObY3PvyTv/kQaH3YcUzujkEgP5fG48uc/G0jda4w=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
