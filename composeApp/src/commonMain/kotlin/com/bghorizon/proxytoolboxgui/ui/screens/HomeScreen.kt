@@ -83,7 +83,7 @@ fun HomeScreen(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
     val statusDescription = mainUiState.statusDescription
 
     val subsForTest = subs.filter { it.includeInTest }
-    val profilesToTest = subsForTest.sumOf { it.total }
+    val profilesToTest = subsForTest.sumOf { it.total } - subs.sumOf { it.duplicated }
     val totalParseErr = subsForTest.sumOf { it.parseErr }
     val totalValidErr = subsForTest.sumOf { it.validErr }
     val totalWorking = subs.sumOf { it.working }
@@ -299,7 +299,7 @@ fun HomeScreenFAB(mainVm: MainViewModel, homeVm: HomeScreenViewModel) {
             homeVm.startTest(
                 appStatus = mainUiState.appStatus,
                 subscriptions = subs.filter { it.includeInTest },
-                onChecksPassed = {  }
+                onChecksPassed = { }
             ) { isSuccess ->
                 if (isSuccess && mainUiState.settings.autoStartWebServer) {
                     mainVm.startWebServer()

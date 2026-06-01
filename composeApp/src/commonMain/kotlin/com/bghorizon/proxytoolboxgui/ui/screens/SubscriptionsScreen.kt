@@ -299,7 +299,8 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
     val scaffoldPadding = LocalScaffoldPadding.current
     val totalFound = subscriptions.sumOf { it.total }
     val totalDuplicate = subscriptions.sumOf { it.duplicated }
-    val profilesToTest = subscriptions.filter { it.includeInTest }.sumOf { it.total }
+    val profilesToTest =
+        subscriptions.filter { it.includeInTest }.sumOf { it.total } - totalDuplicate
 
     val updateProgress = subUiState.updateProgress
     LaunchedEffect(updateProgress.isRunning) {
@@ -337,27 +338,27 @@ fun SubscriptionsScreen(mainVm: MainViewModel, subVm: SubscriptionsScreenViewMod
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(subscriptions) { sub ->
-            SubscriptionItem(
-                subscription = sub,
-                uiMode = subUiState.mode,
-                isSelected = subUiState.selectedIds.contains(sub.id),
-                isUpdating = subUiState.updatingIds.contains(sub.id),
-                downloadProgress = subUiState.updateProgress.downloadProgress[sub.id],
-                isAnyUpdating = subUiState.updateProgress.isRunning,
-                onIncludeInTestChange = { include ->
-                    subVm.setIncludeInTest(sub.id, include)
-                },
-                onSelectionChange = { subVm.toggleSelection(sub.id) },
-                onEdit = { mainVm.updateDialog(SubscriptionsScreenDialog.Edit(sub)) },
-                onDelete = { mainVm.updateDialog(SubscriptionsScreenDialog.Delete(sub)) },
-                onLongClick = {
-                    if (subUiState.mode is SubscriptionsScreenUiMode.Normal) {
-                        subVm.updateMode(SubscriptionsScreenUiMode.Selection)
-                        subVm.toggleSelection(sub.id)
+                SubscriptionItem(
+                    subscription = sub,
+                    uiMode = subUiState.mode,
+                    isSelected = subUiState.selectedIds.contains(sub.id),
+                    isUpdating = subUiState.updatingIds.contains(sub.id),
+                    downloadProgress = subUiState.updateProgress.downloadProgress[sub.id],
+                    isAnyUpdating = subUiState.updateProgress.isRunning,
+                    onIncludeInTestChange = { include ->
+                        subVm.setIncludeInTest(sub.id, include)
+                    },
+                    onSelectionChange = { subVm.toggleSelection(sub.id) },
+                    onEdit = { mainVm.updateDialog(SubscriptionsScreenDialog.Edit(sub)) },
+                    onDelete = { mainVm.updateDialog(SubscriptionsScreenDialog.Delete(sub)) },
+                    onLongClick = {
+                        if (subUiState.mode is SubscriptionsScreenUiMode.Normal) {
+                            subVm.updateMode(SubscriptionsScreenUiMode.Selection)
+                            subVm.toggleSelection(sub.id)
+                        }
                     }
-                }
-            )
-        }
+                )
+            }
         }
     }
 
