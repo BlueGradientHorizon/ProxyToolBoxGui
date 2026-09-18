@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-val appVersion: String by project
+val appVersion = project.property("appVersion") as String
 
 android {
     namespace = "com.bghorizon.proxytoolboxgui"
