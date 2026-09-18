@@ -21,7 +21,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   JAVA_VERSION: 21
   GO_VERSION: '1.27.1'
-  PROTOC_VERSION: '29.3'
+  PROTOC_VERSION: '36.2'
 
 jobs:
   build-linux-x64:
