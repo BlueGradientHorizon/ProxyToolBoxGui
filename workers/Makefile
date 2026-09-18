@@ -15,7 +15,7 @@ include ../common.mk
 REPOS := proxytoolbox
 
 proxytoolbox_URL     := https://github.com/bluegradienthorizon/proxytoolbox
-proxytoolbox_BRANCH  := v0.0.5
+proxytoolbox_BRANCH  := v0.0.6
 #proxytoolbox_COMMIT  := 067941e1ffcd4fe619a1489b9e2687fbad9c512d
 proxytoolbox_WORKERS := internal/workers/xraycore internal/workers/singbox
 
@@ -113,6 +113,8 @@ linux_x64: clone
 # ANDROID BUILDS
 # ==============================================================================
 
+# https://github.com/wlynxg/anet#how-to-build-with-go-1230-or-later (-ldflags "-checklinkname=0")
+
 # $(call build_android_arch,GOARCH,GOARM,CC_PREFIX,OUT_SUBDIR)
 define build_android_arch
 	$(foreach r,$(REPOS),\
@@ -124,7 +126,7 @@ define build_android_arch
 			$(if $(2),$(call ENV_SET,GOARM,$(2))) \
 			$(call ENV_SET,CGO_ENABLED,1) \
 			$(call ENV_SET,CC,$(NDK_BIN)/$(3)$(ANDROID_API)-clang$(CLANG_EXT)) \
-			$(MAKE) build OUTDIR=$(subst \,/,$(CURDIR)/$(OUT_DIR)/android/$(4)) && \
+			$(MAKE) build OUTDIR=$(subst \,/,$(CURDIR)/$(OUT_DIR)/android/$(4)) GO_FLAGS="-ldflags \"-checklinkname=0\"" && \
 			cd $(CURDIR) && \
 		)\
 	) cd .

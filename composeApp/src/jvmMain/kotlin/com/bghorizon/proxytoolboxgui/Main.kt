@@ -30,12 +30,6 @@ fun main() {
             JVMPlatform.trayState = trayState
         }
 
-        Tray(
-            state = trayState,
-            icon = painterResource(Res.drawable.ic_launcher_playstore),
-            tooltip = stringResource(Res.string.app_name)
-        )
-
         val appDb = remember {
             createAppDatabase(getAppDatabaseBuilder(object : PlatformContext() {}))
         }
@@ -58,5 +52,11 @@ fun main() {
         ) {
             App(appDb, subDb)
         }
+
+        Tray(
+            state = trayState,
+            icon = painterResource(Res.drawable.ic_launcher_playstore),
+            tooltip = stringResource(Res.string.app_name)
+        )
     }
 }

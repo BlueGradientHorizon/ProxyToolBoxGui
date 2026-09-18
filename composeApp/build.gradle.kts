@@ -13,7 +13,7 @@ plugins {
     alias(libs.plugins.buildConfig)
 }
 
-val appVersion: String by project
+val appVersion = project.property("appVersion") as String
 
 buildConfig {
     packageName("com.bghorizon.proxytoolboxgui")
